@@ -51,6 +51,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [adminNotice, setAdminNotice] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [captionModal, setCaptionModal] = useState<{ isOpen: boolean; photo: GalleryPhoto | null }>({ isOpen: false, photo: null });
   const [captionInput, setCaptionInput] = useState('');
+  const [tourSearch, setTourSearch] = useState('');
+  const [tourDestinationFilter, setTourDestinationFilter] = useState<string>('all');
+  const [blogSearch, setBlogSearch] = useState('');
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const noticeTimerRef = React.useRef<number | null>(null);
 
   const showNotice = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -105,6 +109,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
 
+  useEffect(() => {
+    setValidationAttempted(false);
+  }, [activeTab, editingItem]);
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -149,15 +157,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     onUpdateSiteContent({ homePageLayout: updatedLayout });
   };
 
-  const renderImageField = (label: string, value: string, onChange: (val: string) => void) => (
+  const renderImageField = (label: string, value: string, onChange: (val: string) => void, invalid?: boolean) => (
     <div className="flex flex-col gap-2 mb-8">
       <label className="text-[10px] font-black uppercase tracking-widest opacity-60 block leading-tight mb-1">{label}</label>
       <div className="flex flex-col gap-3">
         <input 
           value={value || ''} 
           onChange={e => onChange(e.target.value)} 
+          data-invalid={invalid ? 'true' : undefined}
           placeholder="Paste URL (e.g. from Google)..." 
-          className="w-full bg-slate-50 dark:bg-black/40 p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary" 
+          className="w-full bg-background dark:bg-dark-background p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground" 
         />
         <div className="flex gap-2">
           <button
@@ -199,7 +208,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 },
               });
             }}
-            className="px-4 py-3 rounded-xl border border-border dark:border-dark-border bg-white dark:bg-neutral-900 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+            className="px-4 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
           >
             GALLERY
           </button>
@@ -222,8 +231,42 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Manage Tours</h3>
               <button onClick={() => setEditingItem({ title: '', destination: '', shortDescription: '', longDescription: '', price: 0, duration: 1, difficulty: 'Intermediate', itinerary: [], inclusions: [], exclusions: [], activities: [], imageUrl: '', gallery: [], routeCoordinates: [] })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">ADD NEW TOUR</button>
             </div>
+            <div className="bg-card dark:bg-dark-card rounded-3xl border border-border dark:border-dark-border p-4 sm:p-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <input
+                  value={tourSearch}
+                  onChange={(e) => setTourSearch(e.target.value)}
+                  placeholder="Search tours..."
+                  className="w-full sm:w-72 bg-background dark:bg-dark-background p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                />
+                <select
+                  value={tourDestinationFilter}
+                  onChange={(e) => setTourDestinationFilter(e.target.value)}
+                  className="w-full sm:w-64 bg-background dark:bg-dark-background p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                >
+                  <option value="all">All destinations</option>
+                  {Array.from(new Set(trips.map(t => t.destination).filter(Boolean))).sort().map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 gap-4">
-              {trips.map(trip => (
+              {trips
+                .filter(t => {
+                  const q = tourSearch.trim().toLowerCase();
+                  const destOk = tourDestinationFilter === 'all' || t.destination === tourDestinationFilter;
+                  if (!destOk) return false;
+                  if (!q) return true;
+                  return (
+                    t.title?.toLowerCase().includes(q) ||
+                    t.destination?.toLowerCase().includes(q) ||
+                    t.shortDescription?.toLowerCase().includes(q)
+                  );
+                })
+                .map(trip => (
                 <div key={trip.id} className="bg-white dark:bg-neutral-900 p-4 sm:p-6 rounded-3xl border border-border dark:border-dark-border flex flex-col sm:flex-row justify-between items-center gap-4 group hover:border-brand-primary transition-all">
                   <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
                     <img src={trip.imageUrl} className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover flex-shrink-0" />
@@ -287,7 +330,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       case 'LEADS':
         return (
           <div className="space-y-8 animate-fade-in">
-            <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Inquiries Log</h3>
+            <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Leads</h3>
             <div className="grid grid-cols-1 gap-4">
               {itineraryQueries.length === 0 ? (
                 <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No leads captured yet.</div>
@@ -299,7 +342,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <h4 className="text-lg font-black italic uppercase">{lead.name}</h4>
                       <p className="text-xs text-muted-foreground">{lead.whatsappNumber} • {new Date(lead.date).toLocaleDateString()}</p>
                     </div>
-                    <a href={`https://wa.me/${lead.whatsappNumber.replace(/\D/g,'')}`} target="_blank" className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">REPLY</a>
+                    <a href={`https://wa.me/${lead.whatsappNumber.replace(/\D/g,'')}`} target="_blank" className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Reply</a>
                   </div>
                 ))
               )}
@@ -311,11 +354,29 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
         return (
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Blog Dispatches</h3>
-              <button onClick={() => setEditingItem({ title: '', author: '', date: new Date().toISOString().split('T')[0], imageUrl: '', excerpt: '', content: '' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">NEW POST</button>
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Blog posts</h3>
+              <button onClick={() => setEditingItem({ title: '', author: '', date: new Date().toISOString().split('T')[0], imageUrl: '', excerpt: '', content: '' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">New post</button>
+            </div>
+            <div className="bg-card dark:bg-dark-card rounded-3xl border border-border dark:border-dark-border p-4 sm:p-6">
+              <input
+                value={blogSearch}
+                onChange={(e) => setBlogSearch(e.target.value)}
+                placeholder="Search posts..."
+                className="w-full md:w-96 bg-background dark:bg-dark-background p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {blogPosts.map(post => (
+              {blogPosts
+                .filter(p => {
+                  const q = blogSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    p.title?.toLowerCase().includes(q) ||
+                    p.author?.toLowerCase().includes(q) ||
+                    p.excerpt?.toLowerCase().includes(q)
+                  );
+                })
+                .map(post => (
                 <div key={post.id} className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden border border-border dark:border-dark-border group">
                   <img src={post.imageUrl} className="w-full h-40 object-cover" />
                   <div className="p-6">
@@ -409,7 +470,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Manage your expedition visuals</p>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-black/40 border border-border dark:border-dark-border p-8 rounded-[2.5rem] space-y-6">
+                <div className="bg-background/60 dark:bg-dark-background/30 border border-border dark:border-dark-border p-8 rounded-[2.5rem] space-y-6">
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-primary">Add New Visual Intel</h4>
                     <div className="flex flex-col gap-6">
                         <div className="flex flex-col gap-2">
@@ -444,7 +505,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <button onClick={() => {
                           setCaptionModal({ isOpen: true, photo });
                           setCaptionInput(photo.caption || '');
-                        }} className="bg-white text-black p-3 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90">
+                        }} className="bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground p-3 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90">
                             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z"/></svg>
                         </button>
                         <button onClick={() => props.onDeleteGalleryPhoto(photo.id)} className="bg-red-500 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90">
@@ -476,11 +537,11 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Hero Visuals</h4>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Main Impact Title</label>
-                        <input value={siteContent.heroTitle} onChange={e => onUpdateSiteContent({heroTitle: e.target.value})} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-black border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                        <input value={siteContent.heroTitle} onChange={e => onUpdateSiteContent({heroTitle: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Sub-Impact Title</label>
-                        <textarea value={siteContent.heroSubtitle} onChange={e => onUpdateSiteContent({heroSubtitle: e.target.value})} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-black border border-border dark:border-dark-border font-medium outline-none h-32 resize-none text-sm focus:border-brand-primary shadow-sm" />
+                        <textarea value={siteContent.heroSubtitle} onChange={e => onUpdateSiteContent({heroSubtitle: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-medium outline-none h-32 resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                       {renderImageField('Hero Background Banner', siteContent.heroBgImage, url => onUpdateSiteContent({ heroBgImage: url }))}
                    </div>
@@ -491,11 +552,11 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">HQ Contact Intel</h4>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Dispatch WhatsApp</label>
-                        <input value={siteContent.adminWhatsappNumber} onChange={e => onUpdateSiteContent({adminWhatsappNumber: e.target.value})} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-black border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                        <input value={siteContent.adminWhatsappNumber} onChange={e => onUpdateSiteContent({adminWhatsappNumber: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Central HQ Email</label>
-                        <input value={siteContent.contactEmail} onChange={e => onUpdateSiteContent({contactEmail: e.target.value})} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-black border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                        <input value={siteContent.contactEmail} onChange={e => onUpdateSiteContent({contactEmail: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                    </div>
 
@@ -504,7 +565,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       {renderImageField('Site Logo (Transparent)', siteContent.logoUrl, url => onUpdateSiteContent({ logoUrl: url }))}
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Footer Mission Statement</label>
-                        <input value={siteContent.footerTagline} onChange={e => onUpdateSiteContent({footerTagline: e.target.value})} className="w-full p-4 rounded-xl bg-slate-50 dark:bg-black border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                        <input value={siteContent.footerTagline} onChange={e => onUpdateSiteContent({footerTagline: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                    </div>
                 </div>
@@ -532,7 +593,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       value={(siteContent as any)[field.key] || ''}
                       onChange={e => onUpdateSiteContent({ [field.key]: e.target.value } as any)}
                       placeholder="Paste URL (e.g. from Google)..."
-                      className="flex-1 min-w-0 bg-slate-50 dark:bg-black/40 px-2 py-1 rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary"
+                      className="flex-1 min-w-0 bg-background dark:bg-dark-background px-2 py-1 rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
                     />
 
                     <div className="w-44 flex items-center justify-end gap-2">
@@ -574,6 +635,54 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const saveStatus = props.saveStatus ?? 'idle';
   const isDirty = saveStatus === 'dirty' || saveStatus === 'error';
   const isSaving = saveStatus === 'saving';
+
+  const requestCloseModal = () => {
+    if (isSupabaseMode && isDirty && !autoSaveEnabled && typeof window !== 'undefined') {
+      const ok = window.confirm('You have unsaved changes. Close anyway?');
+      if (!ok) return false;
+    }
+    if (isSupabaseMode && isDirty && autoSaveEnabled) {
+      try {
+        props.onSaveNow?.();
+      } catch {}
+    }
+    return true;
+  };
+
+  const validateEditingItem = (): string | null => {
+    if (!editingItem) return null;
+
+    if (activeTab === 'TOURS') {
+      if (!editingItem.title?.trim()) return 'Tour title is required.';
+      if (!editingItem.destination?.trim()) return 'Destination is required.';
+      if (!Number.isFinite(Number(editingItem.duration)) || Number(editingItem.duration) <= 0) return 'Duration must be > 0.';
+      if (!editingItem.imageUrl?.trim()) return 'Tour main image is required.';
+      return null;
+    }
+
+    if (activeTab === 'DATES') {
+      return getDepartureValidationError(editingItem);
+    }
+
+    if (activeTab === 'BLOG') {
+      if (!editingItem.title?.trim()) return 'Post title is required.';
+      if (!editingItem.author?.trim()) return 'Author is required.';
+      if (!editingItem.date?.trim()) return 'Date is required.';
+      if (!editingItem.imageUrl?.trim()) return 'Post image is required.';
+      if (!editingItem.excerpt?.trim()) return 'Excerpt is required.';
+      if (!editingItem.content?.trim()) return 'Content is required.';
+      return null;
+    }
+
+    if (activeTab === 'PAGES') {
+      if (!editingItem.title?.trim()) return 'Page title is required.';
+      if (!editingItem.slug?.trim()) return 'Slug is required.';
+      if (!editingItem.content?.trim()) return 'Content is required.';
+      return null;
+    }
+
+    return null;
+  };
 
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
@@ -627,7 +736,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 <div className="w-full h-52 rounded-md overflow-hidden border border-border">
                   <img src={captionModal.photo.imageUrl} alt={captionModal.photo.caption || 'Gallery photo'} className="w-full h-full object-cover" />
                 </div>
-                <input autoFocus value={captionInput} onChange={e => setCaptionInput(e.target.value)} placeholder="Enter caption to show under image" className="w-full p-3 rounded-xl border border-border bg-slate-50 dark:bg-black outline-none" />
+                <input autoFocus value={captionInput} onChange={e => setCaptionInput(e.target.value)} placeholder="Caption" className="w-full p-3 rounded-xl border border-border bg-background dark:bg-dark-background outline-none text-foreground dark:text-dark-foreground" />
                 <div className="flex justify-end gap-3">
                   <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="px-4 py-2 rounded-xl border border-border text-sm">Cancel</button>
                   <button onClick={() => {
@@ -646,22 +755,22 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       )}
 
       {/* Admin Mobile Navigation - Higher Z-Index than global header */}
-      <div className="lg:hidden sticky top-0 z-[200] bg-white dark:bg-neutral-950 backdrop-blur-xl border-b border-border dark:border-dark-border px-6 py-5 flex items-center justify-between shadow-md">
+      <div className="lg:hidden sticky top-0 z-[200] bg-card dark:bg-dark-card backdrop-blur-xl border-b border-border dark:border-dark-border px-6 py-5 flex items-center justify-between shadow-md">
          <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">HQ CONTROL</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">ADMIN</span>
             <span className="text-xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</span>
          </div>
-         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isMobileMenuOpen ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.05] active:scale-95'}`}>{isMobileMenuOpen ? 'CLOSE' : 'NAVIGATE'}</button>
+         <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isMobileMenuOpen ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.05] active:scale-95'}`}>{isMobileMenuOpen ? 'Close' : 'Menu'}</button>
       </div>
 
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[190] bg-black/95 backdrop-blur-2xl pt-[100px] p-6 animate-fade-in overflow-y-auto">
            <div className="space-y-3">
               {menuItems.map(tab => (
-                <button key={tab} onClick={() => { setActiveTab(tab); setEditingItem(null); setIsMobileMenuOpen(false); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
+                <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); setIsMobileMenuOpen(false); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
               ))}
               <div className="h-px bg-white/10 my-4"></div>
-              <button onClick={props.onLogout} className="w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-all">LOGOUT HQ</button>
+              <button onClick={props.onLogout} className="w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-all">Logout</button>
            </div>
         </div>
       )}
@@ -671,23 +780,23 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-start">
           <aside className="hidden lg:block w-72 flex-shrink-0">
             <div className="sticky top-28 bg-card dark:bg-dark-card rounded-[3rem] border border-border dark:border-dark-border shadow-adventure-dark overflow-hidden flex flex-col">
-              <div className="p-10 text-center border-b border-border/50 dark:border-dark-border/50 bg-slate-50/50 dark:bg-white/[0.02]">
-                <h2 className="text-2xl font-black font-display uppercase italic tracking-tighter mb-1">HQ OPS</h2>
+              <div className="p-10 text-center border-b border-border/50 dark:border-dark-border/50 bg-background/60 dark:bg-dark-background/20">
+                <h2 className="text-2xl font-black font-display uppercase italic tracking-tighter mb-1">Admin</h2>
                 <p className="text-[9px] font-black opacity-30 tracking-[0.3em] uppercase">Control Center</p>
               </div>
               <nav className="p-6 space-y-1.5">
                 {menuItems.map(tab => (
-                  <button key={tab} onClick={() => { setActiveTab(tab); setEditingItem(null); }} className={`w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-[1.02]' : 'text-muted-foreground hover:bg-slate-100 dark:hover:bg-neutral-800'}`}>{tab}</button>
+                  <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); }} className={`w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-[1.02]' : 'text-muted-foreground hover:bg-background/60 dark:hover:bg-dark-background/60'}`}>{tab}</button>
                 ))}
                 <div className="h-px bg-border/50 dark:bg-dark-border/50 my-6 mx-4"></div>
-                <button onClick={props.onLogout} className="w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase text-red-500 hover:bg-red-500/5 transition-all">LOGOUT</button>
+                <button onClick={props.onLogout} className="w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase text-red-500 hover:bg-red-500/5 transition-all">Logout</button>
               </nav>
             </div>
           </aside>
 
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
-              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-slate-50/70 dark:bg-black/30 p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
+              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between sticky top-6 z-[300] shadow-lg">
                 <div className="space-y-1">
                   <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Website Publishing</div>
                   <div className="text-sm font-black">
@@ -740,35 +849,79 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {editingItem && (
         <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
            <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-10 sm:p-16 rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
-              <button onClick={() => setEditingItem(null)} className="absolute top-10 right-10 w-14 h-14 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 hover:bg-red-500 hover:text-white transition-all text-3xl font-black z-[10] active:scale-90">×</button>
-              <h3 className="text-3xl sm:text-5xl font-black italic uppercase tracking-tighter mb-12 leading-none">{activeTab.slice(0, -1)} Dispatch</h3>
+              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-10 right-10 w-14 h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-3xl font-black z-[10] active:scale-90">×</button>
+              <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
+                {activeTab === 'TOURS'
+                  ? 'Edit tour'
+                  : activeTab === 'DATES'
+                    ? 'Edit date'
+                    : activeTab === 'BLOG'
+                      ? 'Edit post'
+                      : activeTab === 'PAGES'
+                        ? 'Edit page'
+                        : 'Edit'}
+              </h3>
               
               <div className="flex-grow overflow-y-auto pr-8 no-scrollbar pb-10">
                  {activeTab === 'TOURS' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                        <div className="space-y-10">
-                          <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-4 mb-8">Base Specs</h4>
+                          <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-4 mb-8">Basic info</h4>
                           <div className="flex flex-col gap-2 mb-6">
-                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Deployment Name</label>
-                              <input value={editingItem.title} onChange={e => setEditingItem({...editingItem, title: e.target.value})} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Title</label>
+                              <input
+                                data-invalid={validationAttempted && !editingItem.title?.trim() ? 'true' : undefined}
+                                value={editingItem.title}
+                                onChange={e => setEditingItem({...editingItem, title: e.target.value})}
+                                className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
                           </div>
                           <div className="flex flex-col gap-2 mb-6">
-                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Target Destination</label>
-                              <input value={editingItem.destination} onChange={e => setEditingItem({...editingItem, destination: e.target.value})} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Destination</label>
+                              <input
+                                data-invalid={validationAttempted && !editingItem.destination?.trim() ? 'true' : undefined}
+                                value={editingItem.destination}
+                                onChange={e => setEditingItem({...editingItem, destination: e.target.value})}
+                                className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
+                          </div>
+                          <div className="flex flex-col gap-2 mb-6">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Short description</label>
+                              <textarea
+                                value={editingItem.shortDescription}
+                                onChange={e => setEditingItem({...editingItem, shortDescription: e.target.value})}
+                                className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium outline-none resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground h-24"
+                              />
                           </div>
                           <div className="grid grid-cols-2 gap-8 mb-6">
                              <div className="flex flex-col gap-2">
-                                 <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Mission Duration</label>
-                                 <input type="number" value={editingItem.duration} onChange={e => setEditingItem({...editingItem, duration: parseInt(e.target.value)})} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                                 <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Duration (days)</label>
+                                 <input
+                                   data-invalid={validationAttempted && (!Number.isFinite(Number(editingItem.duration)) || Number(editingItem.duration) <= 0) ? 'true' : undefined}
+                                   type="number"
+                                   value={editingItem.duration}
+                                   onChange={e => setEditingItem({...editingItem, duration: parseInt(e.target.value)})}
+                                   className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                                 />
                              </div>
                              <div className="flex flex-col gap-2">
-                                 <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Difficulty Grade</label>
-                                 <select value={editingItem.difficulty} onChange={e => setEditingItem({...editingItem, difficulty: e.target.value})} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
+                                 <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Difficulty</label>
+                                 <select value={editingItem.difficulty} onChange={e => setEditingItem({...editingItem, difficulty: e.target.value})} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground">
                                     <option value="Intermediate">Intermediate</option>
                                     <option value="Advanced">Advanced</option>
                                     <option value="Expert">Expert</option>
                                  </select>
                              </div>
+                          </div>
+                          <div className="flex flex-col gap-2 mb-6">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Price</label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={editingItem.price}
+                                onChange={e => setEditingItem({...editingItem, price: Number.parseFloat(e.target.value) || 0})}
+                                className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
                           </div>
                           {renderImageField('Mission Master Banner', editingItem.imageUrl, url => {
                             const normalized = url?.trim();
@@ -787,7 +940,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                               if (!already) showNotice('Image added to trip gallery');
                               else showNotice('Image already in trip gallery', 'info');
                             }
-                          })}
+                          }, validationAttempted && !editingItem.imageUrl?.trim())}
 
                           <div className="space-y-4">
                             <h4 className="text-xs font-black uppercase tracking-widest text-brand-primary">Gallery Images</h4>
@@ -840,17 +993,17 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           </div>
                        </div>
                        <div className="space-y-10">
-                          <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-4 mb-8">Intel Logs</h4>
+                          <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-4 mb-8">Details</h4>
                           <div className="flex flex-col gap-2 mb-6">
-                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Briefing Brief (Markdown)</label>
-                              <textarea value={editingItem.longDescription} onChange={e => setEditingItem({...editingItem, longDescription: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-medium h-56 outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed" />
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Description (Markdown)</label>
+                              <textarea value={editingItem.longDescription} onChange={e => setEditingItem({...editingItem, longDescription: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium h-56 outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed text-foreground dark:text-dark-foreground" />
                           </div>
                           <div className="flex flex-col gap-2 mb-6">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Day-by-Day Logistics (JSON)</label>
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Itinerary (JSON)</label>
                              <textarea 
                                value={JSON.stringify(editingItem.itinerary, null, 2)} 
                                onChange={e => { try { setEditingItem({...editingItem, itinerary: JSON.parse(e.target.value)}); } catch(err) {} }} 
-                               className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm" 
+                               className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" 
                              />
                           </div>
                        </div>
@@ -868,24 +1021,25 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         );
                       })()}
                        <div className="flex flex-col gap-2 mb-8">
-                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Target Mission Profile</label>
-                           <select value={editingItem.tripId} onChange={e => setEditingItem({...editingItem, tripId: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
+                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Tour</label>
+                           <select data-invalid={validationAttempted && !editingItem.tripId ? 'true' : undefined} value={editingItem.tripId} onChange={e => setEditingItem({...editingItem, tripId: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground">
                               {trips.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
                            </select>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 mb-8">
                          <div className="flex flex-col gap-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Launch Window Start</label>
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Start date</label>
                               <input
                                 type="date"
                                 min={formatDateInput(new Date())}
                                 value={editingItem.startDate}
                                 onChange={e => setEditingItem({...editingItem, startDate: e.target.value})}
-                                className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm"
+                                data-invalid={validationAttempted && !editingItem.startDate ? 'true' : undefined}
+                                className="w-full p-5 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground admin-date-input"
                               />
                           </div>
                           <div className="flex flex-col gap-2">
-                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Mission Conclusion</label>
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">End date</label>
                               <input
                                 type="date"
                                 min={(() => {
@@ -895,18 +1049,19 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                 })()}
                                 value={editingItem.endDate}
                                 onChange={e => setEditingItem({...editingItem, endDate: e.target.value})}
-                                className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm"
+                                data-invalid={validationAttempted && !editingItem.endDate ? 'true' : undefined}
+                                className="w-full p-5 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground admin-date-input"
                               />
                           </div>
                        </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 mb-8">
                          <div className="flex flex-col gap-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Manifest Capacity</label>
-                              <input type="number" min={1} value={editingItem.slots} onChange={e => setEditingItem({...editingItem, slots: Number.parseInt(e.target.value, 10) || 0})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Slots</label>
+                              <input data-invalid={validationAttempted && (!Number.isFinite(Number(editingItem.slots)) || Number(editingItem.slots) <= 0) ? 'true' : undefined} type="number" min={1} value={editingItem.slots} onChange={e => setEditingItem({...editingItem, slots: Number.parseInt(e.target.value, 10) || 0})} className="w-full p-5 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                           </div>
                          <div className="flex flex-col gap-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Deployment Status</label>
-                             <select value={editingItem.status} onChange={e => setEditingItem({...editingItem, status: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Status</label>
+                             <select value={editingItem.status} onChange={e => setEditingItem({...editingItem, status: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground">
                                 <option value="Available">Available</option>
                                 <option value="Limited">Limited</option>
                                 <option value="Sold Out">Sold Out</option>
@@ -918,19 +1073,37 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                  {(activeTab === 'BLOG' || activeTab === 'PAGES') && (
                     <div className="space-y-12 max-w-4xl mx-auto">
                        <div className="flex flex-col gap-2 mb-8">
-                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Subject Headline</label>
-                           <input value={editingItem.title} onChange={e => setEditingItem({...editingItem, title: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Title</label>
+                           <input data-invalid={validationAttempted && !editingItem.title?.trim() ? 'true' : undefined} value={editingItem.title} onChange={e => setEditingItem({...editingItem, title: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                        </div>
-                       {activeTab === 'PAGES' && (
-                         <div className="flex flex-col gap-2 mb-8">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Mission Slug (URL Identifier)</label>
-                             <input value={editingItem.slug} onChange={e => setEditingItem({...editingItem, slug: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                       {activeTab === 'BLOG' && (
+                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                           <div className="flex flex-col gap-2">
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Author</label>
+                             <input data-invalid={validationAttempted && !editingItem.author?.trim() ? 'true' : undefined} value={editingItem.author} onChange={e => setEditingItem({...editingItem, author: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                           </div>
+                           <div className="flex flex-col gap-2">
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Date</label>
+                             <input data-invalid={validationAttempted && !editingItem.date?.trim() ? 'true' : undefined} type="date" value={editingItem.date} onChange={e => setEditingItem({...editingItem, date: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground admin-date-input" />
+                           </div>
                          </div>
                        )}
-                       {activeTab === 'BLOG' && renderImageField('Dispatch Lead Image', editingItem.imageUrl, url => setEditingItem({...editingItem, imageUrl: url}))}
+                       {activeTab === 'BLOG' && (
+                         <div className="flex flex-col gap-2 mb-8">
+                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Excerpt</label>
+                           <textarea data-invalid={validationAttempted && !editingItem.excerpt?.trim() ? 'true' : undefined} value={editingItem.excerpt} onChange={e => setEditingItem({...editingItem, excerpt: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium outline-none resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground h-28" />
+                         </div>
+                       )}
+                       {activeTab === 'PAGES' && (
+                         <div className="flex flex-col gap-2 mb-8">
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Slug (URL)</label>
+                             <input data-invalid={validationAttempted && !editingItem.slug?.trim() ? 'true' : undefined} value={editingItem.slug} onChange={e => setEditingItem({...editingItem, slug: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                         </div>
+                       )}
+                       {activeTab === 'BLOG' && renderImageField('Post image', editingItem.imageUrl, url => setEditingItem({...editingItem, imageUrl: url}), validationAttempted && !editingItem.imageUrl?.trim())}
                        <div className="flex flex-col gap-2 mb-8">
-                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Deployment Content Body (Markdown Supported)</label>
-                           <textarea value={editingItem.content} onChange={e => setEditingItem({...editingItem, content: e.target.value})} className="w-full p-8 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black font-medium h-[450px] outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed" />
+                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Content (Markdown)</label>
+                           <textarea data-invalid={validationAttempted && !editingItem.content?.trim() ? 'true' : undefined} value={editingItem.content} onChange={e => setEditingItem({...editingItem, content: e.target.value})} className="w-full p-8 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium h-[450px] outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed text-foreground dark:text-dark-foreground" />
                        </div>
                     </div>
                  )}
@@ -938,17 +1111,18 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
               <div className="flex flex-col sm:flex-row gap-5 mt-10 border-t border-border/50 pt-10">
                  <button onClick={() => {
+                    setValidationAttempted(true);
+                    const err = validateEditingItem();
+                    if (err) return showNotice(err, 'error');
                     if (activeTab === 'TOURS') editingItem.id ? props.onUpdateTrip(editingItem) : props.onAddTrip(editingItem);
                      if (activeTab === 'DATES') {
-                       const err = getDepartureValidationError(editingItem);
-                       if (err) return showNotice(err, 'error');
                        editingItem.id ? props.onUpdateDeparture(editingItem) : props.onAddDeparture(editingItem);
                      }
                     if (activeTab === 'BLOG') editingItem.id ? props.onUpdateBlogPost(editingItem) : props.onAddBlogPost(editingItem);
                     if (activeTab === 'PAGES') editingItem.id ? props.onUpdateCustomPage(editingItem) : props.onAddCustomPage(editingItem);
                     setEditingItem(null);
-                 }} className="flex-1 adventure-gradient text-white px-10 py-6 rounded-3xl font-black uppercase tracking-widest text-[12px] shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 transition-all">COMMIT TO OPS</button>
-                 <button onClick={() => setEditingItem(null)} className="flex-1 bg-slate-100 dark:bg-neutral-800 text-slate-700 dark:text-slate-300 px-10 py-6 rounded-3xl font-black uppercase tracking-widest text-[12px] hover:bg-slate-200 dark:hover:bg-neutral-700 transition-colors">ABORT MISSION</button>
+                 }} className="flex-1 adventure-gradient text-white px-10 py-6 rounded-3xl font-black tracking-widest text-[12px] shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 transition-all">Apply changes</button>
+                 <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="flex-1 bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground px-10 py-6 rounded-3xl font-black tracking-widest text-[12px] hover:bg-background/60 dark:hover:bg-dark-background/60 transition-colors border border-border dark:border-dark-border">Cancel</button>
               </div>
            </div>
         </div>
@@ -957,6 +1131,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       <style>{`
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        input[data-invalid="true"], textarea[data-invalid="true"], select[data-invalid="true"] { border-color: rgb(239 68 68) !important; }
+        .admin-date-input { color-scheme: light; }
+        .dark .admin-date-input { color-scheme: dark; }
+        .dark .admin-date-input::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.9; }
         @keyframes fade-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-up { animation: fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
