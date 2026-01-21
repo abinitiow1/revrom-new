@@ -53,28 +53,44 @@ export const saveAppState = async (snapshot: AppStateSnapshot): Promise<void> =>
   if (error) throw error;
 };
 
+type DebouncedSaverCallbacks<TMeta> = {
+  onStart?: (meta: TMeta) => void;
+  onSuccess?: (meta: TMeta) => void;
+  onError?: (err: unknown, meta: TMeta) => void;
+};
+
 // Debounced save helper so Admin edits don't spam the DB.
-export const createDebouncedStateSaver = (delayMs: number = 1200) => {
+export const createDebouncedStateSaver = <TMeta = undefined>(
+  delayMs: number = 1200,
+  callbacks?: DebouncedSaverCallbacks<TMeta>,
+) => {
   let timer: number | null = null;
   let pending: AppStateSnapshot | null = null;
+  let pendingMeta: TMeta = undefined as TMeta;
 
   const flush = async () => {
     if (!pending) return;
     const snapshot = pending;
+    const meta = pendingMeta;
     pending = null;
+    pendingMeta = undefined as TMeta;
+
+    callbacks?.onStart?.(meta);
     await saveAppState(snapshot);
+    callbacks?.onSuccess?.(meta);
   };
 
-  const schedule = (snapshot: AppStateSnapshot) => {
+  const schedule = (snapshot: AppStateSnapshot, meta: TMeta = undefined as TMeta) => {
     pending = snapshot;
+    pendingMeta = meta;
     if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       timer = null;
       flush().catch((err) => {
-        console.error('Failed to save app state to Supabase:', err);
-        try {
-          console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
-        } catch {}
+        callbacks?.onError?.(err, meta);
+        if (!callbacks?.onError) {
+          console.error('Failed to save app state to Supabase:', err);
+        }
       });
     }, delayMs);
   };

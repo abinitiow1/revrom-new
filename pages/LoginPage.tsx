@@ -65,7 +65,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-border dark:border-dark-border placeholder-muted-foreground dark:placeholder-dark-muted-foreground text-foreground dark:text-dark-foreground bg-background dark:bg-dark-background rounded-t-md focus:outline-none focus:ring-brand-primary focus:border-brand-primary focus:z-10 sm:text-sm"
-                                placeholder="Email address (admin@revrom.in)"
+                                placeholder="Email address"
                             />
                         </div>
                         <div>
@@ -79,7 +79,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-border dark:border-dark-border placeholder-muted-foreground dark:placeholder-dark-muted-foreground text-foreground dark:text-dark-foreground bg-background dark:bg-dark-background rounded-b-md focus:outline-none focus:ring-brand-primary focus:border-brand-primary focus:z-10 sm:text-sm"
-                                placeholder="Password (password123)"
+                                placeholder="Password"
                             />
                         </div>
                     </div>

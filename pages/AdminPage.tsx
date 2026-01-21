@@ -14,6 +14,11 @@ interface AdminPageProps {
   siteContent: SiteContent;
   itineraryQueries: ItineraryQuery[];
   customPages: CustomPage[];
+  isSupabaseMode?: boolean;
+  autoSaveEnabled?: boolean;
+  saveStatus?: 'idle' | 'dirty' | 'saving' | 'saved' | 'error';
+  onToggleAutoSave?: (enabled: boolean) => void;
+  onSaveNow?: () => void | Promise<void>;
   onAddTrip: (trip: Omit<Trip, 'id' | 'reviews'>) => void;
   onUpdateTrip: (updatedTrip: Trip) => void;
   onDeleteTrip: (tripId: string) => void;
@@ -545,6 +550,12 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
   const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'SETTINGS'];
 
+  const isSupabaseMode = !!props.isSupabaseMode;
+  const autoSaveEnabled = props.autoSaveEnabled ?? true;
+  const saveStatus = props.saveStatus ?? 'idle';
+  const isDirty = saveStatus === 'dirty' || saveStatus === 'error';
+  const isSaving = saveStatus === 'saving';
+
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
       {adminNotice && (
@@ -656,6 +667,50 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           </aside>
 
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
+            {isSupabaseMode && (
+              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-slate-50/70 dark:bg-black/30 p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
+                <div className="space-y-1">
+                  <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Website Publishing</div>
+                  <div className="text-sm font-black">
+                    {saveStatus === 'saving'
+                      ? 'Saving to Supabase…'
+                      : saveStatus === 'saved'
+                        ? 'Saved'
+                        : saveStatus === 'error'
+                          ? 'Save failed (check Console)'
+                          : isDirty
+                            ? 'Unsaved changes'
+                            : 'No pending changes'}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Changes affect tours, blog, pages, visuals and settings.
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
+                  <label className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={autoSaveEnabled}
+                      onChange={(e) => props.onToggleAutoSave?.(e.target.checked)}
+                      className="accent-brand-primary w-4 h-4"
+                    />
+                    Auto-save
+                  </label>
+                  <button
+                    onClick={() => props.onSaveNow?.()}
+                    disabled={!isDirty || isSaving}
+                    className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                      !isDirty || isSaving
+                        ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 cursor-not-allowed'
+                        : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95'
+                    }`}
+                  >
+                    {isSaving ? 'Saving…' : 'Save now'}
+                  </button>
+                </div>
+              </div>
+            )}
             {renderTabContent()}
           </main>
           </div>

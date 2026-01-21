@@ -19,7 +19,7 @@ import DynamicPage from './pages/DynamicPage';
 import AllToursPage from './pages/AllToursPage';
 import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
-import { createDebouncedStateSaver, loadAppState, type AppStateSnapshot } from './services/appStateService';
+import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
 import { listItineraryQueries, submitItineraryQuery } from './services/itineraryQueryService';
 
@@ -33,6 +33,14 @@ const App: React.FC = () => {
     'local';
   const isSupabaseMode = DATA_MODE === 'supabase';
   const [isRemoteReady, setIsRemoteReady] = useState(!isSupabaseMode);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'dirty' | 'saving' | 'saved' | 'error'>('idle');
+  const saveSeqRef = React.useRef(0);
+  const skipNextDirtyRef = React.useRef(false);
+  const autoSaveEnabledRef = React.useRef(autoSaveEnabled);
+  useEffect(() => {
+    autoSaveEnabledRef.current = autoSaveEnabled;
+  }, [autoSaveEnabled]);
 
   const [view, setView] = useState<View>(() => {
     try {
@@ -50,7 +58,34 @@ const App: React.FC = () => {
   const [initialDestinationFilter, setInitialDestinationFilter] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
-  const saver = useMemo(() => (isSupabaseMode ? createDebouncedStateSaver(1200) : null), [isSupabaseMode]);
+  const saver = useMemo(
+    () =>
+      isSupabaseMode
+        ? createDebouncedStateSaver<{ seq: number }>(1200, {
+            onStart: () => setSaveStatus('saving'),
+            onSuccess: (meta) => {
+              if (meta?.seq === saveSeqRef.current) setSaveStatus('saved');
+              else setSaveStatus('dirty');
+            },
+            onError: (err) => {
+              setSaveStatus('error');
+              console.error('Failed to save app state to Supabase:', err);
+              try {
+                console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
+              } catch {}
+            },
+          })
+        : null,
+    [isSupabaseMode],
+  );
+
+  useEffect(() => {
+    if (saveStatus !== 'saved') return;
+    const t = window.setTimeout(() => {
+      setSaveStatus((s) => (s === 'saved' ? 'idle' : s));
+    }, 1800);
+    return () => window.clearTimeout(t);
+  }, [saveStatus]);
 
   // Persistence Helpers
   const getStored = <T,>(key: string, initial: T): T => {
@@ -73,6 +108,20 @@ const App: React.FC = () => {
   const [siteContent, setSiteContent] = useState<SiteContent>(() => (isSupabaseMode ? initialSiteContent : getStored('siteContent', initialSiteContent)));
   const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
   const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
+
+  const buildSnapshot = useCallback(
+    (): AppStateSnapshot => ({
+      trips,
+      departures,
+      blogPosts,
+      galleryPhotos,
+      instagramPosts,
+      googleReviews,
+      siteContent,
+      customPages,
+    }),
+    [trips, departures, blogPosts, galleryPhotos, instagramPosts, googleReviews, siteContent, customPages],
+  );
 
   // Initial Loading Simulator
   useEffect(() => {
@@ -153,6 +202,7 @@ const App: React.FC = () => {
         const snapshot = await loadAppState();
         if (canceled) return;
         if (snapshot) {
+          skipNextDirtyRef.current = true;
           setTrips(snapshot.trips || []);
           setDepartures(snapshot.departures || []);
           setBlogPosts(snapshot.blogPosts || []);
@@ -182,22 +232,25 @@ const App: React.FC = () => {
     if (!saver) return;
     if (!isLoggedIn) return;
 
-    const snapshot: AppStateSnapshot = {
-      trips,
-      departures,
-      blogPosts,
-      galleryPhotos,
-      instagramPosts,
-      googleReviews,
-      siteContent,
-      customPages,
-    };
-    saver.schedule(snapshot);
+    if (skipNextDirtyRef.current) {
+      skipNextDirtyRef.current = false;
+      return;
+    }
+
+    const snapshot = buildSnapshot();
+    saveSeqRef.current += 1;
+    const seq = saveSeqRef.current;
+    setSaveStatus('dirty');
+
+    if (autoSaveEnabledRef.current) {
+      saver.schedule(snapshot, { seq });
+    }
   }, [
     isSupabaseMode,
     isRemoteReady,
     isLoggedIn,
     saver,
+    buildSnapshot,
     trips,
     departures,
     blogPosts,
@@ -207,6 +260,25 @@ const App: React.FC = () => {
     siteContent,
     customPages,
   ]);
+
+  const saveNow = useCallback(async () => {
+    if (!isSupabaseMode) return;
+    if (!isLoggedIn) return;
+    const snapshot = buildSnapshot();
+    const seq = saveSeqRef.current;
+    setSaveStatus('saving');
+    try {
+      await saveAppState(snapshot);
+      if (seq === saveSeqRef.current) setSaveStatus('saved');
+      else setSaveStatus('dirty');
+    } catch (err) {
+      setSaveStatus('error');
+      console.error('Manual save failed:', err);
+      try {
+        console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
+      } catch {}
+    }
+  }, [buildSnapshot, isLoggedIn, isSupabaseMode]);
 
   // Supabase: load leads (admin only).
   useEffect(() => {
@@ -401,6 +473,11 @@ const App: React.FC = () => {
                     galleryPhotos={galleryPhotos} instagramPosts={instagramPosts}
                     googleReviews={googleReviews} siteContent={siteContent}
                     itineraryQueries={itineraryQueries} customPages={customPages}
+                    isSupabaseMode={isSupabaseMode}
+                    autoSaveEnabled={autoSaveEnabled}
+                    saveStatus={saveStatus}
+                    onToggleAutoSave={setAutoSaveEnabled}
+                    onSaveNow={saveNow}
                     onAddTrip={t => setTrips(p => [{...t, id: Date.now().toString(), reviews: []}, ...p])}
                     onUpdateTrip={t => setTrips(p => p.map(x => x.id === t.id ? t : x))}
                     onDeleteTrip={id => setTrips(p => p.filter(x => x.id !== id))}
