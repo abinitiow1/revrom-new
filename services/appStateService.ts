@@ -72,8 +72,8 @@ export const createDebouncedStateSaver = (delayMs: number = 1200) => {
     if (timer) window.clearTimeout(timer);
     timer = window.setTimeout(() => {
       timer = null;
-      flush().catch(() => {
-        console.error('Failed to save app state to Supabase.');
+      flush().catch((err) => {
+        console.error('Failed to save app state to Supabase:', err);
       });
     }, delayMs);
   };

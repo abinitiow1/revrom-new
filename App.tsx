@@ -62,15 +62,16 @@ const App: React.FC = () => {
   };
 
   // Persistent States
-  const [trips, setTrips] = useState<Trip[]>(() => getStored('trips', initialTrips));
-  const [departures, setDepartures] = useState<Departure[]>(() => getStored('departures', initialDepartures));
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => getStored('blogPosts', initialBlogPosts));
-  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>(() => getStored('galleryPhotos', initialGalleryPhotos));
-  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => getStored('instagramPosts', initialInstagramPosts));
-  const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => getStored('googleReviews', initialGoogleReviews));
-  const [siteContent, setSiteContent] = useState<SiteContent>(() => getStored('siteContent', initialSiteContent));
-  const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => getStored('itineraryQueries', initialItineraryQueries));
-  const [customPages, setCustomPages] = useState<CustomPage[]>(() => getStored('customPages', initialCustomPages));
+  // In Supabase mode, the DB is the source of truth (do not hydrate/sync from localStorage).
+  const [trips, setTrips] = useState<Trip[]>(() => (isSupabaseMode ? initialTrips : getStored('trips', initialTrips)));
+  const [departures, setDepartures] = useState<Departure[]>(() => (isSupabaseMode ? initialDepartures : getStored('departures', initialDepartures)));
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => (isSupabaseMode ? initialBlogPosts : getStored('blogPosts', initialBlogPosts)));
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>(() => (isSupabaseMode ? initialGalleryPhotos : getStored('galleryPhotos', initialGalleryPhotos)));
+  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => (isSupabaseMode ? initialInstagramPosts : getStored('instagramPosts', initialInstagramPosts)));
+  const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => (isSupabaseMode ? initialGoogleReviews : getStored('googleReviews', initialGoogleReviews)));
+  const [siteContent, setSiteContent] = useState<SiteContent>(() => (isSupabaseMode ? initialSiteContent : getStored('siteContent', initialSiteContent)));
+  const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? initialItineraryQueries : getStored('itineraryQueries', initialItineraryQueries)));
+  const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
 
   // Initial Loading Simulator
   useEffect(() => {
@@ -80,16 +81,43 @@ const App: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-sync to localStorage
-  useEffect(() => setStored('trips', trips), [trips]);
-  useEffect(() => setStored('departures', departures), [departures]);
-  useEffect(() => setStored('blogPosts', blogPosts), [blogPosts]);
-  useEffect(() => setStored('galleryPhotos', galleryPhotos), [galleryPhotos]);
-  useEffect(() => setStored('instagramPosts', instagramPosts), [instagramPosts]);
-  useEffect(() => setStored('googleReviews', googleReviews), [googleReviews]);
-  useEffect(() => setStored('siteContent', siteContent), [siteContent]);
-  useEffect(() => setStored('itineraryQueries', itineraryQueries), [itineraryQueries]);
-  useEffect(() => setStored('customPages', customPages), [customPages]);
+  // Auto-sync to localStorage (local mode only)
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('trips', trips);
+  }, [isSupabaseMode, trips]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('departures', departures);
+  }, [isSupabaseMode, departures]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('blogPosts', blogPosts);
+  }, [isSupabaseMode, blogPosts]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('galleryPhotos', galleryPhotos);
+  }, [isSupabaseMode, galleryPhotos]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('instagramPosts', instagramPosts);
+  }, [isSupabaseMode, instagramPosts]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('googleReviews', googleReviews);
+  }, [isSupabaseMode, googleReviews]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('siteContent', siteContent);
+  }, [isSupabaseMode, siteContent]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('itineraryQueries', itineraryQueries);
+  }, [isSupabaseMode, itineraryQueries]);
+  useEffect(() => {
+    if (isSupabaseMode) return;
+    setStored('customPages', customPages);
+  }, [isSupabaseMode, customPages]);
 
   // Supabase Auth: keep isLoggedIn in sync with real session.
   useEffect(() => {
