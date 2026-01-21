@@ -291,7 +291,12 @@ const App: React.FC = () => {
       />
       
       {/* Floating Action Buttons */}
-      {view !== 'admin' && <FloatingWhatsApp phoneNumber={siteContent.adminWhatsappNumber} />}
+      {view !== 'admin' && (
+        <FloatingWhatsApp
+          phoneNumber={siteContent.adminWhatsappNumber}
+          bottomOffsetPx={view === 'tripDetail' || view === 'booking' ? 110 : 20}
+        />
+      )}
     </div>
   );
 };

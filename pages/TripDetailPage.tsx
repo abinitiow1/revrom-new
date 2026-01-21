@@ -110,11 +110,11 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
       />
 
       <section className="relative h-[55vh] md:h-[65vh] lg:h-[75vh] w-full overflow-hidden bg-black">
-        {trip.gallery.map((imgUrl, index) => (
+        {trip.gallery.map((photo, index) => (
           <img
             key={index}
-            src={imgUrl}
-            alt={`Gallery ${index}`}
+            src={photo.imageUrl}
+            alt={photo.caption || `Gallery ${index + 1}`}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${currentIndex === index ? 'opacity-100' : 'opacity-0'}`}
           />
         ))}

@@ -3,9 +3,11 @@ import { FaWhatsapp } from "react-icons/fa";
 
 interface FloatingWhatsAppProps {
   phoneNumber: string;
+  bottomOffsetPx?: number;
+  rightOffsetPx?: number;
 }
 
-const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber }) => {
+const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber, bottomOffsetPx = 20, rightOffsetPx = 20 }) => {
   // Ensure we only have numbers for the link
   const cleanNumber = phoneNumber.replace(/\D/g, '');
   const whatsappUrl = `https://wa.me/${cleanNumber}`;
@@ -15,7 +17,8 @@ const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ phoneNumber }) => {
       href={whatsappUrl}
       target="_blank"
       rel="noopener noreferrer"
-      className="fixed bottom-5 right-5 z-[450] flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] shadow-lg hover:scale-110 transition-transform duration-300 group"
+      style={{ bottom: bottomOffsetPx, right: rightOffsetPx }}
+      className="fixed z-[450] flex items-center justify-center w-14 h-14 rounded-full bg-[#25D366] shadow-lg hover:scale-110 transition-transform duration-300 group"
       aria-label="Chat on WhatsApp"
     >
       <FaWhatsapp className="text-white text-3xl" />

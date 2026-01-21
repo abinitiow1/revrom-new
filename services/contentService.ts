@@ -1,14 +1,12 @@
 import type { Trip } from '../types';
 
 /**
- * Content Service - No external API dependencies
- * All functions return placeholder/mock content
- * Ready to integrate with real APIs later
+ * Content Service - No external API dependencies.
+ * Provides lightweight placeholder generation for images, packing lists, and itineraries.
  */
 
 // Image placeholder service - uses free stock images (picsum.photos)
-export const generateBlogImage = async (title: string, excerpt: string): Promise<string> => {
-  // Normalize and encode seed based on title for consistent images
+export const generateBlogImage = async (title: string): Promise<string> => {
   const seed = encodeURIComponent(
     (title || 'default')
       .toLowerCase()
@@ -16,211 +14,35 @@ export const generateBlogImage = async (title: string, excerpt: string): Promise
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9-]/g, '')
   );
+
   const placeholderUrl = `https://picsum.photos/seed/${seed}/800/600`;
-  
-  // Simulate async operation
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(placeholderUrl), 250);
-  });
+  return new Promise((resolve) => setTimeout(() => resolve(placeholderUrl), 250));
 };
 
-// Packing list generator - uses predefined templates
+// Packing list generator - simple templates
 export const generatePackingList = async (trip: Trip): Promise<string> => {
-  const packingLists: Record<string, string> = {
-    'Intermediate': `## Packing List for ${trip.title}
+  const common = [
+    'Helmet (DOT/ISI certified)',
+    'Armored riding jacket + pants',
+    'Riding gloves (warm + riding)',
+    'Waterproof riding boots',
+    'Thermal base layers + fleece',
+    'Rain shell (jacket + pants)',
+    'Sunscreen + lip balm (SPF)',
+    'First-aid kit + personal meds',
+    'Power bank + chargers',
+    'Basic tool kit + puncture kit',
+  ];
 
-### **Riding Gear (Essential)**
-- DOT-approved motorcycle helmet with visor
-- Armored riding jacket (waterproof)
-- Motorcycle riding pants with knee/hip armor
-- Riding gloves (leather, padded)
-- Motorcycle boots (ankle support)
-- Back protector
-
-### **Clothing (On & Off Bike)**
-- Thermal layers (2-3 sets)
-- Fleece jackets (2)
-- Waterproof rain jacket & pants
-- Casual t-shirts & shirts (4-5)
-- Jeans & casual pants (2-3)
-- Socks (7-8 pairs)
-- Underwear (7-8 pairs)
-
-### **Footwear**
-- Motorcycle boots
-- Casual shoes/sneakers
-- Sandals for relaxing
-
-### **Health & Hygiene**
-- Toiletries (toothbrush, toothpaste, shampoo, soap)
-- Sunscreen (SPF 50+)
-- Lip balm with SPF
-- High-altitude medications (Diamox if needed)
-- First aid kit
-- Prescription medications
-- Pain relievers & antacids
-
-### **Documents & Money**
-- Passport/ID
-- Driving license (international if applicable)
-- Travel insurance documents
-- Cash & debit/credit cards
-- Hotel confirmations
-
-### **Electronics & Gadgets**
-- Mobile phone & charger
-- Portable power bank
-- GPS device or phone mount
-- Camera
-- Universal adapter
-- Headphones
-
-### **Miscellaneous**
-- Sunglasses
-- Backpack/day bag
-- Wet wipes & hand sanitizer
-- Plastic bags (for rain)
-- Notepad & pen`,
-
-    'Advanced': `## Packing List for ${trip.title}
-
-### **Riding Gear (Essential)** - Professional Grade
-- Premium DOT/ECE helmet with weather-resistant visor
-- High-quality armored textile or leather jacket
-- Heavy-duty riding pants with maximum armor
-- Gauntlet-style gloves with knuckle protection
-- Specialized off-road or adventure boots
-- Spine & chest protector
-- Riding socks (moisture-wicking)
-
-### **Clothing (On & Off Bike)** - High-Altitude Specific
-- Merino wool thermal base layers (3 sets)
-- Heavy fleece jackets (2)
-- Down jacket for extreme cold
-- Waterproof/windproof shell jacket & pants
-- Cargo pants for casual wear
-- Quality t-shirts & long-sleeve shirts (5)
-- Emergency dry clothes in waterproof bag
-
-### **Footwear**
-- Professional motorcycle adventure boots
-- Insulated inner soles
-- Thermal socks (5-7 pairs)
-- Hiking boots (optional)
-- Casual shoes
-
-### **Health & Hygiene** - High-Altitude Focus
-- Comprehensive first aid kit
-- Altitude sickness medication (Diamox)
-- Blister treatment supplies
-- High-SPF sunscreen (70+)
-- Lip protection balm
-- Toiletries for dry climate
-- Muscle pain relief cream
-- Electrolyte supplements
-- Multivitamins
-- Eye drops
-
-### **Documents & Money**
-- Passport & visas
-- Multiple copies of important documents
-- Travel insurance (with medical coverage)
-- Cash in local currency
-- International credit cards
-- ATM card backups
-
-### **Electronics & Gadgets**
-- Ruggedized smartphone
-- Multiple power banks (2-3)
-- Helmet camera/GoPro
-- Professional camera with lenses
-- Waterproof cases
-- USB-C & micro-USB cables
-- Travel router (optional)
-- Headlamp/flashlight
-- Spare batteries
-
-### **Miscellaneous**
-- Duct tape & cable ties
-- Multi-tool/knife
-- Emergency whistle
-- Rope/paracord
-- Repair kit (spare chain, spark plugs, oil)
-- Detailed maps (paper backup)
-- Travel journal
-- Binoculars for wildlife`,
-
-    'Expert': `## Packing List for ${trip.title}
-
-### **Riding Gear (Professional Grade)**
-- Premium carbon-fiber helmet with advanced aerodynamics
-- Custom-fitted armored riding suit
-- Professional-grade off-road armor package
-- Specialized gauntlet gloves with palm armor
-- Professional adventure/off-road boots
-- Full spinal protection system
-- Moisture-wicking technical riding base layers
-- Professional rain gear
-
-### **Technical Clothing** - Expedition-Grade
-- High-altitude layering system (merino wool/synthetic)
-- Extreme-cold down jacket (-20°C rated)
-- Waterproof/breathable outer shell (professional)
-- Multiple technical base layers (5-6 sets)
-- Emergency bivvy bag
-- Gaiters for mountain conditions
-- Professional hiking boots
-- Ultra-warm socks (wool/synthetic blend)
-
-### **Advanced Health & Medical**
-- Complete wilderness first aid kit
-- Altitude acclimatization medications
-- Comprehensive medication list
-- Blood pressure monitor
-- Pulse oximeter
-- High-SPF mineral sunscreen (80+)
-- Preventative medicines
-- Emergency medical kit
-- Rescue blanket/space blanket
-- Tourniquets & trauma supplies
-
-### **Professional Safety & Navigation**
-- GPS device + smartphone backup
-- Detailed topographic maps (waterproof)
-- Satellite communicator (Garmin InReach)
-- Emergency beacon
-- Compass & map tools
-- Weather-resistant route documentation
-- Emergency contact list
-
-### **Professional Electronics**
-- Multiple power sources & batteries
-- Solar charger for extended trips
-- Waterproof camera equipment
-- Drone (optional)
-- Professional lighting system
-- Satellite phone (optional)
-- Weather station (optional)
-- All equipment in waterproof containers
-
-### **Emergency & Repair**
-- Complete motorcycle repair kit
-- Spare engine oil & filters
-- Tire repair patches & pump
-- Chain lubricant & cleaner
-- Emergency fuel containers
-- Tools (comprehensive set)
-- Duct tape, electrical tape, zip ties
-- Rope & carabiners
-- Recovery equipment`,
+  const extra: Record<Trip['difficulty'], string[]> = {
+    Intermediate: ['Casual shoes for evenings', 'Light down jacket'],
+    Advanced: ['Extra warm layers', 'Spare gloves', 'Spare visor / goggles'],
+    Expert: ['Satellite communicator (optional)', 'Emergency bivy / blanket', 'Spare tubes + mini pump'],
   };
 
-  // Return appropriate packing list based on difficulty
-  const list = packingLists[trip.difficulty] || packingLists['Intermediate'];
-  
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(list), 800);
-  });
+  const list = [...common, ...(extra[trip.difficulty] || [])];
+  const md = `## Packing List for ${trip.title}\n\n${list.map(i => `* ${i}`).join('\n')}`;
+  return new Promise((resolve) => setTimeout(() => resolve(md), 350));
 };
 
 interface CustomItineraryPreferences {
@@ -231,166 +53,224 @@ interface CustomItineraryPreferences {
   interests: string;
 }
 
-// Destination-specific highlights and activities
-const destinationData: Record<string, { highlights: string[]; passes: string[]; monasteries: string[]; lakes: string[]; activities: string[]; baseCity: string }> = {
-  'ladakh': {
+type DestinationKey = 'ladakh' | 'spiti' | 'rajasthan' | 'himachal' | 'kerala' | 'northeast';
+
+const destinationData: Record<DestinationKey, {
+  baseCity: string;
+  highlights: string[];
+  passes: string[];
+  monasteries: string[];
+  lakes: string[];
+  activities: string[];
+}> = {
+  ladakh: {
     baseCity: 'Leh',
-    highlights: ['Magnetic Hill', 'Confluence of Indus & Zanskar', 'Nubra Valley sand dunes', 'Turtuk village', 'Hanle Dark Sky Reserve'],
-    passes: ['Khardung La (18,380 ft)', 'Chang La (17,688 ft)', 'Wari La (17,300 ft)', 'Khaltse Pass'],
-    monasteries: ['Thiksey Monastery', 'Hemis Monastery', 'Diskit Monastery', 'Alchi Monastery', 'Lamayuru Monastery'],
+    highlights: ['Magnetic Hill', 'Indus–Zanskar confluence', 'Nubra Valley dunes', 'Turtuk village', 'Hanle Dark Sky Reserve'],
+    passes: ['Khardung La', 'Chang La', 'Wari La'],
+    monasteries: ['Thiksey Monastery', 'Hemis Monastery', 'Diskit Monastery', 'Alchi Monastery'],
     lakes: ['Pangong Tso', 'Tso Moriri', 'Tso Kar'],
-    activities: ['Double-humped camel ride in Nubra', 'Stargazing at Hanle', 'River rafting on Indus', 'Visit Leh Palace']
+    activities: ['Camel ride in Nubra', 'Stargazing at Hanle', 'Indus rafting', 'Visit Leh Palace'],
   },
-  'spiti': {
+  spiti: {
     baseCity: 'Kaza',
-    highlights: ['Moon Lake Chandratal', 'Chicham Bridge', 'Langza Fossil Village', 'Pin Valley National Park', 'Komic - highest village with motorable road'],
-    passes: ['Kunzum Pass (15,060 ft)', 'Rohtang Pass (13,051 ft)', 'Losar checkpoint'],
-    monasteries: ['Key Monastery', 'Tabo Monastery', 'Dhankar Monastery', 'Kungri Monastery'],
-    lakes: ['Chandratal Lake', 'Suraj Tal'],
-    activities: ['Fossil hunting in Langza', 'Yak safari', 'Homestay in Hikkim', 'Visit world\'s highest post office']
+    highlights: ['Chicham Bridge', 'Langza Fossil Village', 'Pin Valley', 'Komic village', 'Chandratal approach'],
+    passes: ['Kunzum Pass', 'Rohtang Pass'],
+    monasteries: ['Key Monastery', 'Tabo Monastery', 'Dhankar Monastery'],
+    lakes: ['Chandratal Lake'],
+    activities: ['Fossil hunt in Langza', 'Homestay in Hikkim', 'Pin Valley walk', 'Local cafés in Kaza'],
   },
-  'rajasthan': {
+  rajasthan: {
     baseCity: 'Jaipur',
-    highlights: ['Thar Desert dunes', 'Jaisalmer Fort', 'Mehrangarh Fort', 'Udaipur lakes', 'Pushkar Ghats'],
+    highlights: ['Amber Fort', 'Jaisalmer Fort', 'Mehrangarh Fort', 'Udaipur old city', 'Pushkar ghats'],
     passes: [],
     monasteries: [],
     lakes: ['Lake Pichola', 'Fateh Sagar Lake', 'Pushkar Lake'],
-    activities: ['Desert camping', 'Camel safari', 'Heritage palace stays', 'Folk music nights', 'Village safaris']
+    activities: ['Desert camping', 'Camel safari', 'Heritage stays', 'Folk music evening'],
   },
-  'himachal': {
+  himachal: {
     baseCity: 'Manali',
-    highlights: ['Solang Valley', 'Atal Tunnel', 'Sissu waterfall', 'Kullu Valley orchards', 'Old Manali'],
-    passes: ['Rohtang Pass (13,051 ft)', 'Jalori Pass (10,800 ft)'],
-    monasteries: ['Trilokinath Temple', 'Hadimba Temple'],
-    lakes: ['Prashar Lake', 'Bhrigu Lake'],
-    activities: ['Paragliding in Solang', 'River rafting in Kullu', 'Trout fishing', 'Apple orchard visits']
+    highlights: ['Solang Valley', 'Atal Tunnel', 'Sissu waterfall', 'Kullu Valley', 'Old Manali'],
+    passes: ['Rohtang Pass', 'Jalori Pass'],
+    monasteries: ['Keylong monastery area', 'Trilokinath temple region'],
+    lakes: ['Prashar Lake'],
+    activities: ['Paragliding (Solang)', 'River rafting (Kullu)', 'Cafe-hopping in Old Manali'],
   },
-  'kerala': {
+  kerala: {
     baseCity: 'Kochi',
-    highlights: ['Western Ghats curves', 'Tea plantations of Munnar', 'Athirappilly Falls', 'Alleppey backwaters', 'Wayanad forests'],
-    passes: ['Lakkidi Ghat', 'Vagamon hills'],
+    highlights: ['Western Ghats curves', 'Munnar tea roads', 'Athirappilly Falls', 'Alleppey backwaters', 'Wayanad forests'],
+    passes: ['Lakkidi Ghat'],
     monasteries: [],
     lakes: ['Vembanad Lake', 'Periyar Lake'],
-    activities: ['Houseboat cruise', 'Spice plantation tours', 'Kathakali shows', 'Ayurveda spa sessions']
+    activities: ['Houseboat cruise', 'Spice plantation tour', 'Kathakali show', 'Ayurveda session'],
   },
-  'northeast': {
+  northeast: {
     baseCity: 'Guwahati',
-    highlights: ['Kaziranga National Park', 'Cherrapunji rain', 'Living root bridges', 'Tawang monastery', 'Ziro Valley'],
-    passes: ['Sela Pass (13,700 ft)', 'Bomdila'],
-    monasteries: ['Tawang Monastery', 'Bomdila Monastery'],
-    lakes: ['Umiam Lake', 'Sangetsar Lake'],
-    activities: ['Rhino safari in Kaziranga', 'Trek to living root bridges', 'Tribal village visits', 'Hornbill Festival (seasonal)']
-  }
+    highlights: ['Kaziranga', 'Cherrapunji', 'Living root bridges', 'Ziro Valley', 'Tawang approach'],
+    passes: ['Sela Pass'],
+    monasteries: ['Tawang Monastery'],
+    lakes: ['Umiam Lake'],
+    activities: ['Rhino safari (Kaziranga)', 'Root bridge trek', 'Tribal village visit'],
+  },
 };
 
-// Style-specific itinerary characteristics
 const styleCharacteristics: Record<string, { pace: string; accommodation: string; dailyRiding: string; focus: string }> = {
   'Adventure Focused': {
     pace: 'challenging with early starts',
     accommodation: 'mix of camps, homestays, and basic hotels',
-    dailyRiding: '150-250 km',
-    focus: 'off-road trails, remote areas, and adrenaline-pumping routes'
+    dailyRiding: '150–250 km',
+    focus: 'remote routes, rough sections, and big riding days',
   },
   'Relaxed & Scenic': {
-    pace: 'leisurely with plenty of photo stops',
+    pace: 'leisurely with photo stops',
     accommodation: 'comfortable hotels and heritage stays',
-    dailyRiding: '80-150 km',
-    focus: 'scenic viewpoints, cultural experiences, and relaxed exploration'
+    dailyRiding: '80–150 km',
+    focus: 'views, comfort, and slow travel',
   },
   'Cultural Immersion': {
-    pace: 'moderate with extended stops',
-    accommodation: 'local homestays and boutique properties',
-    dailyRiding: '100-180 km',
-    focus: 'monasteries, local communities, traditional cuisine, and heritage sites'
+    pace: 'moderate with longer stops',
+    accommodation: 'local homestays and boutique stays',
+    dailyRiding: '100–180 km',
+    focus: 'culture, food, and local places',
   },
   'Photography Tour': {
-    pace: 'flexible based on light conditions',
-    accommodation: 'locations with best sunrise/sunset access',
-    dailyRiding: '80-150 km',
-    focus: 'golden hour shots, landscape vistas, wildlife, and portrait opportunities'
+    pace: 'flexible around light',
+    accommodation: 'stays near sunrise/sunset spots',
+    dailyRiding: '80–150 km',
+    focus: 'golden hour, landscapes, and portraits',
   },
   'Extreme Challenge': {
-    pace: 'intensive with technical sections',
-    accommodation: 'tents and basic shelters',
-    dailyRiding: '200-300 km',
-    focus: 'highest passes, toughest terrain, and endurance riding'
-  }
+    pace: 'intensive and technical',
+    accommodation: 'basic shelters and tents',
+    dailyRiding: '200–300 km',
+    focus: 'tough terrain and endurance',
+  },
 };
 
-// Parse interests to identify key themes
 const parseInterests = (interests: string): string[] => {
   const themes: string[] = [];
-  const lower = interests.toLowerCase();
-  
-  if (lower.includes('pass') || lower.includes('mountain') || lower.includes('high') || lower.includes('altitude')) themes.push('high_passes');
-  if (lower.includes('monastery') || lower.includes('temple') || lower.includes('spiritual') || lower.includes('buddhist')) themes.push('monasteries');
-  if (lower.includes('lake') || lower.includes('water') || lower.includes('pangong') || lower.includes('tso')) themes.push('lakes');
-  if (lower.includes('photo') || lower.includes('camera') || lower.includes('sunset') || lower.includes('sunrise')) themes.push('photography');
-  if (lower.includes('food') || lower.includes('cuisine') || lower.includes('local') || lower.includes('culture')) themes.push('culture');
-  if (lower.includes('wildlife') || lower.includes('animal') || lower.includes('bird')) themes.push('wildlife');
-  if (lower.includes('off-road') || lower.includes('adventure') || lower.includes('challenge')) themes.push('adventure');
-  if (lower.includes('relax') || lower.includes('easy') || lower.includes('comfort')) themes.push('relaxed');
-  
-  return themes.length > 0 ? themes : ['general'];
+  const lower = (interests || '').toLowerCase();
+
+  if (lower.includes('pass') || lower.includes('mountain') || lower.includes('altitude')) themes.push('high_passes');
+  if (lower.includes('monastery') || lower.includes('temple') || lower.includes('buddhist')) themes.push('monasteries');
+  if (lower.includes('lake') || lower.includes('pangong') || lower.includes('tso')) themes.push('lakes');
+  if (lower.includes('photo') || lower.includes('sunrise') || lower.includes('sunset')) themes.push('photography');
+  if (lower.includes('food') || lower.includes('culture') || lower.includes('local')) themes.push('culture');
+
+  return themes.length ? themes : ['general'];
 };
 
-// Detect destinations from input
-const detectDestinations = (input: string): string[] => {
-  const lower = input.toLowerCase();
-  const detected: string[] = [];
-  
-  if (lower.includes('ladakh') || lower.includes('leh') || lower.includes('pangong') || lower.includes('nubra') || lower.includes('khardung')) detected.push('ladakh');
-  if (lower.includes('spiti') || lower.includes('kaza') || lower.includes('key monastery') || lower.includes('chandratal')) detected.push('spiti');
-  if (lower.includes('rajasthan') || lower.includes('jaipur') || lower.includes('jaisalmer') || lower.includes('udaipur') || lower.includes('desert')) detected.push('rajasthan');
-  if (lower.includes('himachal') || lower.includes('manali') || lower.includes('kullu') || lower.includes('rohtang')) detected.push('himachal');
+const detectDestinations = (input: string): DestinationKey[] => {
+  const lower = (input || '').toLowerCase();
+  const detected: DestinationKey[] = [];
+
+  if (lower.includes('ladakh') || lower.includes('leh') || lower.includes('pangong') || lower.includes('nubra')) detected.push('ladakh');
+  if (lower.includes('spiti') || lower.includes('kaza') || lower.includes('chandratal')) detected.push('spiti');
+  if (lower.includes('rajasthan') || lower.includes('jaipur') || lower.includes('jaisalmer') || lower.includes('udaipur')) detected.push('rajasthan');
+  if (lower.includes('himachal') || lower.includes('manali') || lower.includes('kullu')) detected.push('himachal');
   if (lower.includes('kerala') || lower.includes('munnar') || lower.includes('kochi') || lower.includes('backwater')) detected.push('kerala');
   if (lower.includes('northeast') || lower.includes('assam') || lower.includes('meghalaya') || lower.includes('tawang') || lower.includes('arunachal')) detected.push('northeast');
-  
-  return detected.length > 0 ? detected : ['ladakh']; // Default to Ladakh
+
+  return detected.length ? detected : ['ladakh'];
 };
 
-// Custom itinerary generator - creates personalized itineraries based on preferences
-export const generateCustomItinerary = async (preferences: CustomItineraryPreferences, existingTrips: Trip[]): Promise<string> => {
-  const duration = parseInt(preferences.duration) || 10;
-  const travelers = preferences.travelers || '2';
+export const generateCustomItinerary = async (
+  preferences: CustomItineraryPreferences,
+  existingTrips: Trip[]
+): Promise<string> => {
+  const duration = Math.max(2, parseInt(preferences.duration, 10) || 10);
+  const travelers = (preferences.travelers || '2').trim();
   const destinations = detectDestinations(preferences.destinations);
   const style = styleCharacteristics[preferences.style] || styleCharacteristics['Adventure Focused'];
   const themes = parseInterests(preferences.interests);
-  
-  // Build day-by-day itinerary
+
+  const destinationLabel = destinations.map(d => destinationData[d]?.baseCity || d).join(', ');
+
+  const recommendedTrip = (() => {
+    if (!existingTrips?.length) return null;
+    const desired = destinations.join(' ').toLowerCase();
+    return (
+      [...existingTrips]
+        .map(t => {
+          const destScore = desired.includes((t.destination || '').toLowerCase()) ? 3 : 0;
+          const dur = Number(t.duration) || 0;
+          const durationScore = dur ? Math.max(0, 3 - Math.abs(dur - duration) / 3) : 0;
+          return { trip: t, score: destScore + durationScore };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.trip || null
+    );
+  })();
+
   const days: string[] = [];
-  let dayNum = 1;
 
-  for (const dest of destinations) {
-    const data = destinationData[dest] || destinationData['ladakh'];
-    const daysForDest = Math.floor(duration / destinations.length);
+  for (let dayNum = 1; dayNum <= duration; dayNum++) {
+    const destKey = destinations[(dayNum - 2 + destinations.length) % destinations.length] || 'ladakh';
+    const data = destinationData[destKey];
+    const dayIndex = dayNum - 2;
 
-    // Day 1: Arrival
     if (dayNum === 1) {
-      days.push(`### Day ${dayNum}: Arrival in ${data.baseCity}
-- Arrive at ${data.baseCity}, meet your riding crew and support team
-- Bike allocation, safety briefing, and gear check
-- Short acclimatization ride around the city (20-30 km)
-- Evening: Welcome dinner with local cuisine and trip overview
-- **Stay:** ${style.accommodation.split(',')[0]}`);
-      dayNum++;
+      const first = destinationData[destinations[0]] || data;
+      days.push(`### Day 1: Arrival in ${first.baseCity}
+* Arrive, meet the team, and do a quick gear check
+* Easy acclimatization ride (20–30 km) and local briefing
+* **Stay:** ${style.accommodation.split(',')[0]}`);
+      continue;
     }
 
-    // Generate destination-specific days
-    const destDays = daysForDest - 1;
-    for (let i = 0; i < destDays && dayNum <= duration; i++) {
-      let dayContent = `### Day ${dayNum}: `;
-      
-      // Determine day theme based on user interests and day number
-      if (themes.includes('high_passes') && data.passes.length > 0 && i % 3 === 0) {
-        const pass = data.passes[i % data.passes.length];
-        dayContent += `${pass} Conquest\n`;
-        dayContent += `- Early morning departure for the pass crossing\n`;
-        dayContent += `- Stop at ${pass} summit for photos and hot chai\n`;
-        dayContent += `- ${data.highlights[i % data.highlights.length] || 'Scenic route exploration'}\n`;
-        dayContent += `- **Riding:** ${style.dailyRiding}\n`;
-      } else if (themes.includes('monasteries') && data.monasteries.length > 0 && i % 3 === 1) {
-        const monastery = data.monasteries[i % data.monasteries.length];
-        dayContent += `${monastery} & Cultural Exploration\n`;
-        dayContent += `- Morning visit to ${monastery}\n`;
-Continue...
+    if (dayNum === duration) {
+      days.push(`### Day ${dayNum}: Departure & Wrap-Up
+* Short morning ride / market time (optional)
+* Pack up, share feedback, and plan the next mission
+* Depart from ${data.baseCity}
+* **Stay:** —`);
+      continue;
+    }
+
+    const wantPasses = themes.includes('high_passes') && data.passes.length > 0;
+    const wantMonasteries = themes.includes('monasteries') && data.monasteries.length > 0;
+    const wantLakes = themes.includes('lakes') && data.lakes.length > 0;
+    const wantCulture = themes.includes('culture') && data.activities.length > 0;
+
+    let title = data.highlights[dayIndex % data.highlights.length] || 'Scenic Exploration';
+    const bullets: string[] = [];
+
+    if (wantPasses && dayIndex % 3 === 0) {
+      const pass = data.passes[dayIndex % data.passes.length];
+      title = `${pass} Crossing`;
+      bullets.push('Early start for the climb and weather window');
+      bullets.push('Summit stop for photos + hot chai');
+    } else if (wantMonasteries && dayIndex % 3 === 1) {
+      const monastery = data.monasteries[dayIndex % data.monasteries.length];
+      title = `${monastery} & Local Culture`;
+      bullets.push(`Visit ${monastery} and nearby viewpoints`);
+      bullets.push('Explore a local market / village lanes');
+    } else if (wantLakes && dayIndex % 3 === 2) {
+      const lake = data.lakes[dayIndex % data.lakes.length];
+      title = `${lake} Day Ride`;
+      bullets.push(`Ride out to ${lake} for wide-open landscapes`);
+      bullets.push('Relaxed photo stops, light snacks, and return by evening');
+    } else if (wantCulture) {
+      const activity = data.activities[dayIndex % data.activities.length];
+      title = activity;
+      bullets.push(`Local experience: ${activity}`);
+    } else {
+      bullets.push('Scenic ride + flexible stops based on road and weather');
+    }
+
+    bullets.push(`**Riding:** ${style.dailyRiding}`);
+    bullets.push(`**Stay:** ${style.accommodation.split(',')[0]}`);
+
+    days.push(`### Day ${dayNum}: ${title}\n${bullets.map(b => `* ${b}`).join('\n')}`);
+  }
+
+  const intro: string[] = [];
+  intro.push(`# Your Custom ${duration}-Day Itinerary`);
+  intro.push(`**Riders:** ${travelers}`);
+  intro.push(`**Destinations:** ${destinationLabel}`);
+  intro.push(`**Style:** ${preferences.style || 'Adventure Focused'} (${style.pace})`);
+  intro.push(`**Focus:** ${style.focus}`);
+  if (recommendedTrip) intro.push(`**Closest match from our tours:** ${recommendedTrip.title}`);
+
+  const result = `${intro.join('\n')}\n\n${days.join('\n\n')}`;
+
+  return new Promise((resolve) => setTimeout(() => resolve(result), 500));
+};

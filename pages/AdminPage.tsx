@@ -55,6 +55,47 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     noticeTimerRef.current = window.setTimeout(() => setAdminNotice(null), 2500);
   };
 
+  const parseDateInput = (value: string): Date | null => {
+    if (!value) return null;
+    const parts = value.split('-').map(Number);
+    if (parts.length !== 3) return null;
+    const [year, month, day] = parts;
+    if (!year || !month || !day) return null;
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+
+  const formatDateInput = (date: Date): string => {
+    const yyyy = date.getFullYear().toString().padStart(4, '0');
+    const mm = (date.getMonth() + 1).toString().padStart(2, '0');
+    const dd = date.getDate().toString().padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const addDays = (date: Date, days: number): Date => {
+    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    d.setDate(d.getDate() + days);
+    return d;
+  };
+
+  const getDepartureValidationError = (draft: any): string | null => {
+    if (!draft?.tripId) return 'Select a tour for this departure.';
+    const start = parseDateInput(draft.startDate);
+    const end = parseDateInput(draft.endDate);
+    if (!start) return 'Start date is required.';
+    if (!end) return 'End date is required.';
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (start.getTime() < today.getTime()) return 'Start date cannot be in the past.';
+    if (end.getTime() <= start.getTime()) return 'End date must be after the start date.';
+
+    const slots = Number(draft.slots);
+    if (!Number.isFinite(slots) || slots <= 0) return 'Slots must be a number greater than 0.';
+
+    return null;
+  };
+
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [activeTab]);
@@ -741,29 +782,54 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                        </div>
                     </div>
                  )}
-                 {activeTab === 'DATES' && (
-                   <div className="space-y-12 max-w-2xl mx-auto">
-                      <div className="flex flex-col gap-2 mb-8">
-                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Target Mission Profile</label>
-                          <select value={editingItem.tripId} onChange={e => setEditingItem({...editingItem, tripId: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
-                             {trips.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
-                          </select>
+                  {activeTab === 'DATES' && (
+                    <div className="space-y-12 max-w-2xl mx-auto">
+                      {(() => {
+                        const err = getDepartureValidationError(editingItem);
+                        if (!err) return null;
+                        return (
+                          <div className="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-200 rounded-2xl p-4 text-xs font-bold">
+                            {err}
+                          </div>
+                        );
+                      })()}
+                       <div className="flex flex-col gap-2 mb-8">
+                           <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Target Mission Profile</label>
+                           <select value={editingItem.tripId} onChange={e => setEditingItem({...editingItem, tripId: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
+                              {trips.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                           </select>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 mb-8">
                          <div className="flex flex-col gap-2">
                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Launch Window Start</label>
-                             <input type="date" value={editingItem.startDate} onChange={e => setEditingItem({...editingItem, startDate: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
-                         </div>
-                         <div className="flex flex-col gap-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Mission Conclusion</label>
-                             <input type="date" value={editingItem.endDate} onChange={e => setEditingItem({...editingItem, endDate: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
-                         </div>
-                      </div>
+                              <input
+                                type="date"
+                                min={formatDateInput(new Date())}
+                                value={editingItem.startDate}
+                                onChange={e => setEditingItem({...editingItem, startDate: e.target.value})}
+                                className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm"
+                              />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Mission Conclusion</label>
+                              <input
+                                type="date"
+                                min={(() => {
+                                  const start = parseDateInput(editingItem.startDate);
+                                  const minDate = start ? addDays(start, 1) : new Date();
+                                  return formatDateInput(minDate);
+                                })()}
+                                value={editingItem.endDate}
+                                onChange={e => setEditingItem({...editingItem, endDate: e.target.value})}
+                                className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm"
+                              />
+                          </div>
+                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 mb-8">
                          <div className="flex flex-col gap-2">
                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Manifest Capacity</label>
-                             <input type="number" value={editingItem.slots} onChange={e => setEditingItem({...editingItem, slots: parseInt(e.target.value)})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
-                         </div>
+                              <input type="number" min={1} value={editingItem.slots} onChange={e => setEditingItem({...editingItem, slots: Number.parseInt(e.target.value, 10) || 0})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm" />
+                          </div>
                          <div className="flex flex-col gap-2">
                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Deployment Status</label>
                              <select value={editingItem.status} onChange={e => setEditingItem({...editingItem, status: e.target.value})} className="w-full p-5 rounded-xl border border-border bg-slate-50 dark:bg-black font-bold outline-none text-sm focus:border-brand-primary shadow-sm">
@@ -799,7 +865,11 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               <div className="flex flex-col sm:flex-row gap-5 mt-10 border-t border-border/50 pt-10">
                  <button onClick={() => {
                     if (activeTab === 'TOURS') editingItem.id ? props.onUpdateTrip(editingItem) : props.onAddTrip(editingItem);
-                    if (activeTab === 'DATES') editingItem.id ? props.onUpdateDeparture(editingItem) : props.onAddDeparture(editingItem);
+                     if (activeTab === 'DATES') {
+                       const err = getDepartureValidationError(editingItem);
+                       if (err) return showNotice(err, 'error');
+                       editingItem.id ? props.onUpdateDeparture(editingItem) : props.onAddDeparture(editingItem);
+                     }
                     if (activeTab === 'BLOG') editingItem.id ? props.onUpdateBlogPost(editingItem) : props.onAddBlogPost(editingItem);
                     if (activeTab === 'PAGES') editingItem.id ? props.onUpdateCustomPage(editingItem) : props.onAddCustomPage(editingItem);
                     setEditingItem(null);

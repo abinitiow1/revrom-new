@@ -1,5 +1,4 @@
 
-import type { Modality } from "@google/genai";
 import type { Trip } from '../types';
 
 /**
@@ -191,6 +190,7 @@ export const generateVideo = async (prompt: string, startImage?: string): Promis
 export const speak = async (text: string): Promise<Uint8Array> => {
   if (!isRemote) throw new Error('Speech synthesis disabled in local mode.');
   const ai = await getAi();
+  const { Modality } = await import('@google/genai');
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
     contents: [{ parts: [{ text }] }],
@@ -214,6 +214,7 @@ export const connectExpeditionLive = (callbacks: any) => {
   if (!isRemote) throw new Error('Live connection disabled in local mode.');
   const connect = async () => {
     const ai = await getAi();
+    const { Modality } = await import('@google/genai');
     return ai.live.connect({
       model: 'gemini-2.5-flash-native-audio-preview-12-2025',
       callbacks,
