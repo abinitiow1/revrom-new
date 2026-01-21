@@ -41,6 +41,8 @@ interface AdminPageProps {
 
 type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'SETTINGS';
 
+type DepartureDraft = Omit<Departure, 'id'> & { id?: string };
+
 const AdminPage: React.FC<AdminPageProps> = (props) => {
   const { trips, departures, blogPosts, galleryPhotos, siteContent, itineraryQueries, customPages, onUpdateSiteContent } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('TOURS');
@@ -55,6 +57,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [tourDestinationFilter, setTourDestinationFilter] = useState<string>('all');
   const [blogSearch, setBlogSearch] = useState('');
   const [validationAttempted, setValidationAttempted] = useState(false);
+  const [tourDepartureDraft, setTourDepartureDraft] = useState<DepartureDraft | null>(null);
+  const [tourDepartureValidationAttempted, setTourDepartureValidationAttempted] = useState(false);
   const noticeTimerRef = React.useRef<number | null>(null);
 
   const showNotice = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
@@ -86,6 +90,17 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     d.setDate(d.getDate() + days);
     return d;
   };
+
+  useEffect(() => {
+    if (activeTab !== 'TOURS') {
+      setTourDepartureDraft(null);
+      setTourDepartureValidationAttempted(false);
+      return;
+    }
+
+    setTourDepartureDraft(null);
+    setTourDepartureValidationAttempted(false);
+  }, [activeTab, editingItem?.id]);
 
   const getDepartureValidationError = (draft: any): string | null => {
     if (!draft?.tripId) return 'Select a tour for this departure.';
@@ -1005,6 +1020,191 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                onChange={e => { try { setEditingItem({...editingItem, itinerary: JSON.parse(e.target.value)}); } catch(err) {} }} 
                                className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" 
                              />
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between gap-3">
+                              <h4 className="text-xs font-black uppercase tracking-widest text-brand-primary">Departure dates</h4>
+                              <button
+                                type="button"
+                                disabled={!editingItem?.id}
+                                onClick={() => {
+                                  if (!editingItem?.id) return;
+                                  setTourDepartureValidationAttempted(false);
+                                  setTourDepartureDraft({
+                                    tripId: editingItem.id,
+                                    startDate: '',
+                                    endDate: '',
+                                    slots: 10,
+                                    status: 'Available',
+                                  });
+                                }}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                  !editingItem?.id
+                                    ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 cursor-not-allowed'
+                                    : 'bg-brand-primary text-white hover:bg-brand-primary/90 shadow-sm'
+                                }`}
+                              >
+                                Add date
+                              </button>
+                            </div>
+
+                            {!editingItem?.id && (
+                              <div className="text-xs text-muted-foreground">
+                                Save the tour first, then add dates.
+                              </div>
+                            )}
+
+                            {!!editingItem?.id && (
+                              <div className="space-y-3">
+                                {departures
+                                  .filter(d => d.tripId === editingItem.id)
+                                  .sort((a, b) => a.startDate.localeCompare(b.startDate))
+                                  .map(dep => (
+                                    <div key={dep.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border dark:border-dark-border bg-background/40 dark:bg-dark-background/40">
+                                      <div className="min-w-0">
+                                        <div className="text-xs font-black text-foreground dark:text-dark-foreground truncate">
+                                          {dep.startDate} → {dep.endDate}
+                                        </div>
+                                        <div className="text-[11px] text-muted-foreground">
+                                          {dep.status} · {dep.slots} slots
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setTourDepartureValidationAttempted(false);
+                                            setTourDepartureDraft({ ...dep });
+                                          }}
+                                          className="px-3 py-2 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
+                                        >
+                                          Edit
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            const ok = window.confirm('Delete this date?');
+                                            if (!ok) return;
+                                            props.onDeleteDeparture(dep.id);
+                                            showNotice('Date deleted', 'info');
+                                          }}
+                                          className="px-3 py-2 rounded-xl bg-red-500/10 text-red-600 dark:text-red-300 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
+                                        >
+                                          Delete
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+
+                                {departures.filter(d => d.tripId === editingItem.id).length === 0 && (
+                                  <div className="text-xs text-muted-foreground">No dates yet.</div>
+                                )}
+                              </div>
+                            )}
+
+                            {tourDepartureDraft && (
+                              <div className="mt-4 p-5 rounded-3xl border border-border dark:border-dark-border bg-card dark:bg-dark-card space-y-4">
+                                {(() => {
+                                  const err = getDepartureValidationError(tourDepartureDraft);
+                                  if (!err || !tourDepartureValidationAttempted) return null;
+                                  return (
+                                    <div className="bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-200 rounded-2xl p-4 text-xs font-bold">
+                                      {err}
+                                    </div>
+                                  );
+                                })()}
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Start date</label>
+                                    <input
+                                      type="date"
+                                      min={formatDateInput(new Date())}
+                                      value={tourDepartureDraft.startDate}
+                                      onChange={e => setTourDepartureDraft({ ...(tourDepartureDraft as any), startDate: e.target.value })}
+                                      data-invalid={tourDepartureValidationAttempted && !tourDepartureDraft.startDate ? 'true' : undefined}
+                                      className="w-full p-4 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground admin-date-input"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60">End date</label>
+                                    <input
+                                      type="date"
+                                      min={(() => {
+                                        const start = parseDateInput(tourDepartureDraft.startDate);
+                                        const minDate = start ? addDays(start, 1) : new Date();
+                                        return formatDateInput(minDate);
+                                      })()}
+                                      value={tourDepartureDraft.endDate}
+                                      onChange={e => setTourDepartureDraft({ ...(tourDepartureDraft as any), endDate: e.target.value })}
+                                      data-invalid={tourDepartureValidationAttempted && !tourDepartureDraft.endDate ? 'true' : undefined}
+                                      className="w-full p-4 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground admin-date-input"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                  <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Slots</label>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      value={tourDepartureDraft.slots}
+                                      onChange={e => setTourDepartureDraft({ ...(tourDepartureDraft as any), slots: Number.parseInt(e.target.value, 10) || 0 })}
+                                      data-invalid={tourDepartureValidationAttempted && (!Number.isFinite(Number(tourDepartureDraft.slots)) || Number(tourDepartureDraft.slots) <= 0) ? 'true' : undefined}
+                                      className="w-full p-4 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Status</label>
+                                    <select
+                                      value={tourDepartureDraft.status}
+                                      onChange={e => setTourDepartureDraft({ ...(tourDepartureDraft as any), status: e.target.value as any })}
+                                      className="w-full p-4 rounded-xl border border-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                                    >
+                                      <option value="Available">Available</option>
+                                      <option value="Limited">Limited</option>
+                                      <option value="Sold Out">Sold Out</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTourDepartureValidationAttempted(true);
+                                      const err = getDepartureValidationError(tourDepartureDraft);
+                                      if (err) return;
+
+                                      if (tourDepartureDraft.id) {
+                                        props.onUpdateDeparture(tourDepartureDraft as Departure);
+                                      } else {
+                                        props.onAddDeparture(tourDepartureDraft as Omit<Departure, 'id'>);
+                                      }
+
+                                      showNotice('Date saved');
+                                      setTourDepartureDraft(null);
+                                      setTourDepartureValidationAttempted(false);
+                                    }}
+                                    className="flex-1 bg-brand-primary text-white px-6 py-4 rounded-2xl hover:bg-brand-primary/90 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+                                  >
+                                    Save date
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setTourDepartureDraft(null);
+                                      setTourDepartureValidationAttempted(false);
+                                    }}
+                                    className="flex-1 px-6 py-4 rounded-2xl border border-border dark:border-dark-border bg-background dark:bg-dark-background hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                        </div>
                     </div>
