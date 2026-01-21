@@ -564,14 +564,54 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
                 <div className="space-y-12">
                    <div className="space-y-8">
-                      <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">HQ Contact Intel</h4>
+                      <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Contact</h4>
                       <div className="flex flex-col gap-2 mb-8">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Dispatch WhatsApp</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Admin WhatsApp</label>
                         <input value={siteContent.adminWhatsappNumber} onChange={e => onUpdateSiteContent({adminWhatsappNumber: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Central HQ Email</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact email</label>
                         <input value={siteContent.contactEmail} onChange={e => onUpdateSiteContent({contactEmail: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+                   </div>
+
+                   <div className="space-y-8">
+                      <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Social links</h4>
+                      <div className="flex flex-col gap-2 mb-6">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Instagram URL</label>
+                        <input
+                          value={siteContent.instagramUrl || ''}
+                          onChange={e => onUpdateSiteContent({ instagramUrl: e.target.value })}
+                          placeholder="https://instagram.com/yourpage"
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-6">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Facebook URL</label>
+                        <input
+                          value={siteContent.facebookUrl || ''}
+                          onChange={e => onUpdateSiteContent({ facebookUrl: e.target.value })}
+                          placeholder="https://facebook.com/yourpage"
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-6">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">YouTube URL</label>
+                        <input
+                          value={siteContent.youtubeUrl || ''}
+                          onChange={e => onUpdateSiteContent({ youtubeUrl: e.target.value })}
+                          placeholder="https://youtube.com/@yourchannel"
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-6">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Google reviews URL</label>
+                        <input
+                          value={siteContent.googleReviewsUrl || ''}
+                          onChange={e => onUpdateSiteContent({ googleReviewsUrl: e.target.value })}
+                          placeholder="https://g.page/r/...."
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
                       </div>
                    </div>
 
@@ -579,7 +619,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Branding Assets</h4>
                       {renderImageField('Site Logo (Transparent)', siteContent.logoUrl, url => onUpdateSiteContent({ logoUrl: url }))}
                       <div className="flex flex-col gap-2 mb-8">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Footer Mission Statement</label>
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Footer tagline</label>
                         <input value={siteContent.footerTagline} onChange={e => onUpdateSiteContent({footerTagline: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                    </div>
@@ -592,14 +632,14 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-2 mb-3">Section Backgrounds</h4>
               <div className="space-y-3">
                 {[
-                  { key: 'adventuresBgImage', label: 'Adventures (Live Deployments) BG' },
-                  { key: 'departuresBgImage', label: 'Departures (Upcoming Dates) BG' },
+                  { key: 'adventuresBgImage', label: 'Adventures background' },
+                  { key: 'departuresBgImage', label: 'Departures background' },
                   { key: 'whyChooseUsBgImage', label: 'Why Choose Us BG' },
                   { key: 'rootsBgImage', label: 'Roots / About Us BG' },
-                  { key: 'reviewsBgImage', label: 'Reviews (Rider Feedback) BG' },
-                  { key: 'blogBgImage', label: 'Blog (Travel Stories) BG' },
-                  { key: 'galleryBgImage', label: 'Gallery (Photo Gallery) BG' },
-                  { key: 'instagramBgImage', label: 'Instagram (Live Feed) BG' }
+                  { key: 'reviewsBgImage', label: 'Reviews background' },
+                  { key: 'blogBgImage', label: 'Blog background' },
+                  { key: 'galleryBgImage', label: 'Gallery background' },
+                  { key: 'instagramBgImage', label: 'Instagram background' }
                 ].map(field => (
                   <div key={field.key} className="flex items-center gap-4 bg-white dark:bg-neutral-900 px-2 py-1 rounded-sm border border-border dark:border-dark-border w-full">
                     <div className="w-48 text-xs font-black uppercase tracking-widest opacity-60 pr-2">{field.label}</div>

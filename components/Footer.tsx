@@ -65,15 +65,21 @@ const Footer: React.FC<FooterProps> = ({
               "{siteContent.footerTagline}"
             </p>
             <div className="flex items-center space-x-4">
-              <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
-                <FacebookIcon className="w-6 h-6" />
-              </a>
-              <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
-                <InstagramIcon className="w-6 h-6" />
-              </a>
-              <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
-                <YoutubeIcon className="w-6 h-6" />
-              </a>
+              {!!siteContent.facebookUrl && (
+                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                  <FacebookIcon className="w-6 h-6" />
+                </a>
+              )}
+              {!!siteContent.instagramUrl && (
+                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                  <InstagramIcon className="w-6 h-6" />
+                </a>
+              )}
+              {!!siteContent.youtubeUrl && (
+                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                  <YoutubeIcon className="w-6 h-6" />
+                </a>
+              )}
             </div>
           </div>
 
