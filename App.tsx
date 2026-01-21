@@ -19,11 +19,20 @@ import DynamicPage from './pages/DynamicPage';
 import AllToursPage from './pages/AllToursPage';
 import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
+import { createDebouncedStateSaver, loadAppState, type AppStateSnapshot } from './services/appStateService';
+import { getSupabase } from './services/supabaseClient';
 
 type View = 'home' | 'tripDetail' | 'booking' | 'contact' | 'admin' | 'login' | 'blog' | 'blogDetail' | 'gallery' | 'customize' | 'customPage' | 'allTours';
 export type Theme = 'light' | 'dark';
 
 const App: React.FC = () => {
+  const DATA_MODE =
+    ((import.meta as any).env?.VITE_DATA_MODE as string | undefined) ||
+    ((window as any).__REVROM_DATA_MODE__ as string | undefined) ||
+    'local';
+  const isSupabaseMode = DATA_MODE === 'supabase';
+  const [isRemoteReady, setIsRemoteReady] = useState(!isSupabaseMode);
+
   const [view, setView] = useState<View>(() => {
     try {
       const hash = window.location.hash.replace(/^#/, '');
@@ -40,6 +49,7 @@ const App: React.FC = () => {
   const [initialDestinationFilter, setInitialDestinationFilter] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+  const saver = useMemo(() => (isSupabaseMode ? createDebouncedStateSaver(1200) : null), [isSupabaseMode]);
 
   // Persistence Helpers
   const getStored = <T,>(key: string, initial: T): T => {
@@ -80,6 +90,97 @@ const App: React.FC = () => {
   useEffect(() => setStored('siteContent', siteContent), [siteContent]);
   useEffect(() => setStored('itineraryQueries', itineraryQueries), [itineraryQueries]);
   useEffect(() => setStored('customPages', customPages), [customPages]);
+
+  // Supabase Auth: keep isLoggedIn in sync with real session.
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    let unsub: { data: { subscription: { unsubscribe: () => void } } } | null = null;
+
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        setIsLoggedIn(!!data.session);
+        unsub = supabase.auth.onAuthStateChange((_event, session) => {
+          setIsLoggedIn(!!session);
+        }) as any;
+      } catch (err) {
+        console.error('Supabase auth init failed:', err);
+      }
+    })();
+
+    return () => {
+      unsub?.data?.subscription?.unsubscribe?.();
+    };
+  }, [isSupabaseMode]);
+
+  // Supabase: hydrate initial state (once) when enabled.
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    let canceled = false;
+
+    (async () => {
+      try {
+        const snapshot = await loadAppState();
+        if (canceled) return;
+        if (snapshot) {
+          setTrips(snapshot.trips || []);
+          setDepartures(snapshot.departures || []);
+          setBlogPosts(snapshot.blogPosts || []);
+          setGalleryPhotos(snapshot.galleryPhotos || []);
+          setInstagramPosts(snapshot.instagramPosts || []);
+          setGoogleReviews(snapshot.googleReviews || []);
+          setSiteContent(snapshot.siteContent || initialSiteContent);
+          setItineraryQueries(snapshot.itineraryQueries || []);
+          setCustomPages(snapshot.customPages || []);
+        }
+      } catch (err) {
+        // Fallback to local mock/localStorage if Supabase isn't configured yet.
+        console.error('Failed to load from Supabase (falling back to local):', err);
+      } finally {
+        if (!canceled) setIsRemoteReady(true);
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [isSupabaseMode]);
+
+  // Supabase: persist changes (debounced) after initial hydration.
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    if (!isRemoteReady) return;
+    if (!saver) return;
+    if (!isLoggedIn) return;
+
+    const snapshot: AppStateSnapshot = {
+      trips,
+      departures,
+      blogPosts,
+      galleryPhotos,
+      instagramPosts,
+      googleReviews,
+      siteContent,
+      itineraryQueries,
+      customPages,
+    };
+    saver.schedule(snapshot);
+  }, [
+    isSupabaseMode,
+    isRemoteReady,
+    isLoggedIn,
+    saver,
+    trips,
+    departures,
+    blogPosts,
+    galleryPhotos,
+    instagramPosts,
+    googleReviews,
+    siteContent,
+    itineraryQueries,
+    customPages,
+  ]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -228,6 +329,9 @@ const App: React.FC = () => {
       case 'login':
         return <LoginPage onLoginSuccess={() => { setIsLoggedIn(true); setView('admin'); }} />;
       case 'admin':
+        if (!isLoggedIn) {
+          return <LoginPage onLoginSuccess={() => { setIsLoggedIn(true); setView('admin'); }} />;
+        }
         return <AdminPage 
                     trips={trips} departures={departures} blogPosts={blogPosts}
                     galleryPhotos={galleryPhotos} instagramPosts={instagramPosts}
@@ -249,7 +353,16 @@ const App: React.FC = () => {
                     onAddCustomPage={page => setCustomPages(prev => [{...page, id: Date.now().toString()}, ...prev])}
                     onUpdateCustomPage={page => setCustomPages(prev => prev.map(x => x.id === page.id ? page : x))}
                     onDeleteCustomPage={id => setCustomPages(prev => prev.filter(x => x.id !== id))}
-                    onLogout={() => { setIsLoggedIn(false); setView('home'); }}
+                    onLogout={async () => {
+                      try {
+                        if (isSupabaseMode) await getSupabase().auth.signOut();
+                      } catch (err) {
+                        console.error('Logout failed:', err);
+                      } finally {
+                        setIsLoggedIn(false);
+                        setView('home');
+                      }
+                    }}
                     theme={theme}
                 />;
       case 'home':

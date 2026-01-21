@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getSupabase } from '../services/supabaseClient';
 
 interface LoginPageProps {
     onLoginSuccess: () => void;
@@ -8,16 +9,35 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const DATA_MODE = ((import.meta as any).env?.VITE_DATA_MODE as string | undefined) || 'local';
+    const isSupabaseMode = DATA_MODE === 'supabase';
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
+        setIsSubmitting(true);
 
-        // Hardcoded credentials for demonstration
-        if (email === 'admin@revrom.in' && password === 'password123') {
-            onLoginSuccess();
-        } else {
-            setError('Invalid email or password. Please try again.');
+        try {
+            if (isSupabaseMode) {
+                const supabase = getSupabase();
+                const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+                if (signInError) throw signInError;
+                onLoginSuccess();
+                return;
+            }
+
+            // Local demo credentials (non-production)
+            if (email === 'admin@revrom.in' && password === 'password123') {
+                onLoginSuccess();
+            } else {
+                setError('Invalid email or password. Please try again.');
+            }
+        } catch (err: any) {
+            setError(err?.message || 'Login failed. Please try again.');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -71,9 +91,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     <div>
                         <button
                             type="submit"
+                            disabled={isSubmitting}
                             className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-brand-primary hover:bg-brand-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-card dark:focus:ring-offset-dark-card focus:ring-brand-primary"
                         >
-                            Sign in
+                            {isSubmitting ? 'Signing in...' : 'Sign in'}
                         </button>
                     </div>
                 </form>
