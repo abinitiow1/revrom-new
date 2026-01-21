@@ -617,7 +617,42 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
                    <div className="space-y-8">
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Branding Assets</h4>
-                      {renderImageField('Site Logo (Transparent)', siteContent.logoUrl, url => onUpdateSiteContent({ logoUrl: url }))}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Site logo (transparent)</label>
+                        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                          <label className="px-5 py-3 rounded-xl bg-brand-primary text-white text-[10px] font-black uppercase tracking-widest cursor-pointer shadow-sm hover:bg-brand-primary/90 transition-all">
+                            Upload from device
+                            <input
+                              type="file"
+                              className="hidden"
+                              accept="image/*"
+                              onChange={(e) =>
+                                handleFileUpload(e, (url) => {
+                                  onUpdateSiteContent({ logoUrl: url });
+                                  showNotice('Logo updated');
+                                })
+                              }
+                            />
+                          </label>
+                          {!!siteContent.logoUrl && (
+                            <button
+                              type="button"
+                              onClick={() => onUpdateSiteContent({ logoUrl: '' })}
+                              className="px-5 py-3 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        {!!siteContent.logoUrl && (
+                          <div className="mt-3 flex items-center gap-4">
+                            <div className="w-28 h-16 rounded-xl overflow-hidden border border-border dark:border-dark-border bg-white/60 dark:bg-black/30 flex items-center justify-center">
+                              <img src={siteContent.logoUrl} className="max-w-full max-h-full object-contain" />
+                            </div>
+                            <div className="text-[11px] text-muted-foreground break-all">{siteContent.logoUrl}</div>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Footer tagline</label>
                         <input value={siteContent.footerTagline} onChange={e => onUpdateSiteContent({footerTagline: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
