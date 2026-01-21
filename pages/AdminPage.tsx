@@ -182,7 +182,26 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
             }}
             className="flex-1 bg-brand-primary text-white px-4 py-3 rounded-xl hover:bg-brand-primary/90 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
           >
-            UPLOAD URL IMAGE
+            IMPORT URL
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (!props.galleryPhotos?.length) {
+                showNotice('Gallery is empty. Add visuals first.', 'info');
+                return;
+              }
+              setIsGalleryPickerOpen({
+                isOpen: true,
+                onSelect: (u) => {
+                  onChange(u);
+                  setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} });
+                },
+              });
+            }}
+            className="px-4 py-3 rounded-xl border border-border dark:border-dark-border bg-white dark:bg-neutral-900 hover:bg-slate-50 dark:hover:bg-neutral-800 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm"
+          >
+            GALLERY
           </button>
         </div>
       </div>
