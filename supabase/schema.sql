@@ -6,7 +6,7 @@ create table if not exists public.admin_users (
 );
 
 -- Helper to get the current user's email from JWT claims (lowercased).
--- Different auth configurations can populate email in different claim locations.
+-- Use PostgREST request settings to avoid privilege issues calling auth.* functions.
 create or replace function public.current_email()
 returns text
 language sql
@@ -14,9 +14,8 @@ stable
 as $$
   select lower(
     coalesce(
-      auth.email(),
-      auth.jwt() ->> 'email',
-      auth.jwt() -> 'user_metadata' ->> 'email'
+      (nullif(current_setting('request.jwt.claims', true), '')::json ->> 'email'),
+      (nullif(current_setting('request.jwt.claims', true), '')::json -> 'user_metadata' ->> 'email')
     )
   );
 $$;
@@ -99,24 +98,15 @@ with check (
   )
 );
 
--- Lock down admin_users: only admins should manage this table.
+-- Note: avoid policies that self-query admin_users (causes RLS recursion).
+-- Allow authenticated users to read their own admin row so app_state checks work.
 drop policy if exists "admins manage admin_users" on public.admin_users;
-create policy "admins manage admin_users"
+drop policy if exists "read own admin_users row" on public.admin_users;
+create policy "read own admin_users row"
 on public.admin_users
-for all
+for select
 to authenticated
-using (
-  exists (
-    select 1 from public.admin_users au
-    where lower(au.email) = public.current_email()
-  )
-)
-with check (
-  exists (
-    select 1 from public.admin_users au
-    where lower(au.email) = public.current_email()
-  )
-);
+using (lower(email) = public.current_email());
 
 -- Public can submit leads (inquiries). Only admins can read them.
 drop policy if exists "public insert itinerary_queries" on public.itinerary_queries;
@@ -142,6 +132,6 @@ using (
 grant usage on schema public to anon, authenticated;
 grant select on table public.app_state to anon, authenticated;
 grant insert, update on table public.app_state to authenticated;
-grant select, insert, update, delete on table public.admin_users to authenticated;
+grant select on table public.admin_users to authenticated;
 grant insert on table public.itinerary_queries to anon, authenticated;
 grant select on table public.itinerary_queries to authenticated;

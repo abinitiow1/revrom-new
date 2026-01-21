@@ -72,6 +72,9 @@ export const createDebouncedStateSaver = (delayMs: number = 1200) => {
       timer = null;
       flush().catch((err) => {
         console.error('Failed to save app state to Supabase:', err);
+        try {
+          console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+        } catch {}
       });
     }, delayMs);
   };

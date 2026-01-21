@@ -220,6 +220,9 @@ const App: React.FC = () => {
         if (!canceled) setItineraryQueries(leads);
       } catch (err) {
         console.error('Failed to load leads from Supabase:', err);
+        try {
+          console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
+        } catch {}
       }
     })();
 
@@ -286,6 +289,9 @@ const App: React.FC = () => {
       if (isSupabaseMode) {
         submitItineraryQuery(lead).catch((err) => {
           console.error('Failed to submit lead to Supabase:', err);
+          try {
+            console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
+          } catch {}
         });
       } else {
         setItineraryQueries((prev) => [lead, ...prev]);
