@@ -73,11 +73,10 @@ export const createDebouncedStateSaver = (delayMs: number = 1200) => {
     timer = window.setTimeout(() => {
       timer = null;
       flush().catch(() => {
-        // keep silent here; UI can show a toast later if you want
+        console.error('Failed to save app state to Supabase.');
       });
     }, delayMs);
   };
 
   return { schedule, flush };
 };
-

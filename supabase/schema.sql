@@ -49,7 +49,7 @@ to authenticated
 with check (
   exists (
     select 1 from public.admin_users au
-    where lower(au.email) = lower(auth.jwt() ->> 'email')
+    where lower(au.email) = lower(auth.email())
   )
 );
 
@@ -61,13 +61,13 @@ to authenticated
 using (
   exists (
     select 1 from public.admin_users au
-    where lower(au.email) = lower(auth.jwt() ->> 'email')
+    where lower(au.email) = lower(auth.email())
   )
 )
 with check (
   exists (
     select 1 from public.admin_users au
-    where lower(au.email) = lower(auth.jwt() ->> 'email')
+    where lower(au.email) = lower(auth.email())
   )
 );
 
@@ -80,13 +80,12 @@ to authenticated
 using (
   exists (
     select 1 from public.admin_users au
-    where lower(au.email) = lower(auth.jwt() ->> 'email')
+    where lower(au.email) = lower(auth.email())
   )
 )
 with check (
   exists (
     select 1 from public.admin_users au
-    where lower(au.email) = lower(auth.jwt() ->> 'email')
+    where lower(au.email) = lower(auth.email())
   )
 );
-
