@@ -746,32 +746,32 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   { key: 'galleryBgImage', label: 'Gallery background' },
                   { key: 'instagramBgImage', label: 'Instagram background' }
                 ].map(field => (
-                  <div key={field.key} className="flex items-center gap-4 bg-white dark:bg-neutral-900 px-2 py-1 rounded-sm border border-border dark:border-dark-border w-full">
-                    <div className="w-48 text-xs font-black uppercase tracking-widest opacity-60 pr-2">{field.label}</div>
+                  <div key={field.key} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-white dark:bg-neutral-900 p-3 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border w-full">
+                    <div className="w-full sm:w-48 text-xs font-black uppercase tracking-widest opacity-60 sm:pr-2">{field.label}</div>
 
                     <input
                       value={(siteContent as any)[field.key] || ''}
                       onChange={e => onUpdateSiteContent({ [field.key]: e.target.value } as any)}
                       placeholder="Paste URL (e.g. from Google)..."
-                      className="flex-1 min-w-0 bg-background dark:bg-dark-background px-2 py-1 rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                      className="w-full sm:flex-1 sm:min-w-0 bg-background dark:bg-dark-background px-3 py-2 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
                     />
 
-                    <div className="w-44 flex items-center justify-end gap-2">
+                    <div className="w-full sm:w-44 flex items-center justify-between sm:justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setIsGalleryPickerOpen({ isOpen: true, onSelect: (url) => { onUpdateSiteContent({ [field.key]: url } as any); setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} }); } })}
-                        className="px-2 py-1 bg-neutral-800 text-white rounded-sm hover:bg-neutral-700 transition-all text-[10px] font-black uppercase"
+                        className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-neutral-800 text-white rounded-xl sm:rounded-sm hover:bg-neutral-700 transition-all text-[10px] font-black uppercase"
                       >
                         GALLERY
                       </button>
 
-                      <label className="px-2 py-1 bg-brand-primary/10 text-brand-primary rounded-sm text-[10px] font-black uppercase cursor-pointer flex items-center justify-center border border-brand-primary/20">
+                      <label className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-brand-primary/10 text-brand-primary rounded-xl sm:rounded-sm text-[10px] font-black uppercase cursor-pointer flex items-center justify-center border border-brand-primary/20">
                         UPLOAD
                         <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, url => onUpdateSiteContent({ [field.key]: url } as any))} />
                       </label>
 
                       {(siteContent as any)[field.key] && (
-                        <div className="w-8 h-8 rounded-sm overflow-hidden border border-border ml-2">
+                        <div className="w-8 h-8 rounded-lg sm:rounded-sm overflow-hidden border border-border sm:ml-2">
                           <img src={(siteContent as any)[field.key]} className="w-full h-full object-cover" />
                         </div>
                       )}
@@ -956,7 +956,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
-              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between sticky top-6 z-[300] shadow-lg">
+              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between sticky top-24 lg:top-6 z-[300] shadow-lg">
                 <div className="space-y-1">
                   <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Website Publishing</div>
                   <div className="text-sm font-black">
@@ -1008,8 +1008,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {/* Editing Dialog - Maximum Z-Index */}
       {editingItem && (
         <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
-           <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-10 sm:p-16 rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
-              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-10 right-10 w-14 h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-3xl font-black z-[10] active:scale-90">×</button>
+           <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-6 sm:p-10 lg:p-16 rounded-[2.5rem] sm:rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
+              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">×</button>
               <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
                 {activeTab === 'TOURS'
                   ? 'Edit tour'
