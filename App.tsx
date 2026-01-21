@@ -21,6 +21,7 @@ import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { createDebouncedStateSaver, loadAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
+import { listItineraryQueries, submitItineraryQuery } from './services/itineraryQueryService';
 
 type View = 'home' | 'tripDetail' | 'booking' | 'contact' | 'admin' | 'login' | 'blog' | 'blogDetail' | 'gallery' | 'customize' | 'customPage' | 'allTours';
 export type Theme = 'light' | 'dark';
@@ -70,7 +71,7 @@ const App: React.FC = () => {
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => (isSupabaseMode ? initialInstagramPosts : getStored('instagramPosts', initialInstagramPosts)));
   const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => (isSupabaseMode ? initialGoogleReviews : getStored('googleReviews', initialGoogleReviews)));
   const [siteContent, setSiteContent] = useState<SiteContent>(() => (isSupabaseMode ? initialSiteContent : getStored('siteContent', initialSiteContent)));
-  const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? initialItineraryQueries : getStored('itineraryQueries', initialItineraryQueries)));
+  const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
   const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
 
   // Initial Loading Simulator
@@ -159,7 +160,6 @@ const App: React.FC = () => {
           setInstagramPosts(snapshot.instagramPosts || []);
           setGoogleReviews(snapshot.googleReviews || []);
           setSiteContent(snapshot.siteContent || initialSiteContent);
-          setItineraryQueries(snapshot.itineraryQueries || []);
           setCustomPages(snapshot.customPages || []);
         }
       } catch (err) {
@@ -190,7 +190,6 @@ const App: React.FC = () => {
       instagramPosts,
       googleReviews,
       siteContent,
-      itineraryQueries,
       customPages,
     };
     saver.schedule(snapshot);
@@ -206,9 +205,28 @@ const App: React.FC = () => {
     instagramPosts,
     googleReviews,
     siteContent,
-    itineraryQueries,
     customPages,
   ]);
+
+  // Supabase: load leads (admin only).
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    if (!isLoggedIn) return;
+    let canceled = false;
+
+    (async () => {
+      try {
+        const leads = await listItineraryQueries();
+        if (!canceled) setItineraryQueries(leads);
+      } catch (err) {
+        console.error('Failed to load leads from Supabase:', err);
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [isSupabaseMode, isLoggedIn]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -256,13 +274,25 @@ const App: React.FC = () => {
 
   const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
   
-  const addInquiry = useCallback((q: Omit<ItineraryQuery, 'id' | 'date'>) => {
-    setItineraryQueries(prev => [{
+  const addInquiry = useCallback(
+    (q: Omit<ItineraryQuery, 'id' | 'date'>) => {
+      const lead: ItineraryQuery = {
         ...q,
         id: Date.now().toString(),
-        date: new Date().toISOString()
-    }, ...prev]);
-  }, []);
+        date: new Date().toISOString(),
+      };
+
+      // Always submit to Supabase in Supabase mode (public insert); keep local fallback otherwise.
+      if (isSupabaseMode) {
+        submitItineraryQuery(lead).catch((err) => {
+          console.error('Failed to submit lead to Supabase:', err);
+        });
+      } else {
+        setItineraryQueries((prev) => [lead, ...prev]);
+      }
+    },
+    [isSupabaseMode],
+  );
 
   // ----- URL hash sync (preserve view on reload / back-forward navigation) -----
   const buildHash = (params: Record<string, string | null | undefined>) => {

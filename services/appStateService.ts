@@ -5,7 +5,6 @@ import type {
   GalleryPhoto,
   GoogleReview,
   InstagramPost,
-  ItineraryQuery,
   SiteContent,
   Trip,
 } from '../types';
@@ -19,7 +18,6 @@ export type AppStateSnapshot = {
   instagramPosts: InstagramPost[];
   googleReviews: GoogleReview[];
   siteContent: SiteContent;
-  itineraryQueries: ItineraryQuery[];
   customPages: CustomPage[];
 };
 
