@@ -791,20 +791,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'SETTINGS'];
 
   const isSupabaseMode = !!props.isSupabaseMode;
-  const autoSaveEnabled = props.autoSaveEnabled ?? true;
+  // Keep the persistence logic, but keep the UI simple: explicit Save button.
+  const autoSaveEnabled = false;
   const saveStatus = props.saveStatus ?? 'idle';
   const isDirty = saveStatus === 'dirty' || saveStatus === 'error';
   const isSaving = saveStatus === 'saving';
 
   const requestCloseModal = () => {
-    if (isSupabaseMode && isDirty && !autoSaveEnabled && typeof window !== 'undefined') {
+    if (isSupabaseMode && isDirty && typeof window !== 'undefined') {
       const ok = window.confirm('You have unsaved changes. Close anyway?');
       if (!ok) return false;
-    }
-    if (isSupabaseMode && isDirty && autoSaveEnabled) {
-      try {
-        props.onSaveNow?.();
-      } catch {}
     }
     return true;
   };
@@ -957,44 +953,62 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
               <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between sticky top-24 lg:top-6 z-[300] shadow-lg">
-                <div className="space-y-1">
-                  <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Website Publishing</div>
-                  <div className="text-sm font-black">
-                    {saveStatus === 'saving'
-                      ? 'Saving to Supabase…'
-                      : saveStatus === 'saved'
-                        ? 'Saved'
-                        : saveStatus === 'error'
-                          ? 'Save failed (check Console)'
-                          : isDirty
-                            ? 'Unsaved changes'
-                            : 'No pending changes'}
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Save changes</div>
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                          saveStatus === 'saving'
+                            ? 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
+                            : saveStatus === 'saved'
+                              ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                              : saveStatus === 'error'
+                                ? 'bg-red-500/10 text-red-600 dark:text-red-300 border-red-500/20'
+                                : isDirty
+                                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-200 border-amber-500/20'
+                                  : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
+                        }`}
+                      >
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            saveStatus === 'saving'
+                              ? 'bg-brand-primary animate-pulse'
+                              : saveStatus === 'saved'
+                                ? 'bg-emerald-500'
+                                : saveStatus === 'error'
+                                  ? 'bg-red-500'
+                                  : isDirty
+                                    ? 'bg-amber-500'
+                                    : 'bg-slate-400'
+                          }`}
+                        />
+                        {saveStatus === 'saving'
+                          ? 'Saving…'
+                          : saveStatus === 'saved'
+                            ? 'Saved'
+                            : saveStatus === 'error'
+                              ? 'Save failed'
+                              : isDirty
+                                ? 'Unsaved'
+                                : 'Saved'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Click Save to publish your updates.
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
-                    Changes affect tours, blog, pages, visuals and settings.
-                  </div>
-                </div>
 
-                <div className="flex flex-col sm:flex-row gap-4 sm:items-center">
-                  <label className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={autoSaveEnabled}
-                      onChange={(e) => props.onToggleAutoSave?.(e.target.checked)}
-                      className="accent-brand-primary w-4 h-4"
-                    />
-                    Auto-save
-                  </label>
                   <button
                     onClick={() => props.onSaveNow?.()}
                     disabled={!isDirty || isSaving}
-                    className={`px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`w-full md:w-auto px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       !isDirty || isSaving
                         ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 cursor-not-allowed'
                         : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95'
                     }`}
                   >
-                    {isSaving ? 'Saving…' : 'Save now'}
+                    {isSaving ? 'Saving…' : 'Save'}
                   </button>
                 </div>
               </div>
