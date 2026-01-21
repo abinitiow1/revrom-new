@@ -952,7 +952,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
-              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between sticky top-24 lg:top-6 z-[300] shadow-lg">
+              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between shadow-lg">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
                   <div className="space-y-1">
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Save changes</div>
