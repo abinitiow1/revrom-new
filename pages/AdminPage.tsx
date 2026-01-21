@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Trip, Departure, BlogPost, GalleryPhoto, SiteContent, ItineraryQuery, CustomPage, InstagramPost, SectionConfig } from '../types';
 import type { Theme } from '../App';
+import { getSupabase } from '../services/supabaseClient';
 
 interface AdminPageProps {
   trips: Trip[];
@@ -128,24 +129,75 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     setValidationAttempted(false);
   }, [activeTab, editingItem]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+
+  const uploadToSupabaseStorage = async (file: File): Promise<string> => {
+    const supabase = getSupabase();
+    const bucket = 'site-assets';
+    const safeName = (file.name || 'upload').replace(/[^\w.\-]+/g, '_');
+    const path = `uploads/${Date.now()}-${safeName}`;
+
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file, {
+      cacheControl: '3600',
+      contentType: file.type || 'application/octet-stream',
+      upsert: false,
+    });
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    if (!data?.publicUrl) throw new Error('Failed to get public URL');
+    return data.publicUrl;
+  };
+
+  const handleFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    callback: (url: string) => void,
+    options?: { addToGallery?: boolean }
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const url = reader.result as string;
-      callback(url);
-      try {
-        const exists = props.galleryPhotos.some(p => p.imageUrl === url);
-        if (!exists) {
-          props.onAddGalleryPhoto({ imageUrl: url, caption: 'Uploaded Visual', category: 'Landscapes' });
-          showNotice('Image added to Gallery');
-        } else {
-          showNotice('Image already exists in Gallery', 'info');
+
+    const addToGallery = options?.addToGallery ?? true;
+
+    try {
+      if (props.isSupabaseMode) {
+        const url = await uploadToSupabaseStorage(file);
+        callback(url);
+        if (addToGallery) {
+          const exists = props.galleryPhotos.some(p => p.imageUrl === url);
+          if (!exists) {
+            props.onAddGalleryPhoto({ imageUrl: url, caption: 'Uploaded Visual', category: 'Landscapes' });
+            showNotice('Image added to Gallery');
+          } else {
+            showNotice('Image already exists in Gallery', 'info');
+          }
         }
-      } catch (err) {}
-    };
-    reader.readAsDataURL(file);
+        return;
+      }
+    } catch (err) {
+      showNotice('Upload failed. Using a local image (may be large).', 'info');
+    }
+
+    const url = await readFileAsDataUrl(file);
+    callback(url);
+    if (!addToGallery) return;
+
+    try {
+      const exists = props.galleryPhotos.some(p => p.imageUrl === url);
+      if (!exists) {
+        props.onAddGalleryPhoto({ imageUrl: url, caption: 'Uploaded Visual', category: 'Landscapes' });
+        showNotice('Image added to Gallery');
+      } else {
+        showNotice('Image already exists in Gallery', 'info');
+      }
+    } catch (err) {}
   };
 
   const handleAddGalleryUrl = () => {
@@ -630,7 +682,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                 handleFileUpload(e, (url) => {
                                   onUpdateSiteContent({ logoUrl: url });
                                   showNotice('Logo updated');
-                                })
+                                }, { addToGallery: false })
                               }
                             />
                           </label>
@@ -649,7 +701,25 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                             <div className="w-28 h-16 rounded-xl overflow-hidden border border-border dark:border-dark-border bg-white/60 dark:bg-black/30 flex items-center justify-center">
                               <img src={siteContent.logoUrl} className="max-w-full max-h-full object-contain" />
                             </div>
-                            <div className="text-[11px] text-muted-foreground break-all">{siteContent.logoUrl}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-[11px] text-muted-foreground truncate">
+                                {siteContent.logoUrl.startsWith('data:') ? 'Stored as a local image (data URL)' : siteContent.logoUrl}
+                              </div>
+                              {!siteContent.logoUrl.startsWith('data:') && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    try {
+                                      void navigator.clipboard.writeText(siteContent.logoUrl);
+                                      showNotice('Link copied');
+                                    } catch {}
+                                  }}
+                                  className="mt-2 px-4 py-2 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
+                                >
+                                  Copy link
+                                </button>
+                              )}
+                            </div>
                           </div>
                         )}
                       </div>
