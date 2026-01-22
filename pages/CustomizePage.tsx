@@ -17,8 +17,11 @@ interface CustomizePageProps {
 
 const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips }) => {
     const [formData, setFormData] = useState({
+        tripId: trips?.[0]?.id || '',
         travelers: '2',
         duration: '10',
+        startDate: '',
+        endDate: '',
         destinations: 'Ladakh, Spiti Valley',
         style: 'Adventure Focused',
         interests: 'High passes like Khardung La, ancient monasteries like Key & Diskit, and pristine lakes like Pangong Tso.'
@@ -63,6 +66,31 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const handleStartOver = () => {
         setGeneratedItinerary('');
         setError('');
+    };
+
+    const buildQuotePrefillMessage = () => {
+        const trip = trips.find(t => t.id === formData.tripId);
+        const interests = (formData.interests || '').replace(/\s+/g, ' ').trim();
+        const dateRange = formData.startDate && formData.endDate
+            ? `${formData.startDate} to ${formData.endDate}`
+            : (formData.startDate ? `Starting ${formData.startDate}` : (formData.endDate ? `Until ${formData.endDate}` : 'Flexible'));
+
+        const itineraryHint = generatedItinerary
+            ? 'I also generated an initial itinerary in your Trip Planner. Please review and suggest the best option.'
+            : 'Please suggest the best itinerary for these preferences.';
+
+        return [
+            'Hello Revrom, I would like a quote for my trip:',
+            '',
+            `- Trip: ${trip?.title || formData.destinations || 'Custom plan'}`,
+            `- People: ${formData.travelers || '1'} rider(s)`,
+            `- Duration: ${formData.duration || 'N/A'} days`,
+            `- Dates: ${dateRange}`,
+            `- Style: ${formData.style || 'N/A'}`,
+            `- Interests: ${interests || 'N/A'}`,
+            '',
+            itineraryHint,
+        ].join('\\n');
     };
     
     const renderMarkdown = (text: string) => {
@@ -150,6 +178,35 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </div>
                         </div>
                         <div>
+                            <label htmlFor="tripId" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Base trip (admin itinerary)</label>
+                            <select
+                                name="tripId"
+                                id="tripId"
+                                value={formData.tripId}
+                                onChange={handleInputChange}
+                                className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                            >
+                                {trips.map(t => (
+                                    <option key={t.id} value={t.id}>
+                                        {t.title}
+                                    </option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                We start from the itinerary set by admin for this trip, then adjust based on your preferences.
+                            </p>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label htmlFor="startDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Start date (optional)</label>
+                                <input type="date" name="startDate" id="startDate" value={formData.startDate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                            </div>
+                            <div>
+                                <label htmlFor="endDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">End date (optional)</label>
+                                <input type="date" name="endDate" id="endDate" value={formData.endDate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                            </div>
+                        </div>
+                        <div>
                             <label htmlFor="destinations" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Preferred Destinations / Regions</label>
                             <input type="text" name="destinations" id="destinations" value={formData.destinations} onChange={handleInputChange} placeholder="e.g., Ladakh, Spiti, Zanskar, Kashmir" required className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
                         </div>
@@ -187,9 +244,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                                                     <button 
                                                                         onClick={() => {
                                                                             try {
-                                                                            const shortInterests = (formData.interests || '').replace(/\s+/g, ' ').trim().slice(0, 180);
-                                                                            const summary = `Hello Revrom, I would like information and a quote for a ${formData.duration}-day ${formData.style} trip to ${formData.destinations} for ${formData.travelers} rider(s). Interests: ${shortInterests}`;
-                                                                            localStorage.setItem('lastItinerary', summary);
+                                                                            localStorage.setItem('lastItinerary', buildQuotePrefillMessage());
                                                                             } catch (e) {}
                                                                             onNavigateContact();
                                                                         }}

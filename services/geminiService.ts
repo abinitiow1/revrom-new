@@ -273,28 +273,101 @@ export const generatePackingList = async (trip: Trip): Promise<string> => {
  * Generates a custom itinerary based on user preferences using Gemini.
  */
 export const generateCustomItinerary = async (formData: any, availableTrips: Trip[]): Promise<string> => {
+  const baseTripId = (formData?.tripId as string | undefined) || undefined;
+  const baseTrip = baseTripId ? availableTrips.find(t => t.id === baseTripId) : undefined;
+
   if (!isRemote) {
-    const days = Number(formData.duration) || 3;
+    const targetDays = Number(formData.duration) || Number(baseTrip?.duration) || 3;
+    const riders = formData.travelers || 'riders';
+    const style = formData.style || 'Adventure';
+    const interests = formData.interests || 'Adventure, culture';
     const dests = (formData.destinations || '').split(',').map((s: string) => s.trim()).filter(Boolean);
-    const title = `Custom ${days}-day ${formData.style || 'adventure'} itinerary for ${formData.travelers || 'riders'}`;
-    let md = `# ${title}\n\n`;
-    for (let i = 1; i <= days; i++) {
+
+    const title = baseTrip
+      ? `# ${baseTrip.title} — ${targetDays}-day plan`
+      : `# Custom ${targetDays}-day ${style} itinerary`;
+
+    const headerLines = [
+      title,
+      '',
+      `**Riders:** ${riders}`,
+      `**Style:** ${style}`,
+      dests.length ? `**Regions:** ${dests.join(', ')}` : '',
+      formData.startDate || formData.endDate
+        ? `**Dates:** ${formData.startDate || 'Flexible'} → ${formData.endDate || 'Flexible'}`
+        : '',
+      `**Interests:** ${interests}`,
+      '',
+    ].filter(Boolean);
+
+    const baseDays = (baseTrip?.itinerary || []).slice().sort((a, b) => (a.day ?? 0) - (b.day ?? 0));
+    let md = headerLines.join('\n') + '\n';
+
+    if (baseTrip && baseDays.length) {
+      const trimmed = baseDays.slice(0, targetDays);
+      for (const day of trimmed) {
+        const dayNum = day.day || trimmed.indexOf(day) + 1;
+        md += `### Day ${dayNum}: ${day.title || 'Ride & explore'}\n`;
+        if (day.description?.trim()) {
+          md += `- ${day.description.trim()}\n`;
+        } else {
+          md += `- Ride and explore key highlights on this stage.\n`;
+        }
+        md += `- Notes: acclimatize, hydrate, and keep buffer time for weather.\n\n`;
+      }
+
+      // Extend if needed
+      for (let i = trimmed.length + 1; i <= targetDays; i++) {
+        const hint = dests[(i - 1) % Math.max(1, dests.length)] || baseTrip.destination || 'Scenic route';
+        md += `### Day ${i}: Extra day — ${hint}\n- Add a flexible day for rest, photography, or local experiences.\n- Notes: permits, road status, and altitude safety.\n\n`;
+      }
+
+      md += `_Tip: enable remote AI (VITE_AI_MODE=remote) to automatically rearrange and enrich this plan while keeping the day-by-day structure._`;
+      return Promise.resolve(md);
+    }
+
+    // Fallback template when no base itinerary exists
+    for (let i = 1; i <= targetDays; i++) {
       const dest = dests[(i - 1) % Math.max(1, dests.length)] || availableTrips[(i - 1) % Math.max(1, availableTrips.length)]?.title || 'Scenic route';
       md += `### Day ${i}: ${dest}\n- Ride: ${Math.max(60, 80 - i * 5)} km along mixed terrain.\n- Highlights: mountain passes, local villages, rugged campsites.\n- Tips: pack warm layers, check tire pressure, carry spare fuel for remote stages.\n\n`;
     }
-    md += `**Interests:** ${formData.interests || 'Adventure, culture'}\n`;
-    md += `\n_Offline mode: enable remote AI for a richer, more detailed itinerary._`;
+    md += `_Offline mode: enable remote AI for a richer, more detailed itinerary._`;
     return Promise.resolve(md);
   }
   const ai = await getAi();
-  const prompt = `Act as an expert Himalayan motorcycle tour architect. 
-  Create a custom ${formData.duration}-day itinerary for ${formData.travelers} riders.
-  Destinations: ${formData.destinations}.
-  Style: ${formData.style}.
-  Interests: ${formData.interests}.
-  Reference our existing tours if applicable: ${availableTrips.map(t => t.title).join(', ')}.
-  The output should be in Markdown format with a title (#) and day-by-day highlights (### Day X: Title).
-  Include rugged, frontier-style advice consistent with Revrom.in's Chushul roots.`;
+  const prompt = baseTrip
+    ? `You are an expert Himalayan motorcycle tour architect.
+You will take an ADMIN-MAINTAINED base itinerary and personalize it.
+
+User request:
+- Riders: ${formData.travelers}
+- Days: ${formData.duration}
+- Dates: ${formData.startDate || 'flexible'} to ${formData.endDate || 'flexible'}
+- Style: ${formData.style}
+- Interests: ${formData.interests}
+- Regions: ${formData.destinations}
+
+Base trip (admin):
+- Title: ${baseTrip.title}
+- Destination: ${baseTrip.destination}
+- Default duration: ${baseTrip.duration} days
+- Base itinerary (JSON): ${JSON.stringify(baseTrip.itinerary)}
+
+Rules:
+1) Output MUST be Markdown.
+2) Keep a clear day-by-day structure: use headings exactly like "### Day X: Title".
+3) Keep the itinerary realistic for Himalayan high altitude (rest/acclimatization, road conditions).
+4) If user asks for more days than base itinerary, extend with sensible days; if fewer, compress without losing safety.
+5) Add a short "Notes" section at the end covering permits, rest days, and packing tips.
+`
+    : `Act as an expert Himalayan motorcycle tour architect.
+Create a custom ${formData.duration}-day itinerary for ${formData.travelers} riders.
+Dates: ${formData.startDate || 'flexible'} to ${formData.endDate || 'flexible'}.
+Destinations: ${formData.destinations}.
+Style: ${formData.style}.
+Interests: ${formData.interests}.
+Reference our existing tours if applicable: ${availableTrips.map(t => t.title).join(', ')}.
+The output should be in Markdown format with a title (#) and day-by-day highlights (### Day X: Title).`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
