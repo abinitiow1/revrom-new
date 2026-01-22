@@ -27,10 +27,15 @@ type AppStateRow = {
   updated_at?: string;
 };
 
+export type AppStateLoadResult = {
+  snapshot: AppStateSnapshot;
+  updatedAt: string | null;
+};
+
 const TABLE = 'app_state';
 const DEFAULT_ID = 'default';
 
-export const loadAppState = async (): Promise<AppStateSnapshot | null> => {
+export const loadAppState = async (): Promise<AppStateLoadResult | null> => {
   const supabase = getSupabase();
 
   const { data, error } = await supabase
@@ -41,21 +46,44 @@ export const loadAppState = async (): Promise<AppStateSnapshot | null> => {
 
   if (error) throw error;
   if (!data?.state) return null;
-  return data.state;
+  return { snapshot: data.state, updatedAt: data.updated_at ?? null };
 };
 
-export const saveAppState = async (snapshot: AppStateSnapshot): Promise<void> => {
+export const saveAppState = async (
+  snapshot: AppStateSnapshot,
+  expectedUpdatedAt?: string | null,
+): Promise<string | null> => {
   const supabase = getSupabase();
-  const { error } = await supabase
+
+  if (expectedUpdatedAt) {
+    const { data, error } = await supabase
+      .from(TABLE)
+      .update({ state: snapshot })
+      .eq('id', DEFAULT_ID)
+      .eq('updated_at', expectedUpdatedAt)
+      .select('updated_at')
+      .maybeSingle<AppStateRow>();
+
+    if (error) throw error;
+    if (!data?.updated_at) {
+      throw new Error('Save conflict: remote content changed. Please reload the admin and try again.');
+    }
+    return data.updated_at ?? null;
+  }
+
+  const { data, error } = await supabase
     .from(TABLE)
-    .upsert({ id: DEFAULT_ID, state: snapshot }, { onConflict: 'id' });
+    .upsert({ id: DEFAULT_ID, state: snapshot }, { onConflict: 'id' })
+    .select('updated_at')
+    .maybeSingle<AppStateRow>();
 
   if (error) throw error;
+  return data?.updated_at ?? null;
 };
 
 type DebouncedSaverCallbacks<TMeta> = {
   onStart?: (meta: TMeta) => void;
-  onSuccess?: (meta: TMeta) => void;
+  onSuccess?: (meta: TMeta, updatedAt: string | null) => void;
   onError?: (err: unknown, meta: TMeta) => void;
 };
 
@@ -76,8 +104,8 @@ export const createDebouncedStateSaver = <TMeta = undefined>(
     pendingMeta = undefined as TMeta;
 
     callbacks?.onStart?.(meta);
-    await saveAppState(snapshot);
-    callbacks?.onSuccess?.(meta);
+    const updatedAt = await saveAppState(snapshot, (meta as any)?.expectedUpdatedAt);
+    callbacks?.onSuccess?.(meta, updatedAt);
   };
 
   const schedule = (snapshot: AppStateSnapshot, meta: TMeta = undefined as TMeta) => {

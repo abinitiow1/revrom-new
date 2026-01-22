@@ -181,6 +181,10 @@ const Footer: React.FC<FooterProps> = ({
                   showNewsletterToast('Thanks for subscribing');
                 } catch (err: any) {
                   const msg = String(err?.message || '');
+                  if (msg.toLowerCase().includes('rate limit')) {
+                    showNewsletterToast('Please wait and try again');
+                    return;
+                  }
                   if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
                     showNewsletterToast('Already subscribed');
                   } else {

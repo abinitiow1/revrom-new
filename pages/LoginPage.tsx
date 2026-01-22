@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { getSupabase } from '../services/supabaseClient';
+import { getIsAdmin } from '../services/adminService';
 
 interface LoginPageProps {
     onLoginSuccess: () => void;
@@ -13,6 +14,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
     const DATA_MODE = ((import.meta as any).env?.VITE_DATA_MODE as string | undefined) || 'local';
     const isSupabaseMode = DATA_MODE === 'supabase';
+    const isProd = !!((import.meta as any).env?.PROD);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,16 +26,23 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                 const supabase = getSupabase();
                 const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
                 if (signInError) throw signInError;
+                const isAdmin = await getIsAdmin();
+                if (!isAdmin) {
+                    await supabase.auth.signOut();
+                    throw new Error('Not authorized: this account is not an admin.');
+                }
                 onLoginSuccess();
                 return;
             }
 
-            // Local demo credentials (non-production)
-            if (email === 'admin@revrom.in' && password === 'password123') {
-                onLoginSuccess();
-            } else {
-                setError('Invalid email or password. Please try again.');
+            // Local demo credentials (DEV only). Disabled in production builds.
+            if (isProd) {
+                setError('Demo admin login is disabled in production. Configure Supabase (VITE_DATA_MODE=supabase).');
+                return;
             }
+
+            if (email === 'admin@revrom.in' && password === 'password123') onLoginSuccess();
+            else setError('Invalid email or password. Please try again.');
         } catch (err: any) {
             setError(err?.message || 'Login failed. Please try again.');
         } finally {
@@ -51,6 +60,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     <p className="mt-2 text-center text-sm text-muted-foreground dark:text-dark-muted-foreground">
                         Access the content management dashboard.
                     </p>
+                    {!isSupabaseMode && !isProd && (
+                        <p className="mt-3 text-center text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200">
+                            Demo mode (local) — not for production
+                        </p>
+                    )}
                 </div>
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="rounded-md shadow-sm -space-y-px">

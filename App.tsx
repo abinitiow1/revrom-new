@@ -13,6 +13,7 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
 import { listItineraryQueries, submitItineraryQuery } from './services/itineraryQueryService';
+import { getIsAdmin } from './services/adminService';
 
 const ContactPage = lazy(() => import('./pages/ContactPage'));
 const AdminPage = lazy(() => import('./pages/AdminPage'));
@@ -26,6 +27,13 @@ const AllToursPage = lazy(() => import('./pages/AllToursPage'));
 
 type View = 'home' | 'tripDetail' | 'booking' | 'contact' | 'admin' | 'login' | 'blog' | 'blogDetail' | 'gallery' | 'customize' | 'customPage' | 'allTours';
 export type Theme = 'light' | 'dark';
+
+const makeId = () => {
+  try {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID();
+  } catch {}
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+};
 
 const App: React.FC = () => {
   const DATA_MODE =
@@ -56,15 +64,22 @@ const App: React.FC = () => {
   const [selectedBlogPost, setSelectedBlogPost] = useState<BlogPost | null>(null);
   const [currentCustomPageSlug, setCurrentCustomPageSlug] = useState<string | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(!isSupabaseMode);
   const [initialDestinationFilter, setInitialDestinationFilter] = useState<string | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [isInitialLoading, setIsInitialLoading] = useState<boolean>(true);
+  const [remoteUpdatedAt, setRemoteUpdatedAt] = useState<string | null>(null);
+  const remoteUpdatedAtRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    remoteUpdatedAtRef.current = remoteUpdatedAt;
+  }, [remoteUpdatedAt]);
   const saver = useMemo(
     () =>
       isSupabaseMode
-        ? createDebouncedStateSaver<{ seq: number }>(1200, {
+        ? createDebouncedStateSaver<{ seq: number; expectedUpdatedAt: string | null }>(1200, {
             onStart: () => setSaveStatus('saving'),
-            onSuccess: (meta) => {
+            onSuccess: (meta, updatedAt) => {
+              setRemoteUpdatedAt(updatedAt);
               if (meta?.seq === saveSeqRef.current) setSaveStatus('saved');
               else setSaveStatus('dirty');
             },
@@ -180,8 +195,24 @@ const App: React.FC = () => {
         const supabase = getSupabase();
         const { data } = await supabase.auth.getSession();
         setIsLoggedIn(!!data.session);
+        if (data.session) {
+          try {
+            setIsAdmin(await getIsAdmin());
+          } catch {
+            setIsAdmin(false);
+          }
+        } else {
+          setIsAdmin(false);
+        }
         unsub = supabase.auth.onAuthStateChange((_event, session) => {
           setIsLoggedIn(!!session);
+          if (!session) {
+            setIsAdmin(false);
+            return;
+          }
+          getIsAdmin()
+            .then((ok) => setIsAdmin(ok))
+            .catch(() => setIsAdmin(false));
         }) as any;
       } catch (err) {
         console.error('Supabase auth init failed:', err);
@@ -200,18 +231,19 @@ const App: React.FC = () => {
 
     (async () => {
       try {
-        const snapshot = await loadAppState();
+        const loaded = await loadAppState();
         if (canceled) return;
-        if (snapshot) {
+        if (loaded?.snapshot) {
           skipNextDirtyRef.current = true;
-          setTrips(snapshot.trips || []);
-          setDepartures(snapshot.departures || []);
-          setBlogPosts(snapshot.blogPosts || []);
-          setGalleryPhotos(snapshot.galleryPhotos || []);
-          setInstagramPosts(snapshot.instagramPosts || []);
-          setGoogleReviews(snapshot.googleReviews || []);
-          setSiteContent(snapshot.siteContent || initialSiteContent);
-          setCustomPages(snapshot.customPages || []);
+          setRemoteUpdatedAt(loaded.updatedAt ?? null);
+          setTrips(loaded.snapshot.trips || []);
+          setDepartures(loaded.snapshot.departures || []);
+          setBlogPosts(loaded.snapshot.blogPosts || []);
+          setGalleryPhotos(loaded.snapshot.galleryPhotos || []);
+          setInstagramPosts(loaded.snapshot.instagramPosts || []);
+          setGoogleReviews(loaded.snapshot.googleReviews || []);
+          setSiteContent(loaded.snapshot.siteContent || initialSiteContent);
+          setCustomPages(loaded.snapshot.customPages || []);
         }
       } catch (err) {
         // Fallback to local mock/localStorage if Supabase isn't configured yet.
@@ -232,6 +264,7 @@ const App: React.FC = () => {
     if (!isRemoteReady) return;
     if (!saver) return;
     if (!isLoggedIn) return;
+    if (!isAdmin) return;
 
     if (skipNextDirtyRef.current) {
       skipNextDirtyRef.current = false;
@@ -244,12 +277,13 @@ const App: React.FC = () => {
     setSaveStatus('dirty');
 
     if (autoSaveEnabledRef.current) {
-      saver.schedule(snapshot, { seq });
+      saver.schedule(snapshot, { seq, expectedUpdatedAt: remoteUpdatedAtRef.current });
     }
   }, [
     isSupabaseMode,
     isRemoteReady,
     isLoggedIn,
+    isAdmin,
     saver,
     buildSnapshot,
     trips,
@@ -265,11 +299,13 @@ const App: React.FC = () => {
   const saveNow = useCallback(async () => {
     if (!isSupabaseMode) return;
     if (!isLoggedIn) return;
+    if (!isAdmin) return;
     const snapshot = buildSnapshot();
     const seq = saveSeqRef.current;
     setSaveStatus('saving');
     try {
-      await saveAppState(snapshot);
+      const updatedAt = await saveAppState(snapshot, remoteUpdatedAtRef.current);
+      setRemoteUpdatedAt(updatedAt);
       if (seq === saveSeqRef.current) setSaveStatus('saved');
       else setSaveStatus('dirty');
     } catch (err) {
@@ -279,12 +315,13 @@ const App: React.FC = () => {
         console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
       } catch {}
     }
-  }, [buildSnapshot, isLoggedIn, isSupabaseMode]);
+  }, [buildSnapshot, isAdmin, isLoggedIn, isSupabaseMode]);
 
   // Supabase: load leads (admin only).
   useEffect(() => {
     if (!isSupabaseMode) return;
     if (!isLoggedIn) return;
+    if (!isAdmin) return;
     let canceled = false;
 
     (async () => {
@@ -302,7 +339,24 @@ const App: React.FC = () => {
     return () => {
       canceled = true;
     };
-  }, [isSupabaseMode, isLoggedIn]);
+  }, [isSupabaseMode, isAdmin, isLoggedIn]);
+
+  // Warn on navigation if there are unsaved admin changes.
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    if (!isAdmin) return;
+    const shouldBlock = saveStatus === 'dirty' || saveStatus === 'saving';
+    if (!shouldBlock) return;
+
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+      return '';
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [isSupabaseMode, isAdmin, saveStatus]);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as Theme | null;
@@ -354,7 +408,7 @@ const App: React.FC = () => {
     (q: Omit<ItineraryQuery, 'id' | 'date'>) => {
       const lead: ItineraryQuery = {
         ...q,
-        id: Date.now().toString(),
+        id: makeId(),
         date: new Date().toISOString(),
       };
 
@@ -464,10 +518,58 @@ const App: React.FC = () => {
         const activePage = customPages.find(p => p.slug === currentCustomPageSlug);
         return activePage ? <DynamicPage page={activePage} /> : <div>Page Not Found</div>;
       case 'login':
-        return <LoginPage onLoginSuccess={() => { setIsLoggedIn(true); setView('admin'); }} />;
+        return (
+          <LoginPage
+            onLoginSuccess={() => {
+              if (!isSupabaseMode) setIsLoggedIn(true);
+              setView('admin');
+            }}
+          />
+        );
       case 'admin':
         if (!isLoggedIn) {
-          return <LoginPage onLoginSuccess={() => { setIsLoggedIn(true); setView('admin'); }} />;
+          return (
+            <LoginPage
+              onLoginSuccess={() => {
+                if (!isSupabaseMode) setIsLoggedIn(true);
+                setView('admin');
+              }}
+            />
+          );
+        }
+        if (isSupabaseMode && !isAdmin) {
+          return (
+            <div className="container mx-auto px-4 sm:px-6 py-16">
+              <div className="max-w-xl mx-auto bg-card dark:bg-dark-card border border-border dark:border-dark-border rounded-xl p-8 text-center">
+                <h2 className="text-2xl font-extrabold font-display text-foreground dark:text-dark-foreground">Not authorized</h2>
+                <p className="mt-2 text-sm text-muted-foreground dark:text-dark-muted-foreground">
+                  This account is signed in but is not an admin.
+                </p>
+                <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                  <button
+                    className="px-5 py-2 rounded-md bg-brand-primary text-white font-bold"
+                    onClick={async () => {
+                      try {
+                        await getSupabase().auth.signOut();
+                      } finally {
+                        setIsLoggedIn(false);
+                        setIsAdmin(false);
+                        setView('home');
+                      }
+                    }}
+                  >
+                    Sign out
+                  </button>
+                  <button
+                    className="px-5 py-2 rounded-md border border-border dark:border-dark-border font-bold text-foreground dark:text-dark-foreground"
+                    onClick={() => setView('home')}
+                  >
+                    Go home
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
         }
         return <AdminPage 
                     trips={trips} departures={departures} blogPosts={blogPosts}
@@ -480,20 +582,20 @@ const App: React.FC = () => {
                     onToggleAutoSave={setAutoSaveEnabled}
                     onSaveNow={saveNow}
                     onExitAdmin={() => setView('home')}
-                    onAddTrip={t => setTrips(p => [{...t, id: Date.now().toString(), reviews: []}, ...p])}
+                    onAddTrip={t => setTrips(p => [{...t, id: makeId(), reviews: []}, ...p])}
                     onUpdateTrip={t => setTrips(p => p.map(x => x.id === t.id ? t : x))}
                     onDeleteTrip={id => setTrips(p => p.filter(x => x.id !== id))}
-                    onAddDeparture={d => setDepartures(p => [{...d, id: Date.now().toString()}, ...p])}
+                    onAddDeparture={d => setDepartures(p => [{...d, id: makeId()}, ...p])}
                     onUpdateDeparture={d => setDepartures(p => p.map(x => x.id === d.id ? d : x))}
                     onDeleteDeparture={id => setDepartures(p => p.filter(x => x.id !== id))}
-                    onAddBlogPost={async p => setBlogPosts(prev => [{...p, id: Date.now().toString()}, ...prev])}
+                    onAddBlogPost={async p => setBlogPosts(prev => [{...p, id: makeId()}, ...prev])}
                     onUpdateBlogPost={p => setBlogPosts(prev => prev.map(x => x.id === p.id ? p : x))}
                     onDeleteBlogPost={id => setBlogPosts(prev => prev.filter(x => x.id !== id))}
-                    onAddGalleryPhoto={p => setGalleryPhotos(prev => [{...p, id: Date.now().toString()}, ...prev])}
+                    onAddGalleryPhoto={p => setGalleryPhotos(prev => [{...p, id: makeId()}, ...prev])}
                     onUpdateGalleryPhoto={p => setGalleryPhotos(prev => prev.map(x => x.id === p.id ? p : x))}
                     onDeleteGalleryPhoto={id => setGalleryPhotos(prev => prev.filter(x => x.id !== id))}
                     onUpdateSiteContent={c => setSiteContent(p => ({...p, ...c}))}
-                    onAddCustomPage={page => setCustomPages(prev => [{...page, id: Date.now().toString()}, ...prev])}
+                    onAddCustomPage={page => setCustomPages(prev => [{...page, id: makeId()}, ...prev])}
                     onUpdateCustomPage={page => setCustomPages(prev => prev.map(x => x.id === page.id ? page : x))}
                     onDeleteCustomPage={id => setCustomPages(prev => prev.filter(x => x.id !== id))}
                     onLogout={async () => {
@@ -503,6 +605,7 @@ const App: React.FC = () => {
                         console.error('Logout failed:', err);
                       } finally {
                         setIsLoggedIn(false);
+                        setIsAdmin(false);
                         setView('home');
                       }
                     }}
@@ -537,7 +640,7 @@ const App: React.FC = () => {
           onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
           onNavigateCustomize={() => setView('customize')} onNavigateToTours={d => { setInitialDestinationFilter(d); setView('allTours'); }}
           onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
-          onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')}
+          onNavigateAdmin={() => setView(isLoggedIn && isAdmin ? 'admin' : 'login')}
           destinations={[...new Set(trips.map(t => t.destination))]} siteContent={siteContent} theme={theme} toggleTheme={toggleTheme} customPages={customPages}
         />
       )}
@@ -549,7 +652,7 @@ const App: React.FC = () => {
       {!hideSiteChrome && (
         <Footer 
           onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
-          onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')} 
+          onNavigateAdmin={() => setView(isLoggedIn && isAdmin ? 'admin' : 'login')} 
           onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
           onNavigateCustomize={() => setView('customize')} onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
           siteContent={siteContent}

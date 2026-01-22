@@ -90,10 +90,16 @@ I'm interested in this tour. Please share pricing and details.`;
     const activeBgStyle = (url?: string, opacity: number = 0.95) => {
         if (!url) return {};
         const isDark = document.documentElement.classList.contains('dark');
-        const overlayOpacity = 1 - opacity;
+        const clamped = Math.min(1, Math.max(0, opacity ?? 0.95));
+        // `backgroundOpacity` in Admin is "BG Intensity" (how visible the image is).
+        // We convert it to an overlay that ensures text stays readable on top of images.
+        // Use a dark overlay in both themes so white headings remain readable.
+        const minOverlay = isDark ? 0.35 : 0.25;
+        const maxOverlay = 0.92;
+        const overlayOpacity = Math.min(maxOverlay, Math.max(minOverlay, 1 - clamped));
         const isMobile = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
         return {
-          backgroundImage: `linear-gradient(${isDark ? `rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})` : `rgba(255,255,255,${overlayOpacity}), rgba(255,255,255,${overlayOpacity})`}), url(${url})`,
+          backgroundImage: `linear-gradient(rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})), url(${url})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundAttachment: isMobile ? 'scroll' : 'fixed'
@@ -128,13 +134,16 @@ I'm interested in this tour. Please share pricing and details.`;
           </section>
         );
       case 'ADVENTURES':
+        const adventuresHasBg = !!siteContent.adventuresBgImage;
         return (
           <section key="adventures" id="adventures" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.adventuresBgImage, sectionConfig.backgroundOpacity)}>
             <div className="container mx-auto px-6 mb-16">
                 <div className="flex flex-col items-center text-center gap-10">
                     <div className="max-w-2xl">
                         <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Upcoming Tours</h2>
-                        <h3 className="text-5xl md:text-7xl font-black font-display italic tracking-tighter uppercase leading-none">{siteContent.adventuresTitle}</h3>
+                        <h3 className={["text-5xl md:text-7xl font-black font-display italic tracking-tighter uppercase leading-none", adventuresHasBg ? "text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]" : ""].join(" ")}>
+                          {siteContent.adventuresTitle}
+                        </h3>
                     </div>
                     <div className="w-full max-w-3xl">
                       <SearchAndFilter searchTerm={searchTerm} setSearchTerm={setSearchTerm} destinationFilter={destFilter} setDestinationFilter={setDestFilter} durationFilter={durationFilter} setDurationFilter={setDurationFilter} difficultyFilter={diffFilter} setDifficultyFilter={setDifficultyFilter} destinations={[...new Set(trips.map(t => t.destination))]} onClearFilters={() => { setSearchTerm(''); setDestFilter('all'); setDurationFilter('all'); setDifficultyFilter('all'); }} />
@@ -188,12 +197,15 @@ I'm interested in this tour. Please share pricing and details.`;
       case 'DEPARTURES':
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const departureDestinations = [...new Set(trips.map(t => t.destination))];
+        const departuresHasBg = !!siteContent.departuresBgImage;
         
         return (
           <section key="departures" id="departures" className="py-24 bg-slate-50 dark:bg-black/20" style={activeBgStyle(siteContent.departuresBgImage, sectionConfig.backgroundOpacity)}>
             <div className="container mx-auto px-6 max-w-6xl">
               <div className="text-center mb-16">
-                <h3 className="text-5xl md:text-6xl font-black font-display text-[#112340] dark:text-foreground italic tracking-tight">{siteContent.departuresTitle}</h3>
+                <h3 className={["text-5xl md:text-6xl font-black font-display italic tracking-tight", departuresHasBg ? "text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]" : "text-[#112340] dark:text-foreground"].join(" ")}>
+                  {siteContent.departuresTitle}
+                </h3>
               </div>
 
                 <div className="bg-white dark:bg-neutral-900 p-4 md:p-8 rounded-[1.5rem] shadow-xl border border-border dark:border-dark-border mb-10 flex flex-col md:flex-row items-center gap-6">

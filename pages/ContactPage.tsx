@@ -137,7 +137,12 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         } catch (err: any) {
             console.error(err);
             // Even if DB save fails, still open WhatsApp for the customer.
-            setNotice('Opening WhatsApp…');
+            const msg = String(err?.message || '');
+            if (msg.toLowerCase().includes('rate limit')) {
+                setNotice('Opening WhatsApp… (saving is temporarily limited)');
+            } else {
+                setNotice('Opening WhatsApp…');
+            }
             try {
                 const w = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
                 if (!w) window.location.href = whatsappUrl;

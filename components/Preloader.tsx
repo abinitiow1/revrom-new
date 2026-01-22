@@ -1,9 +1,26 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 
 const Preloader: React.FC = () => {
+  const isDark = useMemo(() => {
+    try {
+      const saved = localStorage.getItem('theme');
+      if (saved === 'dark') return true;
+      if (saved === 'light') return false;
+    } catch {}
+    try {
+      return !!window.matchMedia?.('(prefers-color-scheme: dark)').matches;
+    } catch {}
+    return false;
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[10000] bg-[#050505] flex flex-col items-center justify-center overflow-hidden">
+    <div
+      className={[
+        'fixed inset-0 z-[10000] flex flex-col items-center justify-center overflow-hidden',
+        isDark ? 'bg-dark-background text-dark-foreground' : 'bg-background text-foreground',
+      ].join(' ')}
+    >
       <div className="relative w-64 h-48 flex items-center justify-center">
         {/* Speed lines */}
         <div className="absolute w-full h-full pointer-events-none">
@@ -61,7 +78,7 @@ const Preloader: React.FC = () => {
       </div>
 
       <div className="mt-8 flex flex-col items-center">
-        <h2 className="text-white font-black italic tracking-tighter text-2xl uppercase">Getting things ready...</h2>
+        <h2 className="font-black italic tracking-tighter text-2xl uppercase">Getting things ready...</h2>
         <div className="flex gap-1 mt-2">
             <div className="w-2 h-2 bg-brand-primary rounded-full animate-bounce"></div>
             <div className="w-2 h-2 bg-brand-primary rounded-full animate-bounce [animation-delay:0.2s]"></div>

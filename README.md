@@ -23,7 +23,7 @@ In Supabase SQL editor, run: `supabase/schema.sql`
 
 Then:
 - Create your admin user in Supabase Auth (Email/Password).
-- Add that email to `public.admin_users`.
+- Add that user to `public.admin_users` (recommended: store `auth.users.id` as `user_id`).
 
 ### 2) Configure env vars
 
