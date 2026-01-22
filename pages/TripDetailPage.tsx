@@ -109,18 +109,20 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
         image={seoImage}
       />
 
-      <section className="relative h-[55vh] md:h-[65vh] lg:h-[75vh] w-full overflow-hidden bg-black">
+      <section className="relative h-[45vh] sm:h-[55vh] md:h-[65vh] lg:h-[75vh] w-full overflow-hidden bg-black">
         {trip.gallery.map((photo, index) => (
           <img
             key={index}
             src={photo.imageUrl}
             alt={photo.caption || `Gallery ${index + 1}`}
             className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${currentIndex === index ? 'opacity-100' : 'opacity-0'}`}
+            loading={currentIndex === index ? 'eager' : 'lazy'}
+            decoding="async"
           />
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
         
-        <button onClick={onBack} className="absolute top-6 left-6 z-30 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-white/20 transition-all">
+        <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-white/20 transition-all">
           &larr; Back
         </button>
 
@@ -131,11 +133,11 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
           <button onClick={goToNext} className="p-2 md:p-4 rounded-full text-white transition-all"><ChevronRightIcon className="w-8 h-8"/></button>
         </div>
 
-        <div className="absolute bottom-12 left-0 right-0 z-20 px-6">
+        <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 z-20 px-4 sm:px-6">
           <div className="container mx-auto">
             <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-xl`}>{trip.difficulty}</span>
-            <h1 className="text-3xl md:text-5xl lg:text-7xl font-black text-white font-display italic tracking-tighter leading-tight mb-2 drop-shadow-lg">{trip.title}</h1>
-            <p className="text-white/80 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs drop-shadow-md">{trip.destination} • {trip.duration} DAYS</p>
+            <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-black text-white font-display italic tracking-tighter leading-tight mb-2 drop-shadow-lg">{trip.title}</h1>
+            <p className="text-white/80 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs drop-shadow-md">{trip.destination} • {trip.duration} days</p>
           </div>
         </div>
       </section>

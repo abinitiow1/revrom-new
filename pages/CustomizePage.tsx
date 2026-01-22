@@ -128,18 +128,18 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
 
 
         return (
-                <div className="bg-background dark:bg-dark-background">
+                <div className="bg-background dark:bg-dark-background pb-24">
                         <header className="relative overflow-hidden">
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-400/10 via-transparent to-transparent pointer-events-none"></div>
                             <div className="relative">
-                                <div className="h-[40vh] md:h-[48vh] lg:h-[56vh] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=2000')" }}>
+                                <div className="h-[32vh] sm:h-[38vh] md:h-[48vh] lg:h-[56vh] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=2000')" }}>
                                     <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/60"></div>
                                     <div className="container mx-auto px-4 sm:px-6 h-full flex items-center">
                                         <div className="max-w-4xl text-white relative z-10">
-                                            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold font-display leading-tight drop-shadow-lg">AI-Powered Trip Planner</h1>
-                                            <p className="mt-4 text-sm md:text-lg text-white/90 max-w-2xl">Design a Himalayan motorcycle adventure tailored to your pace, interests and comfort — our AI drafts a ready-to-review itinerary in seconds.</p>
+                                            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-extrabold font-display leading-tight drop-shadow-lg">Trip Planner</h1>
+                                            <p className="mt-3 sm:mt-4 text-sm md:text-lg text-white/90 max-w-2xl">Start from the admin itinerary, then adjust it based on your preferences.</p>
                                             <div className="mt-6 flex gap-4">
-                                                <button onClick={() => window.scrollTo({ top: document.body.scrollHeight / 3, behavior: 'smooth' })} className="inline-flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-black px-5 py-3 rounded-full shadow-xl">
+                                                <button onClick={() => document.getElementById('trip-planner-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex items-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-black px-5 py-3 rounded-full shadow-xl">
                                                     Get Started
                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                                                 </button>
@@ -151,7 +151,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </div>
                         </header>
 
-                        <div className="container mx-auto px-4 sm:px-6 py-12 md:py-16 max-w-7xl">
+                        <div id="trip-planner-form" className="container mx-auto px-4 sm:px-6 py-12 md:py-16 max-w-7xl">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold font-display text-foreground dark:text-dark-foreground">Design Your Dream Adventure</h2>
                     <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground">Tell our AI assistant your vision for the perfect Himalayan motorcycle tour. It will craft a custom-tailored preliminary itinerary just for you.</p>

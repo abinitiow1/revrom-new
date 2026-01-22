@@ -556,6 +556,13 @@ const App: React.FC = () => {
           bottomOffsetPx={view === 'tripDetail' || view === 'booking' ? 110 : 20}
         />
       )}
+
+      <style>{`
+        input[type="date"],
+        input[type="time"] {
+          color-scheme: light dark;
+        }
+      `}</style>
     </div>
   );
 };

@@ -79,7 +79,7 @@ Tour Name: ${trip.title}
 Departure Date: ${new Date(departure.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
 Status: ${departure.status.toUpperCase()}
 
-I'm interested in joining this mission. Please send pricing and briefing docs.`;
+I'm interested in this tour. Please share pricing and details.`;
     window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
@@ -91,30 +91,37 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
         if (!url) return {};
         const isDark = document.documentElement.classList.contains('dark');
         const overlayOpacity = 1 - opacity;
+        const isMobile = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(max-width: 768px)').matches;
         return {
           backgroundImage: `linear-gradient(${isDark ? `rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})` : `rgba(255,255,255,${overlayOpacity}), rgba(255,255,255,${overlayOpacity})`}), url(${url})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          backgroundAttachment: 'fixed'
+          backgroundAttachment: isMobile ? 'scroll' : 'fixed'
         };
     };
 
     switch (sectionId) {
       case 'HERO':
         return (
-          <section key="hero" className="relative h-[85vh] flex items-center overflow-hidden">
+          <section key="hero" className="relative h-[70vh] sm:h-[80vh] lg:h-[85vh] flex items-center overflow-hidden">
             <div className="absolute inset-0">
-               <img src={siteContent.heroBgImage || "https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000"} className="w-full h-full object-cover scale-105" />
+               <img
+                 src={siteContent.heroBgImage || "https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000"}
+                 alt="Revrom hero background"
+                 className="w-full h-full object-cover scale-105"
+                 loading="eager"
+                 decoding="async"
+               />
                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>
             </div>
-            <div className="container mx-auto px-6 relative z-10">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10">
               <div className="max-w-3xl">
-                <span className="inline-block bg-brand-primary text-white text-[10px] font-black uppercase tracking-[0.5em] px-5 py-2 rounded-full mb-6 shadow-xl">Est. 2024 • Chushul Native</span>
-                <h1 className="text-6xl md:text-8xl font-black font-display text-white leading-none italic tracking-tighter mb-6">{siteContent.heroTitle}</h1>
-                <p className="text-lg md:text-xl text-white/80 font-medium mb-10 max-w-xl leading-relaxed">{siteContent.heroSubtitle}</p>
+                <span className="inline-block bg-brand-primary text-white text-[9px] sm:text-[10px] font-black uppercase tracking-[0.35em] px-4 sm:px-5 py-2 rounded-full mb-5 sm:mb-6 shadow-xl">Est. 2024 • Local-led journeys</span>
+                <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-display text-white leading-none italic tracking-tighter mb-4 sm:mb-6">{siteContent.heroTitle}</h1>
+                <p className="text-base sm:text-lg md:text-xl text-white/85 font-medium mb-7 sm:mb-10 max-w-xl leading-relaxed">{siteContent.heroSubtitle}</p>
                 <div className="flex flex-wrap gap-4">
-                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl shadow-adventure">Browse Tours</button>
-                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl">Plan a Custom Trip</button>
+                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl shadow-adventure">Browse Tours</button>
+                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl">Plan Your Trip</button>
                 </div>
               </div>
             </div>
@@ -163,7 +170,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
 
             {filteredTrips.length === 0 && (
                 <div className="text-center py-20">
-                    <p className="text-muted-foreground font-black uppercase tracking-widest text-xs">No active missions matching your search.</p>
+                    <p className="text-muted-foreground font-black uppercase tracking-widest text-xs">No tours found for your filters.</p>
                 </div>
             )}
 
@@ -283,15 +290,15 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
       case 'WHY_CHOOSE_US':
         return (
           <section key="why_choose" className="py-24" style={activeBgStyle(siteContent.whyChooseUsBgImage, sectionConfig.backgroundOpacity)}>
-            <div className="container mx-auto px-6 text-center mb-16">
+            <div className="container mx-auto px-4 sm:px-6 text-center mb-16">
                 <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">The Revrom Edge</h2>
                 <h3 className="text-4xl font-black font-display italic tracking-tight">Why We Lead the Pack</h3>
             </div>
-            <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div className="container mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
                {[
                    { title: 'Local Expertise', desc: 'We know these mountains inside out.', icon: '🏔️' },
                    { title: 'Safety First', desc: 'Support and backup on every trip.', icon: '🛡️' },
-                   { title: 'Elite Fleet', desc: 'Prepped Royal Enfields tuned for high-altitude performance.', icon: '🏍️' },
+                   { title: 'Reliable Bikes', desc: 'Well-prepared bikes tuned for high-altitude performance.', icon: '🏍️' },
                ].map(perk => (
                 <div key={perk.title} className="text-center p-8 rounded-[2rem] bg-slate-50 dark:bg-neutral-900 border border-border dark:border-dark-border hover:border-brand-primary transition-all">
                     <div className="text-5xl mb-6">{perk.icon}</div>
@@ -305,28 +312,36 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
       case 'ROOTS':
         return (
           <section key="roots" className="py-24 relative overflow-hidden bg-black" style={activeBgStyle(siteContent.rootsBgImage, sectionConfig.backgroundOpacity)}>
-            <div className="container mx-auto px-6 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+            <div className="container mx-auto px-4 sm:px-6 relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
                <div>
                   <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-4">Born in Chushul</h2>
                   <h3 className="text-4xl md:text-6xl font-black font-display text-white italic leading-tight mb-8">{siteContent.rootsTitle}</h3>
                   <p className="text-lg text-white/60 leading-relaxed mb-8">{siteContent.rootsBody}</p>
                   <button onClick={() => props.onSelectBlogPost(blogPosts[0])} className="text-brand-primary font-black uppercase tracking-[0.3em] text-xs hover:gap-4 flex items-center gap-2 transition-all">{siteContent.rootsButton} <span className="text-xl">→</span></button>
                </div>
-               <div className="relative"><img src="https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200" className="rounded-[3rem] relative z-10 shadow-2xl grayscale" /></div>
+               <div className="relative">
+                 <img
+                   src="https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200"
+                   alt="Himalayan landscape"
+                   className="rounded-[3rem] relative z-10 shadow-2xl grayscale"
+                   loading="lazy"
+                   decoding="async"
+                 />
+               </div>
             </div>
           </section>
         );
       case 'REVIEWS':
         return (
           <section key="reviews" className="py-24 border-y border-border dark:border-dark-border overflow-hidden" style={activeBgStyle(siteContent.reviewsBgImage, sectionConfig.backgroundOpacity)}>
-             <div className="container mx-auto px-6">
+             <div className="container mx-auto px-4 sm:px-6">
                 <div className="text-center mb-16"><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Rider Feedback</h2><h3 className="text-4xl font-black font-display italic tracking-tight">Debriefings from the Road</h3></div>
                 <div className="flex gap-8 overflow-x-auto pb-12 no-scrollbar px-4 -mx-4 snap-x snap-mandatory">
                    {googleReviews.map(review => (
                       <div key={review.id} className="min-w-[320px] md:min-w-[450px] bg-white dark:bg-neutral-900 p-8 rounded-[2rem] shadow-sm border flex flex-col justify-between hover:shadow-xl transition-all snap-center">
                          <p className="text-lg font-medium italic mb-8 opacity-80 leading-relaxed">"{review.text}"</p>
                          <div className="flex items-center gap-4">
-                            <img src={review.profilePhotoUrl} className="w-12 h-12 rounded-full ring-2 ring-brand-primary" />
+                            <img src={review.profilePhotoUrl} alt={review.authorName} className="w-12 h-12 rounded-full ring-2 ring-brand-primary" loading="lazy" decoding="async" />
                             <div><h4 className="font-black text-sm uppercase tracking-tight">{review.authorName}</h4></div>
                          </div>
                       </div>
@@ -338,8 +353,8 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
       case 'BLOG':
         return (
           <section key="blog" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.blogBgImage, sectionConfig.backgroundOpacity)}>
-             <div className="container mx-auto px-6 mb-16">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Contact</h2>
+             <div className="container mx-auto px-4 sm:px-6 mb-16">
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Blog</h2>
                 <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.blogTitle}</h3>
              </div>
              <div className="w-full">
@@ -358,7 +373,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
       case 'GALLERY':
         return (
           <section key="gallery" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.galleryBgImage, sectionConfig.backgroundOpacity)}>
-             <div className="container mx-auto px-6 mb-12">
+             <div className="container mx-auto px-4 sm:px-6 mb-12">
                 <div className="flex justify-between items-end">
                     <div><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Gallery</h2><h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.galleryTitle}</h3></div>
                     <button onClick={props.onNavigateGallery} className="text-xs font-black uppercase tracking-widest hover:text-brand-primary">Open Archive &rarr;</button>
@@ -368,7 +383,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
               <div className="flex animate-marquee-right-infinite whitespace-nowrap gap-4 hover:[animation-play-state:paused]">
                 {[...galleryPhotos, ...galleryPhotos].map((photo, idx) => (
                     <div key={`${photo.id}-${idx}`} className="relative group overflow-hidden rounded-3xl h-[400px] w-[300px] flex-shrink-0 snap-center shadow-lg border border-border/10">
-                        <img src={photo.imageUrl} alt={photo.caption} className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                        <img src={photo.imageUrl} alt={photo.caption} className="w-full h-full object-cover transition-transform group-hover:scale-110" loading="lazy" decoding="async" />
                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-8"><p className="text-white text-xs font-black uppercase tracking-widest leading-relaxed">{photo.caption}</p></div>
                     </div>
                 ))}
@@ -379,7 +394,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
       case 'INSTAGRAM':
         return (
           <section key="instagram" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.instagramBgImage, sectionConfig.backgroundOpacity)}>
-            <div className="container mx-auto px-6 text-center mb-16">
+            <div className="container mx-auto px-4 sm:px-6 text-center mb-16">
               <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Live Feed</h2>
               <h3 className="text-4xl font-black font-display italic tracking-tight mb-4">{siteContent.instagramTitle}</h3>
               <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-brand-primary font-black uppercase tracking-[0.3em] text-[10px] inline-block hover:underline">{siteContent.instagramSubtitle}</a>
@@ -388,7 +403,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
                <div className="flex animate-marquee-left-infinite whitespace-nowrap gap-6 hover:[animation-play-state:paused]">
                 {instagramPosts.concat(instagramPosts).map((post, idx) => (
                   <a key={`${post.id}-${idx}`} href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="aspect-square w-[250px] md:w-[320px] rounded-[2.5rem] overflow-hidden relative group flex-shrink-0 snap-center shadow-2xl">
-                    <img src={post.imageUrl} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100" />
+                    <img src={post.imageUrl} alt="Instagram post" className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 scale-105 group-hover:scale-100" loading="lazy" decoding="async" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                        <div className="flex gap-4">
                           <span className="text-white font-black text-xs">❤️ {post.likes}</span>
@@ -407,7 +422,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
   };
 
   return (
-    <div className="bg-background dark:bg-dark-background">
+    <div className="bg-background dark:bg-dark-background pb-24">
       <SEOHead title={siteContent.globalSeo?.title} description={siteContent.globalSeo?.description} keywords={siteContent.globalSeo?.keywords} />
       {siteContent.homePageLayout.map(section => renderSection(section.id))}
       <style>{`

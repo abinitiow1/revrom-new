@@ -134,6 +134,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 id="bookingWhatsapp"
                                 name="tel"
                                 autoComplete="tel"
+                                inputMode="tel"
                                 required 
                                 type="tel" 
                                 value={phone} 

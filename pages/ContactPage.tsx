@@ -150,11 +150,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     };
 
     return (
-        <div className="bg-background dark:bg-dark-background">
-            <div className="relative h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://picsum.photos/seed/ladakh-contact/1920/1080')" }}>
+        <div className="bg-background dark:bg-dark-background pb-24">
+            <div className="relative h-48 sm:h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://picsum.photos/seed/ladakh-contact/1920/1080')" }}>
                 <div className="absolute inset-0 bg-black/50"></div>
                 <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-white font-display text-center">Get in Touch</h1>
+                    <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white font-display text-center">Get in Touch</h1>
                 </div>
             </div>
 

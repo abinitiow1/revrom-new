@@ -53,7 +53,7 @@ const DynamicPage: React.FC<DynamicPageProps> = ({ page }) => {
       />
       
       {page.imageUrl ? (
-         <div className="relative h-64 md:h-80 bg-cover bg-center" style={{ backgroundImage: `url(${page.imageUrl})` }}>
+         <div className="relative h-48 sm:h-64 md:h-80 bg-cover bg-center" style={{ backgroundImage: `url(${page.imageUrl})` }}>
             <div className="absolute inset-0 bg-black/50"></div>
             <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
                 <h1 className="text-4xl md:text-5xl font-extrabold text-white font-display text-center">{page.title}</h1>

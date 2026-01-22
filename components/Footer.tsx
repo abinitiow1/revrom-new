@@ -32,6 +32,24 @@ const YoutubeIcon: React.FC<{className?: string}> = ({ className }) => (
     </svg>
 );
 
+const FooterLocationIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path fillRule="evenodd" d="M11.999 2.25c-3.727 0-6.75 3.023-6.75 6.75 0 5.214 6.027 12.317 6.283 12.617a.75.75 0 0 0 1.134 0c.256-.3 6.284-7.403 6.284-12.617 0-3.727-3.023-6.75-6.75-6.75Zm0 9.75a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
+  </svg>
+);
+
+const FooterPhoneIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.25 6.75A4.5 4.5 0 0 1 6.75 2.25h1.372c.86 0 1.61.586 1.819 1.42l.82 3.28a1.875 1.875 0 0 1-1.07 2.17l-1.513.756a11.034 11.034 0 0 0 6.844 6.844l.756-1.513a1.875 1.875 0 0 1 2.17-1.07l3.28.82c.834.209 1.42.959 1.42 1.82v1.372a4.5 4.5 0 0 1-4.5 4.5h-.75C9.51 22.5 2.25 15.24 2.25 6.75v-.75Z" />
+  </svg>
+);
+
+const FooterMailIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M1.5 6.75A3.75 3.75 0 0 1 5.25 3h13.5A3.75 3.75 0 0 1 22.5 6.75v10.5A3.75 3.75 0 0 1 18.75 21H5.25A3.75 3.75 0 0 1 1.5 17.25V6.75Zm3.06-.75 6.94 4.63c.312.208.718.208 1.03 0L19.44 6H4.56Z" />
+  </svg>
+);
+
 const Footer: React.FC<FooterProps> = ({ 
   onNavigateHome, 
   onNavigateContact, 
@@ -57,7 +75,7 @@ const Footer: React.FC<FooterProps> = ({
     <footer className="bg-card dark:bg-dark-card border-t border-border dark:border-dark-border pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6">
         {newsletterToast && (
-          <div className="fixed bottom-6 right-6 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest max-w-[90vw] text-center">
             {newsletterToast}
           </div>
         )}
@@ -115,15 +133,15 @@ const Footer: React.FC<FooterProps> = ({
             <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-foreground dark:text-dark-foreground">Reach Us</h3>
             <ul className="space-y-4 text-muted-foreground dark:text-dark-muted-foreground">
               <li className="flex items-start">
-                <span className="text-brand-primary mr-3 mt-1">📍</span>
+                <FooterLocationIcon className="w-5 h-5 text-brand-primary mr-3 mt-0.5 shrink-0" />
                 <span className="text-xs font-bold">{siteContent.contactAddress}</span>
               </li>
               <li className="flex items-center">
-                <span className="text-brand-primary mr-3">📞</span>
+                <FooterPhoneIcon className="w-5 h-5 text-brand-primary mr-3 shrink-0" />
                 <span className="text-xs font-bold">{siteContent.contactPhone}</span>
               </li>
               <li className="flex items-center">
-                <span className="text-brand-primary mr-3">✉️</span>
+                <FooterMailIcon className="w-5 h-5 text-brand-primary mr-3 shrink-0" />
                 <a href={`mailto:${siteContent.contactEmail}`} className="text-xs font-bold hover:text-brand-primary transition-colors break-all">
                   {siteContent.contactEmail}
                 </a>
@@ -193,7 +211,7 @@ const Footer: React.FC<FooterProps> = ({
                 disabled={newsletterSubmitting}
                 className="w-full adventure-gradient text-white font-black uppercase tracking-widest text-[10px] py-4 px-4 rounded-xl transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-60"
               >
-                {newsletterSubmitting ? 'SAVING…' : 'SUBSCRIBE'}
+                {newsletterSubmitting ? 'SAVING...' : 'SUBSCRIBE'}
               </button>
             </form>
           </div>
@@ -201,7 +219,7 @@ const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Bar */}
         <div className="border-t border-border dark:border-dark-border pt-8 mt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-[0.2em] font-black">
-          <p>© {currentYear} REVROM.IN. RIDE. ROAM. RELAX. ALL RIGHTS RESERVED.</p>
+          <p>© {currentYear} REVROM.IN. Ride. Roam. Relax. All rights reserved.</p>
           <div className="flex items-center space-x-6">
             <button onClick={() => onNavigateCustomPage('privacy-policy')} className="hover:text-brand-primary transition-colors">Privacy Policy</button>
             <button onClick={() => onNavigateCustomPage('terms-and-conditions')} className="hover:text-brand-primary transition-colors">Terms of Service</button>

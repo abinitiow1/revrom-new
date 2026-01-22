@@ -85,14 +85,14 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <>
       <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-border dark:border-dark-border">
-        <div className="container mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <button onClick={onNavigateHome} className="flex items-center space-x-3 group">
             {siteContent.logoUrl ? (
               <img 
                 src={siteContent.logoUrl} 
                 alt="Revrom Logo" 
                 style={{ height: `${siteContent.logoHeight}px` }} 
-                className="w-auto object-contain transition-transform group-hover:scale-105" 
+                className="w-auto max-h-10 sm:max-h-14 object-contain transition-transform group-hover:scale-105" 
               />
             ) : (
               <span className="text-2xl font-black font-display text-brand-primary italic tracking-tighter">REVROM</span>
@@ -183,7 +183,7 @@ const Header: React.FC<HeaderProps> = ({
           
           {/* Decorative Footer */}
           <div className="mt-8 pt-8 border-t border-white/5 text-center">
-             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Revrom Expeditions • Native Led</p>
+             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Revrom • Local-led journeys</p>
           </div>
         </div>
       )}
