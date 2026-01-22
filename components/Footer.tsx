@@ -175,10 +175,13 @@ const Footer: React.FC<FooterProps> = ({
             >
               <div className="hidden">
                 <label htmlFor="company2">Company</label>
-                <input id="company2" value={newsletterHoneypot} onChange={(e) => setNewsletterHoneypot(e.target.value)} autoComplete="off" />
+                <input id="company2" name="company" value={newsletterHoneypot} onChange={(e) => setNewsletterHoneypot(e.target.value)} autoComplete="off" />
               </div>
               <input 
                 type="email" 
+                id="newsletterEmail"
+                name="email"
+                autoComplete="email"
                 placeholder="EMAIL ADDRESS" 
                 value={newsletterEmail}
                 onChange={(e) => setNewsletterEmail(e.target.value)}

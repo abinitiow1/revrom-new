@@ -189,15 +189,17 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
                 <h3 className="text-5xl md:text-6xl font-black font-display text-[#112340] dark:text-foreground italic tracking-tight">{siteContent.departuresTitle}</h3>
               </div>
 
-              <div className="bg-white dark:bg-neutral-900 p-4 md:p-8 rounded-[1.5rem] shadow-xl border border-border dark:border-dark-border mb-10 flex flex-col md:flex-row items-center gap-6">
+                <div className="bg-white dark:bg-neutral-900 p-4 md:p-8 rounded-[1.5rem] shadow-xl border border-border dark:border-dark-border mb-10 flex flex-col md:flex-row items-center gap-6">
                 <div className="w-full md:w-5/12">
-                  <select value={depDestFilter} onChange={e => setDepDestFilter(e.target.value)} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black text-foreground dark:text-dark-foreground font-bold outline-none appearance-none shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors">
+                  <label htmlFor="departuresDestination" className="sr-only">Destination</label>
+                  <select id="departuresDestination" name="destination" value={depDestFilter} onChange={e => setDepDestFilter(e.target.value)} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black text-foreground dark:text-dark-foreground font-bold outline-none appearance-none shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors">
                     <option value="all">All Destinations</option>
                     {departureDestinations.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
                 <div className="w-full md:w-5/12">
-                   <select value={depMonthFilter} onChange={e => setDepMonthFilter(e.target.value)} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black text-foreground dark:text-dark-foreground font-bold outline-none appearance-none shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors">
+                   <label htmlFor="departuresMonth" className="sr-only">Month</label>
+                   <select id="departuresMonth" name="month" value={depMonthFilter} onChange={e => setDepMonthFilter(e.target.value)} className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-black text-foreground dark:text-dark-foreground font-bold outline-none appearance-none shadow-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-neutral-800 transition-colors">
                     <option value="all">All Months</option>
                     {months.map((m, i) => <option key={m} value={i.toString()}>{m}</option>)}
                   </select>

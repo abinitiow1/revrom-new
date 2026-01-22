@@ -43,6 +43,8 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                     <input
                         type="text"
                         id="search"
+                        name="search"
+                        autoComplete="off"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search by name, destination..."
@@ -55,6 +57,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                 <div className="grid grid-cols-1 gap-4">
                     <select
                         id="destination"
+                        name="destination"
                         value={destinationFilter}
                         onChange={(e) => setDestinationFilter(e.target.value)}
                         className={inputClass}
@@ -67,6 +70,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
 
                     <select
                         id="duration"
+                        name="duration"
                         value={durationFilter}
                         onChange={(e) => setDurationFilter(e.target.value)}
                         className={inputClass}
@@ -79,6 +83,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
 
                     <select
                         id="difficulty"
+                        name="difficulty"
                         value={difficultyFilter}
                         onChange={(e) => setDifficultyFilter(e.target.value)}
                         className={inputClass}

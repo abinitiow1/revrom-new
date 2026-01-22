@@ -104,6 +104,9 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">Full Name</label>
                             <input 
+                                id="bookingName"
+                                name="name"
+                                autoComplete="name"
                                 required 
                                 value={name} 
                                 onChange={e => setName(e.target.value)} 
@@ -114,6 +117,9 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">Email Address</label>
                             <input 
+                                id="bookingEmail"
+                                name="email"
+                                autoComplete="email"
                                 required 
                                 type="email" 
                                 value={email} 
@@ -125,6 +131,9 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                         <div className="md:col-span-2">
                              <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">WhatsApp Number</label>
                              <input 
+                                id="bookingWhatsapp"
+                                name="tel"
+                                autoComplete="tel"
                                 required 
                                 type="tel" 
                                 value={phone} 

@@ -182,21 +182,21 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                             <form onSubmit={handleSubmit} className="space-y-6">
                                 <div className="hidden">
                                     <label htmlFor="company">Company</label>
-                                    <input id="company" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} autoComplete="off" />
+                                    <input id="company" name="company" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} autoComplete="off" />
                                 </div>
                                 <div>
                                     <label htmlFor="name" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Full Name</label>
-                                    <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required aria-invalid={!!errors.name} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
+                                    <input type="text" id="name" name="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} required aria-invalid={!!errors.name} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
                                     {errors.name && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.name}</p>}
                                 </div>
                                 <div>
                                     <label htmlFor="email" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Email Address</label>
-                                    <input type="email" id="email" value={email} onChange={e => setEmail(e.target.value)} required aria-invalid={!!errors.email} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
+                                    <input type="email" id="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required aria-invalid={!!errors.email} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
                                     {errors.email && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.email}</p>}
                                 </div>
                                 <div>
                                     <label htmlFor="message" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Message</label>
-                                    <textarea id="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} aria-invalid={!!errors.message} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
+                                    <textarea id="message" name="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} aria-invalid={!!errors.message} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
                                     {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
                                 </div>

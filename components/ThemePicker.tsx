@@ -36,6 +36,8 @@ const ColorInput: React.FC<{ label: string, color: string, onChange: (color: str
                 <div className="relative w-10 h-10 flex-shrink-0 overflow-hidden rounded-full border border-border dark:border-dark-border shadow-sm">
                     <input 
                         type="color" 
+                        id={`${inputId}-picker`}
+                        name={`${inputId}-picker`}
                         value={color} 
                         onChange={(e) => onChange(e.target.value)} 
                         className="absolute -top-2 -left-2 w-16 h-16 p-0 border-0 cursor-pointer"
@@ -44,6 +46,7 @@ const ColorInput: React.FC<{ label: string, color: string, onChange: (color: str
                 </div>
                 <input 
                     id={inputId}
+                    name={inputId}
                     type="text" 
                     value={color} 
                     onChange={(e) => onChange(e.target.value)} 
