@@ -204,7 +204,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     <button 
                                         type="submit" 
                                         disabled={isSubmitting}
-                                        className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-dark disabled:bg-brand-primary/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
+                                        className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1DA851] disabled:bg-[#25D366]/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
                                     >
                                         {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
                                     </button>
