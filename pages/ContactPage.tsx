@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import type { SiteContent } from '../types';
+import { submitContactMessage } from '../services/contactMessageService';
 
 interface ContactPageProps {
     siteContent: SiteContent;
@@ -43,7 +44,9 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         }
     });
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
+    const [honeypot, setHoneypot] = useState('');
 
     const validateForm = () => {
         const newErrors: { name?: string; email?: string; message?: string } = {};
@@ -67,22 +70,61 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         return newErrors;
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const isRateLimited = (): boolean => {
+        try {
+            const key = 'contact_last_submit_ts';
+            const last = Number(localStorage.getItem(key) || '0');
+            const now = Date.now();
+            if (last && now - last < 30_000) return true;
+            localStorage.setItem(key, String(now));
+            return false;
+        } catch {
+            return false;
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (honeypot.trim()) {
+            setSubmitted(true);
+            return;
+        }
+        if (isRateLimited()) {
+            setErrors({ message: 'Please wait a moment before sending again.' });
+            return;
+        }
+
         const formErrors = validateForm();
         if (Object.keys(formErrors).length > 0) {
             setErrors(formErrors);
             return;
         }
 
-        // In a real app, you'd integrate with an email service
-        console.log('Form submitted:', { name, email, message });
-        setSubmitted(true);
-        setName('');
-        setEmail('');
-        setMessage('');
-        try { localStorage.removeItem('lastItinerary'); } catch (e) {}
-        setErrors({});
+        setIsSubmitting(true);
+        try {
+            await submitContactMessage({ name, email, message });
+            setSubmitted(true);
+            setName('');
+            setEmail('');
+            setMessage('');
+            try { localStorage.removeItem('lastItinerary'); } catch (e) {}
+            setErrors({});
+
+            // Optional: open WhatsApp with the same message (quick notification path)
+            try {
+                const adminNumber = (siteContent.adminWhatsappNumber || '').replace(/\D/g, '');
+                if (adminNumber) {
+                    const text = encodeURIComponent(`New website message\n\nName: ${name}\nEmail: ${email}\n\n${message}`);
+                    window.open(`https://wa.me/${adminNumber}?text=${text}`, '_blank', 'noopener,noreferrer');
+                }
+            } catch {}
+        } catch (err: any) {
+            console.error(err);
+            setErrors({ message: 'Could not send right now. Please try again.' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -116,6 +158,10 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                             </div>
                         ) : (
                             <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="hidden">
+                                    <label htmlFor="company">Company</label>
+                                    <input id="company" value={honeypot} onChange={(e) => setHoneypot(e.target.value)} autoComplete="off" />
+                                </div>
                                 <div>
                                     <label htmlFor="name" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Full Name</label>
                                     <input type="text" id="name" value={name} onChange={e => setName(e.target.value)} required aria-invalid={!!errors.name} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
@@ -134,9 +180,10 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                 <div>
                                     <button 
                                         type="submit" 
-                                        className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
+                                        disabled={isSubmitting}
+                                        className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-dark disabled:bg-brand-primary/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
                                     >
-                                        Send Message
+                                        {isSubmitting ? 'Sending...' : 'Send Message'}
                                     </button>
                                 </div>
                             </form>

@@ -37,6 +37,15 @@ create table if not exists public.itinerary_queries (
   date timestamptz not null default now()
 );
 
+-- Contact form messages. Public can insert; only admins can read.
+create table if not exists public.contact_messages (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  message text not null,
+  created_at timestamptz not null default now()
+);
+
 -- keep updated_at fresh
 create or replace function public.set_updated_at()
 returns trigger
@@ -57,6 +66,7 @@ execute function public.set_updated_at();
 alter table public.admin_users enable row level security;
 alter table public.app_state enable row level security;
 alter table public.itinerary_queries enable row level security;
+alter table public.contact_messages enable row level security;
 
 -- Public can read the website content.
 drop policy if exists "public read app_state" on public.app_state;
@@ -128,6 +138,26 @@ using (
   )
 );
 
+-- Public can submit contact messages. Only admins can read them.
+drop policy if exists "public insert contact_messages" on public.contact_messages;
+create policy "public insert contact_messages"
+on public.contact_messages
+for insert
+to anon, authenticated
+with check (true);
+
+drop policy if exists "admin read contact_messages" on public.contact_messages;
+create policy "admin read contact_messages"
+on public.contact_messages
+for select
+to authenticated
+using (
+  exists (
+    select 1 from public.admin_users au
+    where lower(au.email) = public.current_email()
+  )
+);
+
 -- Grants: required in addition to RLS policies for the API roles to work.
 grant usage on schema public to anon, authenticated;
 grant select on table public.app_state to anon, authenticated;
@@ -135,3 +165,5 @@ grant insert, update on table public.app_state to authenticated;
 grant select on table public.admin_users to authenticated;
 grant insert on table public.itinerary_queries to anon, authenticated;
 grant select on table public.itinerary_queries to authenticated;
+grant insert on table public.contact_messages to anon, authenticated;
+grant select on table public.contact_messages to authenticated;
