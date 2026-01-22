@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, Suspense, lazy } from 'react';
 import type { Trip, Departure, BlogPost, GalleryPhoto, InstagramPost, Review, GoogleReview, SiteContent, ItineraryQuery, ThemeColors, CustomPage } from './types';
 import { trips as initialTrips, departures as initialDepartures, blogPosts as initialBlogPosts, galleryPhotos as initialGalleryPhotos, instagramPosts as initialInstagramPosts, googleReviews as initialGoogleReviews, initialSiteContent, itineraryQueries as initialItineraryQueries, initialCustomPages } from './data/mockData';
 import { themes } from './data/themes';
@@ -8,20 +8,21 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import TripDetailPage from './pages/TripDetailPage';
 import BookingPage from './pages/BookingPage';
-import ContactPage from './pages/ContactPage';
-import AdminPage from './pages/AdminPage';
-import LoginPage from './pages/LoginPage';
-import BlogPage from './pages/BlogPage';
-import BlogDetailPage from './pages/BlogDetailPage';
-import GalleryPage from './pages/GalleryPage';
-import CustomizePage from './pages/CustomizePage';
-import DynamicPage from './pages/DynamicPage';
-import AllToursPage from './pages/AllToursPage';
 import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
 import { listItineraryQueries, submitItineraryQuery } from './services/itineraryQueryService';
+
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const AdminPage = lazy(() => import('./pages/AdminPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const BlogPage = lazy(() => import('./pages/BlogPage'));
+const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage'));
+const GalleryPage = lazy(() => import('./pages/GalleryPage'));
+const CustomizePage = lazy(() => import('./pages/CustomizePage'));
+const DynamicPage = lazy(() => import('./pages/DynamicPage'));
+const AllToursPage = lazy(() => import('./pages/AllToursPage'));
 
 type View = 'home' | 'tripDetail' | 'booking' | 'contact' | 'admin' | 'login' | 'blog' | 'blogDetail' | 'gallery' | 'customize' | 'customPage' | 'allTours';
 export type Theme = 'light' | 'dark';
@@ -535,7 +536,11 @@ const App: React.FC = () => {
         onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')}
         destinations={[...new Set(trips.map(t => t.destination))]} siteContent={siteContent} theme={theme} toggleTheme={toggleTheme} customPages={customPages}
       />
-      <main className="flex-grow">{renderContent()}</main>
+      <main className="flex-grow">
+        <Suspense fallback={<div className="py-20 text-center text-muted-foreground">Loading...</div>}>
+          {renderContent()}
+        </Suspense>
+      </main>
       <Footer 
         onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
         onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')} 

@@ -113,8 +113,8 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
                 <h1 className="text-6xl md:text-8xl font-black font-display text-white leading-none italic tracking-tighter mb-6">{siteContent.heroTitle}</h1>
                 <p className="text-lg md:text-xl text-white/80 font-medium mb-10 max-w-xl leading-relaxed">{siteContent.heroSubtitle}</p>
                 <div className="flex flex-wrap gap-4">
-                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl shadow-adventure">Browse Missions</button>
-                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl">Custom Intel</button>
+                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl shadow-adventure">Browse Tours</button>
+                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-10 py-5 rounded-2xl">Plan a Custom Trip</button>
                 </div>
               </div>
             </div>
@@ -126,7 +126,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
             <div className="container mx-auto px-6 mb-16">
                 <div className="flex flex-col items-center text-center gap-10">
                     <div className="max-w-2xl">
-                        <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Live Deployments</h2>
+                        <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Upcoming Tours</h2>
                         <h3 className="text-5xl md:text-7xl font-black font-display italic tracking-tighter uppercase leading-none">{siteContent.adventuresTitle}</h3>
                     </div>
                     <div className="w-full max-w-3xl">
@@ -173,7 +173,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
                     onClick={() => props.onNavigateToTours(null)}
                     className="adventure-gradient text-white px-12 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-brand-primary/20 hover:scale-105 active:scale-95 transition-all"
                 >
-                    View All Missions & Tours
+                    View All Tours
                 </button>
             </div>
           </section>
@@ -287,8 +287,8 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
             </div>
             <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
                {[
-                   { title: 'Native Terrain Intel', desc: 'We don\'t follow maps; we know the mountains by heart.', icon: '🏔️' },
-                   { title: 'Frontier Safety', desc: 'Military-grade support and satellite backup on every mission.', icon: '🛡️' },
+                   { title: 'Local Expertise', desc: 'We know these mountains inside out.', icon: '🏔️' },
+                   { title: 'Safety First', desc: 'Support and backup on every trip.', icon: '🛡️' },
                    { title: 'Elite Fleet', desc: 'Prepped Royal Enfields tuned for high-altitude performance.', icon: '🏍️' },
                ].map(perk => (
                 <div key={perk.title} className="text-center p-8 rounded-[2rem] bg-slate-50 dark:bg-neutral-900 border border-border dark:border-dark-border hover:border-brand-primary transition-all">
@@ -337,7 +337,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
         return (
           <section key="blog" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.blogBgImage, sectionConfig.backgroundOpacity)}>
              <div className="container mx-auto px-6 mb-16">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Dispatch</h2>
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Contact</h2>
                 <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.blogTitle}</h3>
              </div>
              <div className="w-full">
@@ -358,7 +358,7 @@ I'm interested in joining this mission. Please send pricing and briefing docs.`;
           <section key="gallery" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.galleryBgImage, sectionConfig.backgroundOpacity)}>
              <div className="container mx-auto px-6 mb-12">
                 <div className="flex justify-between items-end">
-                    <div><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Visual Intel</h2><h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.galleryTitle}</h3></div>
+                    <div><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Gallery</h2><h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.galleryTitle}</h3></div>
                     <button onClick={props.onNavigateGallery} className="text-xs font-black uppercase tracking-widest hover:text-brand-primary">Open Archive &rarr;</button>
                 </div>
             </div>

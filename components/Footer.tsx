@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import type { SiteContent } from '../types';
+import { subscribeNewsletter } from '../services/newsletterService';
 
 interface FooterProps {
   onNavigateHome: () => void;
@@ -42,10 +43,24 @@ const Footer: React.FC<FooterProps> = ({
   siteContent 
 }) => {
   const currentYear = new Date().getFullYear();
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
+  const [newsletterToast, setNewsletterToast] = useState<string | null>(null);
+  const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
+
+  const showNewsletterToast = (text: string) => {
+    setNewsletterToast(text);
+    window.setTimeout(() => setNewsletterToast(null), 2500);
+  };
 
   return (
     <footer className="bg-card dark:bg-dark-card border-t border-border dark:border-dark-border pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6">
+        {newsletterToast && (
+          <div className="fixed bottom-6 right-6 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest">
+            {newsletterToast}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           {/* Brand Column */}
           <div className="space-y-6">
@@ -119,15 +134,63 @@ const Footer: React.FC<FooterProps> = ({
           {/* Newsletter / CTA Column */}
           <div>
             <h3 className="text-xs font-black uppercase tracking-widest mb-6 text-foreground dark:text-dark-foreground">Newsletter</h3>
-            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground dark:text-dark-muted-foreground mb-4 opacity-60">Subscribe for early-bird missions.</p>
-            <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); alert("Thanks for joining the waitlist!"); }}>
+            <p className="text-[11px] font-black uppercase tracking-widest text-muted-foreground dark:text-dark-muted-foreground mb-4 opacity-60">Subscribe for updates and offers.</p>
+            <form
+              className="space-y-3"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (newsletterHoneypot.trim()) return;
+                const email = newsletterEmail.trim();
+                if (!/\S+@\S+\.\S+/.test(email)) {
+                  showNewsletterToast('Enter a valid email');
+                  return;
+                }
+                try {
+                  const key = 'newsletter_last_submit_ts';
+                  const last = Number(localStorage.getItem(key) || '0');
+                  const now = Date.now();
+                  if (last && now - last < 30_000) {
+                    showNewsletterToast('Please wait and try again');
+                    return;
+                  }
+                  localStorage.setItem(key, String(now));
+                } catch {}
+
+                setNewsletterSubmitting(true);
+                try {
+                  await subscribeNewsletter(email);
+                  setNewsletterEmail('');
+                  showNewsletterToast('Thanks for subscribing');
+                } catch (err: any) {
+                  const msg = String(err?.message || '');
+                  if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
+                    showNewsletterToast('Already subscribed');
+                  } else {
+                    showNewsletterToast('Could not subscribe');
+                  }
+                } finally {
+                  setNewsletterSubmitting(false);
+                }
+              }}
+            >
+              <div className="hidden">
+                <label htmlFor="company2">Company</label>
+                <input id="company2" value={newsletterHoneypot} onChange={(e) => setNewsletterHoneypot(e.target.value)} autoComplete="off" />
+              </div>
               <input 
                 type="email" 
                 placeholder="EMAIL ADDRESS" 
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                disabled={newsletterSubmitting}
                 className="w-full p-4 text-[10px] font-black uppercase tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
-              <button type="submit" className="w-full adventure-gradient text-white font-black uppercase tracking-widest text-[10px] py-4 px-4 rounded-xl transition-colors shadow-lg shadow-brand-primary/20">
-                SUBSCRIBE
+              <button
+                type="submit"
+                disabled={newsletterSubmitting}
+                className="w-full adventure-gradient text-white font-black uppercase tracking-widest text-[10px] py-4 px-4 rounded-xl transition-colors shadow-lg shadow-brand-primary/20 disabled:opacity-60"
+              >
+                {newsletterSubmitting ? 'SAVING…' : 'SUBSCRIBE'}
               </button>
             </form>
           </div>

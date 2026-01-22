@@ -538,7 +538,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 </div>
 
                 <div className="bg-background/60 dark:bg-dark-background/30 border border-border dark:border-dark-border p-8 rounded-[2.5rem] space-y-6">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-primary">Add New Visual Intel</h4>
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-brand-primary">Add new photo</h4>
                     <div className="flex flex-col gap-6">
                         <div className="flex flex-col gap-2">
                             <label className="text-[9px] font-black uppercase tracking-widest opacity-60">Direct Image Link</label>
@@ -1097,7 +1097,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                 className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
                               />
                           </div>
-                          {renderImageField('Mission Master Banner', editingItem.imageUrl, url => {
+                          {renderImageField('Main tour image', editingItem.imageUrl, url => {
                             const normalized = url?.trim();
                             const prevGallery = Array.isArray(editingItem?.gallery) ? editingItem.gallery : [];
                             const already = normalized && prevGallery.some((p: any) => p.imageUrl === normalized);

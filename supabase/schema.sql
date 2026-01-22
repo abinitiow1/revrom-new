@@ -46,6 +46,12 @@ create table if not exists public.contact_messages (
   created_at timestamptz not null default now()
 );
 
+-- Newsletter subscribers. Public can subscribe; only admins can read.
+create table if not exists public.newsletter_subscribers (
+  email text primary key,
+  created_at timestamptz not null default now()
+);
+
 -- keep updated_at fresh
 create or replace function public.set_updated_at()
 returns trigger
@@ -67,6 +73,7 @@ alter table public.admin_users enable row level security;
 alter table public.app_state enable row level security;
 alter table public.itinerary_queries enable row level security;
 alter table public.contact_messages enable row level security;
+alter table public.newsletter_subscribers enable row level security;
 
 -- Public can read the website content.
 drop policy if exists "public read app_state" on public.app_state;
@@ -158,6 +165,26 @@ using (
   )
 );
 
+-- Newsletter policies
+drop policy if exists "public insert newsletter_subscribers" on public.newsletter_subscribers;
+create policy "public insert newsletter_subscribers"
+on public.newsletter_subscribers
+for insert
+to anon, authenticated
+with check (email is not null and length(trim(email)) > 3);
+
+drop policy if exists "admin read newsletter_subscribers" on public.newsletter_subscribers;
+create policy "admin read newsletter_subscribers"
+on public.newsletter_subscribers
+for select
+to authenticated
+using (
+  exists (
+    select 1 from public.admin_users au
+    where lower(au.email) = public.current_email()
+  )
+);
+
 -- Grants: required in addition to RLS policies for the API roles to work.
 grant usage on schema public to anon, authenticated;
 grant select on table public.app_state to anon, authenticated;
@@ -167,3 +194,31 @@ grant insert on table public.itinerary_queries to anon, authenticated;
 grant select on table public.itinerary_queries to authenticated;
 grant insert on table public.contact_messages to anon, authenticated;
 grant select on table public.contact_messages to authenticated;
+grant insert on table public.newsletter_subscribers to anon, authenticated;
+grant select on table public.newsletter_subscribers to authenticated;
+
+-- Optional: Storage policies (only needed if uploads fail)
+-- Allows authenticated users (admins) to upload/update in the `site-assets` bucket.
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'storage' and table_name = 'objects'
+  ) then
+    execute 'drop policy if exists "authenticated upload site-assets" on storage.objects';
+    execute 'create policy "authenticated upload site-assets"
+      on storage.objects
+      for insert
+      to authenticated
+      with check (bucket_id = ''site-assets'')';
+
+    execute 'drop policy if exists "authenticated update site-assets" on storage.objects';
+    execute 'create policy "authenticated update site-assets"
+      on storage.objects
+      for update
+      to authenticated
+      using (bucket_id = ''site-assets'')
+      with check (bucket_id = ''site-assets'')';
+  end if;
+end $$;
