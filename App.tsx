@@ -479,6 +479,7 @@ const App: React.FC = () => {
                     saveStatus={saveStatus}
                     onToggleAutoSave={setAutoSaveEnabled}
                     onSaveNow={saveNow}
+                    onExitAdmin={() => setView('home')}
                     onAddTrip={t => setTrips(p => [{...t, id: Date.now().toString(), reviews: []}, ...p])}
                     onUpdateTrip={t => setTrips(p => p.map(x => x.id === t.id ? t : x))}
                     onDeleteTrip={id => setTrips(p => p.filter(x => x.id !== id))}
@@ -526,28 +527,34 @@ const App: React.FC = () => {
     return <Preloader />;
   }
 
+  const hideSiteChrome = view === 'admin';
+
   return (
     <div className="bg-background text-foreground min-h-screen flex flex-col">
-      <Header 
-        onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
-        onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
-        onNavigateCustomize={() => setView('customize')} onNavigateToTours={d => { setInitialDestinationFilter(d); setView('allTours'); }}
-        onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
-        onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')}
-        destinations={[...new Set(trips.map(t => t.destination))]} siteContent={siteContent} theme={theme} toggleTheme={toggleTheme} customPages={customPages}
-      />
+      {!hideSiteChrome && (
+        <Header 
+          onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
+          onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
+          onNavigateCustomize={() => setView('customize')} onNavigateToTours={d => { setInitialDestinationFilter(d); setView('allTours'); }}
+          onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
+          onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')}
+          destinations={[...new Set(trips.map(t => t.destination))]} siteContent={siteContent} theme={theme} toggleTheme={toggleTheme} customPages={customPages}
+        />
+      )}
       <main className="flex-grow">
         <Suspense fallback={<div className="py-20 text-center text-muted-foreground">Loading...</div>}>
           {renderContent()}
         </Suspense>
       </main>
-      <Footer 
-        onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
-        onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')} 
-        onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
-        onNavigateCustomize={() => setView('customize')} onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
-        siteContent={siteContent}
-      />
+      {!hideSiteChrome && (
+        <Footer 
+          onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
+          onNavigateAdmin={() => setView(isLoggedIn ? 'admin' : 'login')} 
+          onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
+          onNavigateCustomize={() => setView('customize')} onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
+          siteContent={siteContent}
+        />
+      )}
       
       {/* Floating Action Buttons */}
       {view !== 'admin' && (

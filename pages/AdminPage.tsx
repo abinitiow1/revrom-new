@@ -36,6 +36,7 @@ interface AdminPageProps {
   onAddCustomPage: (page: Omit<CustomPage, 'id'>) => void;
   onUpdateCustomPage: (updatedPage: CustomPage) => void;
   onDeleteCustomPage: (pageId: string) => void;
+  onExitAdmin?: () => void;
   onLogout: () => void;
   theme: Theme;
 }
@@ -843,22 +844,22 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
       {adminNotice && (
-        <div className={`fixed top-6 right-6 z-[999] px-4 py-2 rounded-md shadow-lg ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
+        <div className={`fixed top-20 sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[90vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
           {adminNotice.text}
         </div>
       )}
       {/* Gallery Picker Modal - Higher Z-Index */}
       {isGalleryPickerOpen.isOpen && (
-        <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-6 animate-fade-in">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl h-[85vh] rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl">
-            <div className="p-8 border-b flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
+        <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex items-start sm:items-center justify-center p-4 sm:p-6 animate-fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl h-[90vh] sm:h-[85vh] rounded-[2rem] sm:rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl">
+            <div className="p-5 sm:p-8 border-b flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
               <div>
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Select an existing photo for your content</p>
               </div>
               <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">×</button>
             </div>
-            <div className="flex-grow overflow-y-auto p-8 no-scrollbar">
+            <div className="flex-grow overflow-y-auto p-5 sm:p-8 no-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                 {galleryPhotos.map(photo => (
                   <button 
@@ -881,8 +882,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
       {/* Caption Edit Modal */}
       {captionModal.isOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-center justify-center p-6">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-6 shadow-2xl border border-border pointer-events-auto">
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black">Edit caption for this photo</h3>
               <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">×</button>
@@ -911,16 +912,26 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       )}
 
       {/* Admin Mobile Navigation - Higher Z-Index than global header */}
-      <div className="lg:hidden sticky top-0 z-[200] bg-card dark:bg-dark-card backdrop-blur-xl border-b border-border dark:border-dark-border px-6 py-5 flex items-center justify-between shadow-md">
-         <div className="flex flex-col">
+      <div className="lg:hidden sticky top-0 z-[320] bg-card dark:bg-dark-card backdrop-blur-xl border-b border-border dark:border-dark-border px-4 py-4 flex items-center gap-3 shadow-md">
+         <button
+           type="button"
+           onClick={() => {
+             if (editingItem && !requestCloseModal()) return;
+             props.onExitAdmin?.();
+           }}
+           className="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-background/60 dark:bg-dark-background/40 border border-border dark:border-dark-border text-foreground dark:text-dark-foreground active:scale-95 transition-transform"
+         >
+           ← Site
+         </button>
+         <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">ADMIN</span>
-            <span className="text-xl font-black italic tracking-tighter uppercase leading-none">{activeTab}</span>
+            <span className="text-lg font-black italic tracking-tighter uppercase leading-none truncate">{activeTab}</span>
          </div>
          <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className={`px-6 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${isMobileMenuOpen ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.05] active:scale-95'}`}>{isMobileMenuOpen ? 'Close' : 'Menu'}</button>
       </div>
 
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[190] bg-black/95 backdrop-blur-2xl pt-[100px] p-6 animate-fade-in overflow-y-auto">
+        <div className="lg:hidden fixed inset-0 z-[310] bg-black/95 backdrop-blur-2xl pt-24 p-4 sm:p-6 animate-fade-in overflow-y-auto">
            <div className="space-y-3">
               {menuItems.map(tab => (
                 <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); setIsMobileMenuOpen(false); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
@@ -931,7 +942,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
         </div>
       )}
 
-      <div className="w-full px-6 py-10 lg:py-20">
+      <div className="w-full px-4 sm:px-6 py-6 sm:py-10 lg:py-20">
         <div className="w-full max-w-7xl mx-auto">
           <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-start">
           <aside className="hidden lg:block w-72 flex-shrink-0">
@@ -939,6 +950,18 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               <div className="p-10 text-center border-b border-border/50 dark:border-dark-border/50 bg-background/60 dark:bg-dark-background/20">
                 <h2 className="text-2xl font-black font-display uppercase italic tracking-tighter mb-1">Admin</h2>
                 <p className="text-[9px] font-black opacity-30 tracking-[0.3em] uppercase">Control Center</p>
+                {props.onExitAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingItem && !requestCloseModal()) return;
+                      props.onExitAdmin?.();
+                    }}
+                    className="mt-6 w-full px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-background dark:bg-dark-background border border-border dark:border-dark-border hover:border-brand-primary/30 transition-colors"
+                  >
+                    View site
+                  </button>
+                )}
               </div>
               <nav className="p-6 space-y-1.5">
                 {menuItems.map(tab => (
@@ -950,9 +973,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
             </div>
           </aside>
 
-          <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-8 sm:p-12 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
+          <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-5 sm:p-8 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
-              <div className="mb-10 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-6 flex flex-col md:flex-row gap-6 md:items-center md:justify-between shadow-lg">
+              <div className="mb-8 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-4 sm:p-6 flex flex-col md:flex-row gap-4 sm:gap-6 md:items-center md:justify-between shadow-lg">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
                   <div className="space-y-1">
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Save changes</div>
@@ -984,16 +1007,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           }`}
                         />
                         {saveStatus === 'saving'
-                          ? 'Saving…'
+                          ? 'Saving...'
                           : saveStatus === 'saved'
                             ? 'Saved'
-                            : saveStatus === 'error'
-                              ? 'Save failed'
-                              : isDirty
-                                ? 'Unsaved'
-                                : 'Saved'}
+                          : saveStatus === 'error'
+                            ? 'Save failed'
+                          : isDirty
+                            ? 'Unsaved'
+                            : 'Saved'}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="hidden sm:block text-xs text-muted-foreground">
                         Click Save to publish your updates.
                       </div>
                     </div>
@@ -1002,13 +1025,13 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   <button
                     onClick={() => props.onSaveNow?.()}
                     disabled={!isDirty || isSaving}
-                    className={`w-full md:w-auto px-10 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    className={`w-full md:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       !isDirty || isSaving
                         ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 cursor-not-allowed'
                         : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95'
                     }`}
                   >
-                    {isSaving ? 'Saving…' : 'Save'}
+                    {isSaving ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
@@ -1021,7 +1044,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
       {/* Editing Dialog - Maximum Z-Index */}
       {editingItem && (
-        <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center p-4 overflow-y-auto">
            <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-6 sm:p-10 lg:p-16 rounded-[2.5rem] sm:rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
               <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">×</button>
               <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
@@ -1036,7 +1059,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         : 'Edit'}
               </h3>
               
-              <div className="flex-grow overflow-y-auto pr-8 no-scrollbar pb-10">
+              <div className="flex-grow overflow-y-auto pr-0 sm:pr-8 no-scrollbar pb-10">
                  {activeTab === 'TOURS' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                        <div className="space-y-10">
