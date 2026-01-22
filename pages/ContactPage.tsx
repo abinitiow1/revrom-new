@@ -47,6 +47,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
     const [honeypot, setHoneypot] = useState('');
+    const [notice, setNotice] = useState<string>('');
 
     const validateForm = () => {
         const newErrors: { name?: string; email?: string; message?: string } = {};
@@ -83,15 +84,19 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         }
     };
 
+    const buildWhatsAppUrl = (payload: { name: string; email: string; message: string }) => {
+        const adminNumber = (siteContent.adminWhatsappNumber || '').replace(/\D/g, '');
+        const text = `New website message\n\nName: ${payload.name}\nEmail: ${payload.email}\n\n${payload.message}`;
+        const encoded = encodeURIComponent(text);
+        return adminNumber ? `https://wa.me/${adminNumber}?text=${encoded}` : '';
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setNotice('');
 
         if (honeypot.trim()) {
             setSubmitted(true);
-            return;
-        }
-        if (isRateLimited()) {
-            setErrors({ message: 'Please wait a moment before sending again.' });
             return;
         }
 
@@ -101,9 +106,20 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             return;
         }
 
+        const whatsappUrl = buildWhatsAppUrl({ name, email, message });
+        if (!whatsappUrl) {
+            setErrors({ message: 'WhatsApp number is not configured. Please try again later.' });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
-            await submitContactMessage({ name, email, message });
+            // Save to DB unless the user is rate-limited (prevents spam). WhatsApp send still works.
+            if (isRateLimited()) {
+                setNotice('Opening WhatsApp… (saving is temporarily limited)');
+            } else {
+                await submitContactMessage({ name, email, message });
+            }
             setSubmitted(true);
             setName('');
             setEmail('');
@@ -111,17 +127,23 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             try { localStorage.removeItem('lastItinerary'); } catch (e) {}
             setErrors({});
 
-            // Optional: open WhatsApp with the same message (quick notification path)
+            // Redirect to WhatsApp (more reliable than popup windows).
             try {
-                const adminNumber = (siteContent.adminWhatsappNumber || '').replace(/\D/g, '');
-                if (adminNumber) {
-                    const text = encodeURIComponent(`New website message\n\nName: ${name}\nEmail: ${email}\n\n${message}`);
-                    window.open(`https://wa.me/${adminNumber}?text=${text}`, '_blank', 'noopener,noreferrer');
-                }
-            } catch {}
+                const w = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                if (!w) window.location.href = whatsappUrl;
+            } catch {
+                window.location.href = whatsappUrl;
+            }
         } catch (err: any) {
             console.error(err);
-            setErrors({ message: 'Could not send right now. Please try again.' });
+            // Even if DB save fails, still open WhatsApp for the customer.
+            setNotice('Opening WhatsApp…');
+            try {
+                const w = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+                if (!w) window.location.href = whatsappUrl;
+            } catch {
+                window.location.href = whatsappUrl;
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -176,6 +198,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     <label htmlFor="message" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Message</label>
                                     <textarea id="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} aria-invalid={!!errors.message} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
+                                    {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
                                 </div>
                                 <div>
                                     <button 
@@ -183,8 +206,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                         disabled={isSubmitting}
                                         className="w-full sm:w-auto bg-brand-primary hover:bg-brand-primary-dark disabled:bg-brand-primary/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
                                     >
-                                        {isSubmitting ? 'Sending...' : 'Send Message'}
+                                        {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
                                     </button>
+                                    <p className="mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                        This will open WhatsApp with your message ready to send.
+                                    </p>
                                 </div>
                             </form>
                         )}
