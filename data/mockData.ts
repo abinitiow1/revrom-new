@@ -104,10 +104,12 @@ export const initialSiteContent: SiteContent = {
     
     whyChooseUsBgImage: '',
     
+    rootsKicker: 'Born in Chushul',
     rootsTitle: 'OUR LOCAL STORY',
     rootsBody: 'We are a group of local riders who grew up in these mountains. We love sharing the beauty of our home with friendly travelers from around the world.',
     rootsButton: 'ABOUT US',
     rootsBgImage: '',
+    rootsImageUrl: 'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200',
     
     reviewsBgImage: '',
     

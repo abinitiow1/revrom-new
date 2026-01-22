@@ -152,10 +152,12 @@ export interface SiteContent {
     
     whyChooseUsBgImage: string;
     
+    rootsKicker: string;
     rootsTitle: string;
     rootsBody: string;
     rootsButton: string;
     rootsBgImage: string;
+    rootsImageUrl: string;
     
     reviewsBgImage: string;
     

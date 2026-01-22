@@ -613,6 +613,85 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       </div>
                       {renderImageField('Hero Background Banner', siteContent.heroBgImage, url => onUpdateSiteContent({ heroBgImage: url }))}
                    </div>
+
+                   <div className="space-y-8">
+                      <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">About Us (Roots)</h4>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Kicker (small heading)</label>
+                        <input
+                          value={(siteContent as any).rootsKicker || ''}
+                          onChange={(e) => onUpdateSiteContent({ rootsKicker: e.target.value } as any)}
+                          placeholder="e.g. Born in Chushul"
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Title</label>
+                        <input
+                          value={siteContent.rootsTitle || ''}
+                          onChange={(e) => onUpdateSiteContent({ rootsTitle: e.target.value })}
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Body</label>
+                        <textarea
+                          value={siteContent.rootsBody || ''}
+                          onChange={(e) => onUpdateSiteContent({ rootsBody: e.target.value })}
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-medium outline-none h-36 resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Button label</label>
+                        <input
+                          value={siteContent.rootsButton || ''}
+                          onChange={(e) => onUpdateSiteContent({ rootsButton: e.target.value })}
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Side image (right photo)</label>
+                        <div className="flex flex-col gap-3">
+                          <input
+                            value={(siteContent as any).rootsImageUrl || ''}
+                            onChange={(e) => onUpdateSiteContent({ rootsImageUrl: e.target.value } as any)}
+                            placeholder="Paste URL..."
+                            className="w-full bg-background dark:bg-dark-background p-4 rounded-xl border border-border dark:border-dark-border outline-none text-xs font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setIsGalleryPickerOpen({
+                                  isOpen: true,
+                                  onSelect: (url) => {
+                                    onUpdateSiteContent({ rootsImageUrl: url } as any);
+                                    setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} });
+                                  },
+                                })
+                              }
+                              className="flex-1 px-4 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card hover:bg-background/60 dark:hover:bg-dark-background/60 transition-all text-[10px] font-black uppercase tracking-widest shadow-sm text-foreground dark:text-dark-foreground"
+                            >
+                              GALLERY
+                            </button>
+                            <label className="flex-1 px-4 py-3 rounded-xl bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase tracking-widest cursor-pointer flex items-center justify-center border border-brand-primary/20">
+                              UPLOAD
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, (url) => onUpdateSiteContent({ rootsImageUrl: url } as any))}
+                              />
+                            </label>
+                          </div>
+                        </div>
+                        {!!(siteContent as any).rootsImageUrl && (
+                          <div className="relative w-full max-w-sm aspect-video rounded-2xl overflow-hidden border border-border dark:border-dark-border mt-3 shadow-inner bg-slate-100 dark:bg-black">
+                            <img src={(siteContent as any).rootsImageUrl} className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                      </div>
+                   </div>
                 </div>
 
                 <div className="space-y-12">
