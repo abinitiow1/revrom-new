@@ -135,21 +135,38 @@ export interface SectionConfig {
     backgroundOpacity?: number; // 0 to 1, where 1 is fully visible background image
 }
 
+export type RootsCtaTarget = 'blogFirstPost' | 'blog' | 'contact' | 'customize' | 'tours';
+
+export interface WhyChooseUsCard {
+  icon: string;
+  title: string;
+  desc: string;
+}
+
 export interface SiteContent {
     heroTitle: string;
     heroSubtitle: string;
     heroBgImage: string;
+    heroBadgeText: string;
+    heroPrimaryCtaLabel: string;
+    heroSecondaryCtaLabel: string;
     
+    adventuresKicker: string;
     adventuresTitle: string;
     adventuresSubtitle: string;
     adventuresBgImage: string;
+    adventuresCtaLabel: string;
     
     departuresTitle: string;
     departuresBgImage: string;
     
     customizeTitle: string;
     customizeSubtitle: string;
+    customizeCtaLabel: string;
     
+    whyChooseUsKicker: string;
+    whyChooseUsTitle: string;
+    whyChooseUsCards: WhyChooseUsCard[];
     whyChooseUsBgImage: string;
     
     rootsKicker: string;
@@ -158,16 +175,23 @@ export interface SiteContent {
     rootsButton: string;
     rootsBgImage: string;
     rootsImageUrl: string;
+    rootsCtaTarget: RootsCtaTarget;
     
     reviewsBgImage: string;
+    reviewsKicker: string;
+    reviewsTitle: string;
     
+    blogKicker: string;
     blogTitle: string;
     blogBgImage: string;
     
+    galleryKicker: string;
     galleryTitle: string;
     gallerySubtitle: string;
     galleryBgImage: string;
+    galleryCtaLabel: string;
     
+    instagramKicker: string;
     instagramTitle: string;
     instagramSubtitle: string;
     instagramBgImage: string;

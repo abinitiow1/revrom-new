@@ -41,7 +41,7 @@ interface AdminPageProps {
   theme: Theme;
 }
 
-type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'SETTINGS';
+type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'HOMEPAGE' | 'SETTINGS';
 
 type DepartureDraft = Omit<Departure, 'id'> & { id?: string };
 
@@ -593,15 +593,21 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           </div>
         );
 
-      case 'SETTINGS':
+      case 'HOMEPAGE':
+      case 'SETTINGS': {
+        const settingsMode: 'homepage' | 'global' = activeTab === 'HOMEPAGE' ? 'homepage' : 'global';
+
         return (
           <div className="space-y-12 animate-fade-in">
             <section className="space-y-12">
-              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Global Site Settings</h3>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-20">
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">
+                {settingsMode === 'homepage' ? 'Homepage Settings' : 'Global Site Settings'}
+              </h3>
+
+              <div className="grid grid-cols-1 gap-20">
+                {settingsMode === 'homepage' && (
                 <div className="space-y-12">
-                   <div className="space-y-8">
+                    <div className="space-y-8">
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Hero Visuals</h4>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Main Impact Title</label>
@@ -611,10 +617,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Sub-Impact Title</label>
                         <textarea value={siteContent.heroSubtitle} onChange={e => onUpdateSiteContent({heroSubtitle: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-medium outline-none h-32 resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Hero badge text</label>
+                        <input value={siteContent.heroBadgeText || ''} onChange={e => onUpdateSiteContent({ heroBadgeText: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Primary CTA label</label>
+                          <input value={siteContent.heroPrimaryCtaLabel || ''} onChange={e => onUpdateSiteContent({ heroPrimaryCtaLabel: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Secondary CTA label</label>
+                          <input value={siteContent.heroSecondaryCtaLabel || ''} onChange={e => onUpdateSiteContent({ heroSecondaryCtaLabel: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
                       {renderImageField('Hero Background Banner', siteContent.heroBgImage, url => onUpdateSiteContent({ heroBgImage: url }))}
-                   </div>
+                    </div>
 
-                   <div className="space-y-8">
+                    <div className="space-y-8">
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">About Us (Roots)</h4>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Kicker (small heading)</label>
@@ -648,6 +668,20 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           onChange={(e) => onUpdateSiteContent({ rootsButton: e.target.value })}
                           className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
                         />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Button action</label>
+                        <select
+                          value={(siteContent as any).rootsCtaTarget || 'blogFirstPost'}
+                          onChange={(e) => onUpdateSiteContent({ rootsCtaTarget: e.target.value } as any)}
+                          className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        >
+                          <option value="blogFirstPost">Open first blog post</option>
+                          <option value="blog">Open blog</option>
+                          <option value="tours">Open tours</option>
+                          <option value="customize">Open plan-your-trip</option>
+                          <option value="contact">Open contact</option>
+                        </select>
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Side image (right photo)</label>
@@ -685,15 +719,153 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                             </label>
                           </div>
                         </div>
-                        {!!(siteContent as any).rootsImageUrl && (
-                          <div className="relative w-full max-w-sm aspect-video rounded-2xl overflow-hidden border border-border dark:border-dark-border mt-3 shadow-inner bg-slate-100 dark:bg-black">
-                            <img src={(siteContent as any).rootsImageUrl} className="w-full h-full object-cover" />
-                          </div>
-                        )}
+                      {!!(siteContent as any).rootsImageUrl && (
+                        <div className="relative w-full max-w-sm aspect-video rounded-2xl overflow-hidden border border-border dark:border-dark-border mt-3 shadow-inner bg-slate-100 dark:bg-black">
+                          <img src={(siteContent as any).rootsImageUrl} className="w-full h-full object-cover" />
+                        </div>
+                      )}
                       </div>
                    </div>
-                </div>
 
+                   <div className="space-y-8">
+                      <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Homepage Copy</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Trips kicker</label>
+                          <input value={siteContent.adventuresKicker || ''} onChange={e => onUpdateSiteContent({ adventuresKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Trips CTA label</label>
+                          <input value={siteContent.adventuresCtaLabel || ''} onChange={e => onUpdateSiteContent({ adventuresCtaLabel: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Trips title</label>
+                        <input value={siteContent.adventuresTitle || ''} onChange={e => onUpdateSiteContent({ adventuresTitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Trips subtitle</label>
+                        <textarea value={siteContent.adventuresSubtitle || ''} onChange={e => onUpdateSiteContent({ adventuresSubtitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-medium outline-none h-28 resize-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Why choose us kicker</label>
+                          <input value={siteContent.whyChooseUsKicker || ''} onChange={e => onUpdateSiteContent({ whyChooseUsKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Why choose us title</label>
+                          <input value={siteContent.whyChooseUsTitle || ''} onChange={e => onUpdateSiteContent({ whyChooseUsTitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Why choose us cards</div>
+                        {(siteContent.whyChooseUsCards || []).map((card, idx) => (
+                          <div key={idx} className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 rounded-2xl border border-border dark:border-dark-border bg-background/50 dark:bg-dark-background/30">
+                            <div className="flex flex-col gap-2">
+                              <label className="text-[9px] font-black uppercase tracking-widest opacity-60">Icon</label>
+                              <input
+                                value={card.icon || ''}
+                                onChange={(e) => {
+                                  const next = (siteContent.whyChooseUsCards || []).map((c, i) => (i === idx ? { ...c, icon: e.target.value } : c));
+                                  onUpdateSiteContent({ whyChooseUsCards: next });
+                                }}
+                                className="w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-[9px] font-black uppercase tracking-widest opacity-60">Title</label>
+                              <input
+                                value={card.title || ''}
+                                onChange={(e) => {
+                                  const next = (siteContent.whyChooseUsCards || []).map((c, i) => (i === idx ? { ...c, title: e.target.value } : c));
+                                  onUpdateSiteContent({ whyChooseUsCards: next });
+                                }}
+                                className="w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <label className="text-[9px] font-black uppercase tracking-widest opacity-60">Description</label>
+                              <input
+                                value={card.desc || ''}
+                                onChange={(e) => {
+                                  const next = (siteContent.whyChooseUsCards || []).map((c, i) => (i === idx ? { ...c, desc: e.target.value } : c));
+                                  onUpdateSiteContent({ whyChooseUsCards: next });
+                                }}
+                                className="w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                              />
+                            </div>
+                          </div>
+                        ))}
+
+                        <div className="flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateSiteContent({ whyChooseUsCards: [...(siteContent.whyChooseUsCards || []), { icon: '⭐', title: 'New benefit', desc: 'Describe it here.' }] })}
+                            className="flex-1 px-4 py-3 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest"
+                          >
+                            Add card
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateSiteContent({ whyChooseUsCards: (siteContent.whyChooseUsCards || []).slice(0, -1) })}
+                            disabled={(siteContent.whyChooseUsCards || []).length <= 1}
+                            className="flex-1 px-4 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60"
+                          >
+                            Remove last
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Reviews kicker</label>
+                          <input value={siteContent.reviewsKicker || ''} onChange={e => onUpdateSiteContent({ reviewsKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Reviews title</label>
+                          <input value={siteContent.reviewsTitle || ''} onChange={e => onUpdateSiteContent({ reviewsTitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Blog kicker</label>
+                          <input value={siteContent.blogKicker || ''} onChange={e => onUpdateSiteContent({ blogKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Blog title</label>
+                          <input value={siteContent.blogTitle || ''} onChange={e => onUpdateSiteContent({ blogTitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Gallery kicker</label>
+                          <input value={siteContent.galleryKicker || ''} onChange={e => onUpdateSiteContent({ galleryKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Gallery CTA label</label>
+                          <input value={siteContent.galleryCtaLabel || ''} onChange={e => onUpdateSiteContent({ galleryCtaLabel: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Instagram kicker</label>
+                          <input value={siteContent.instagramKicker || ''} onChange={e => onUpdateSiteContent({ instagramKicker: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Instagram title</label>
+                          <input value={siteContent.instagramTitle || ''} onChange={e => onUpdateSiteContent({ instagramTitle: e.target.value })} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        </div>
+                      </div>
+                    </div>
+                 </div>
+                )}
+
+                {settingsMode === 'global' && (
                 <div className="space-y-12">
                    <div className="space-y-8">
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Contact</h4>
@@ -809,66 +981,72 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       </div>
                    </div>
                 </div>
+                )}
               </div>
             </section>
 
-            {/* Section Backgrounds - full width rows */}
-            <div className="mt-4 w-full">
-              <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-2 mb-3">Section Backgrounds</h4>
-              <div className="space-y-3">
-                {[
-                  { key: 'adventuresBgImage', label: 'Adventures background' },
-                  { key: 'departuresBgImage', label: 'Departures background' },
-                  { key: 'whyChooseUsBgImage', label: 'Why Choose Us BG' },
-                  { key: 'rootsBgImage', label: 'Roots / About Us BG' },
-                  { key: 'reviewsBgImage', label: 'Reviews background' },
-                  { key: 'blogBgImage', label: 'Blog background' },
-                  { key: 'galleryBgImage', label: 'Gallery background' },
-                  { key: 'instagramBgImage', label: 'Instagram background' }
-                ].map(field => (
-                  <div key={field.key} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-white dark:bg-neutral-900 p-3 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border w-full">
-                    <div className="w-full sm:w-48 text-xs font-black uppercase tracking-widest opacity-60 sm:pr-2">{field.label}</div>
+            {settingsMode === 'homepage' && (
+              <>
+                {/* Section Backgrounds - full width rows */}
+                <div className="mt-4 w-full">
+                  <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-2 mb-3">Section Backgrounds</h4>
+                  <div className="space-y-3">
+                    {[
+                      { key: 'adventuresBgImage', label: 'Adventures background' },
+                      { key: 'departuresBgImage', label: 'Departures background' },
+                      { key: 'whyChooseUsBgImage', label: 'Why Choose Us BG' },
+                      { key: 'rootsBgImage', label: 'Roots / About Us BG' },
+                      { key: 'reviewsBgImage', label: 'Reviews background' },
+                      { key: 'blogBgImage', label: 'Blog background' },
+                      { key: 'galleryBgImage', label: 'Gallery background' },
+                      { key: 'instagramBgImage', label: 'Instagram background' }
+                    ].map(field => (
+                      <div key={field.key} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 bg-white dark:bg-neutral-900 p-3 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border w-full">
+                        <div className="w-full sm:w-48 text-xs font-black uppercase tracking-widest opacity-60 sm:pr-2">{field.label}</div>
 
-                    <input
-                      value={(siteContent as any)[field.key] || ''}
-                      onChange={e => onUpdateSiteContent({ [field.key]: e.target.value } as any)}
-                      placeholder="Paste URL (e.g. from Google)..."
-                      className="w-full sm:flex-1 sm:min-w-0 bg-background dark:bg-dark-background px-3 py-2 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
-                    />
+                        <input
+                          value={(siteContent as any)[field.key] || ''}
+                          onChange={e => onUpdateSiteContent({ [field.key]: e.target.value } as any)}
+                          placeholder="Paste URL (e.g. from Google)..."
+                          className="w-full sm:flex-1 sm:min-w-0 bg-background dark:bg-dark-background px-3 py-2 sm:px-2 sm:py-1 rounded-xl sm:rounded-sm border border-border dark:border-dark-border outline-none text-sm font-bold focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                        />
 
-                    <div className="w-full sm:w-44 flex items-center justify-between sm:justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsGalleryPickerOpen({ isOpen: true, onSelect: (url) => { onUpdateSiteContent({ [field.key]: url } as any); setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} }); } })}
-                        className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-neutral-800 text-white rounded-xl sm:rounded-sm hover:bg-neutral-700 transition-all text-[10px] font-black uppercase"
-                      >
-                        GALLERY
-                      </button>
+                        <div className="w-full sm:w-44 flex items-center justify-between sm:justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setIsGalleryPickerOpen({ isOpen: true, onSelect: (url) => { onUpdateSiteContent({ [field.key]: url } as any); setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} }); } })}
+                            className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-neutral-800 text-white rounded-xl sm:rounded-sm hover:bg-neutral-700 transition-all text-[10px] font-black uppercase"
+                          >
+                            GALLERY
+                          </button>
 
-                      <label className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-brand-primary/10 text-brand-primary rounded-xl sm:rounded-sm text-[10px] font-black uppercase cursor-pointer flex items-center justify-center border border-brand-primary/20">
-                        UPLOAD
-                        <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, url => onUpdateSiteContent({ [field.key]: url } as any))} />
-                      </label>
+                          <label className="flex-1 sm:flex-none px-3 py-2 sm:px-2 sm:py-1 bg-brand-primary/10 text-brand-primary rounded-xl sm:rounded-sm text-[10px] font-black uppercase cursor-pointer flex items-center justify-center border border-brand-primary/20">
+                            UPLOAD
+                            <input type="file" className="hidden" accept="image/*" onChange={e => handleFileUpload(e, url => onUpdateSiteContent({ [field.key]: url } as any))} />
+                          </label>
 
-                      {(siteContent as any)[field.key] && (
-                        <div className="w-8 h-8 rounded-lg sm:rounded-sm overflow-hidden border border-border sm:ml-2">
-                          <img src={(siteContent as any)[field.key]} className="w-full h-full object-cover" />
+                          {(siteContent as any)[field.key] && (
+                            <div className="w-8 h-8 rounded-lg sm:rounded-sm overflow-hidden border border-border sm:ml-2">
+                              <img src={(siteContent as any)[field.key]} className="w-full h-full object-cover" />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
           </div>
         );
+      }
 
       default:
         return null;
     }
   };
 
-  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'SETTINGS'];
+  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
 
   const isSupabaseMode = !!props.isSupabaseMode;
   // Keep the persistence logic, but keep the UI simple: explicit Save button.

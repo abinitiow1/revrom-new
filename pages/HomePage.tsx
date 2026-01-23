@@ -19,6 +19,8 @@ interface HomePageProps {
   onSelectBlogPost: (post: BlogPost) => void;
   onNavigateGallery: () => void;
   onNavigateCustomize: () => void;
+  onNavigateContact: () => void;
+  onNavigateBlog: () => void;
   initialDestinationFilter: string | null;
   onClearInitialFilter: () => void;
   onAddInquiry: (query: Omit<ItineraryQuery, 'id' | 'date'>) => void;
@@ -122,12 +124,18 @@ I'm interested in this tour. Please share pricing and details.`;
             </div>
             <div className="container mx-auto px-4 sm:px-6 relative z-10">
               <div className="max-w-3xl">
-                <span className="inline-block bg-brand-primary text-white text-[9px] sm:text-[10px] font-black uppercase tracking-[0.35em] px-4 sm:px-5 py-2 rounded-full mb-5 sm:mb-6 shadow-xl">Est. 2024 • Local-led journeys</span>
+                <span className="inline-block bg-brand-primary text-white text-[9px] sm:text-[10px] font-black uppercase tracking-[0.35em] px-4 sm:px-5 py-2 rounded-full mb-5 sm:mb-6 shadow-xl">
+                  {siteContent.heroBadgeText || ''}
+                </span>
                 <h1 className="text-4xl sm:text-6xl md:text-8xl font-black font-display text-white leading-none italic tracking-tighter mb-4 sm:mb-6">{siteContent.heroTitle}</h1>
                 <p className="text-base sm:text-lg md:text-xl text-white/85 font-medium mb-7 sm:mb-10 max-w-xl leading-relaxed">{siteContent.heroSubtitle}</p>
                 <div className="flex flex-wrap gap-4">
-                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl shadow-adventure">Browse Tours</button>
-                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl">Plan Your Trip</button>
+                   <button onClick={() => document.getElementById('adventures')?.scrollIntoView({behavior:'smooth'})} className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl shadow-adventure">
+                     {siteContent.heroPrimaryCtaLabel || 'Browse Tours'}
+                   </button>
+                   <button onClick={props.onNavigateCustomize} className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl">
+                     {siteContent.heroSecondaryCtaLabel || 'Plan Your Trip'}
+                   </button>
                 </div>
               </div>
             </div>
@@ -140,10 +148,15 @@ I'm interested in this tour. Please share pricing and details.`;
             <div className="container mx-auto px-6 mb-16">
                 <div className="flex flex-col items-center text-center gap-10">
                     <div className="max-w-2xl">
-                        <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Upcoming Tours</h2>
+                        <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.adventuresKicker || 'Upcoming Tours'}</h2>
                         <h3 className={["text-5xl md:text-7xl font-black font-display italic tracking-tighter uppercase leading-none", adventuresHasBg ? "text-white drop-shadow-[0_4px_30px_rgba(0,0,0,0.8)]" : ""].join(" ")}>
                           {siteContent.adventuresTitle}
                         </h3>
+                        {!!siteContent.adventuresSubtitle && (
+                          <p className={["mt-4 text-sm font-bold uppercase tracking-widest opacity-70", adventuresHasBg ? "text-white" : "text-muted-foreground dark:text-dark-muted-foreground"].join(" ")}>
+                            {siteContent.adventuresSubtitle}
+                          </p>
+                        )}
                     </div>
                     <div className="w-full max-w-3xl">
                       <SearchAndFilter searchTerm={searchTerm} setSearchTerm={setSearchTerm} destinationFilter={destFilter} setDestinationFilter={setDestFilter} durationFilter={durationFilter} setDurationFilter={setDurationFilter} difficultyFilter={diffFilter} setDifficultyFilter={setDifficultyFilter} destinations={[...new Set(trips.map(t => t.destination))]} onClearFilters={() => { setSearchTerm(''); setDestFilter('all'); setDurationFilter('all'); setDifficultyFilter('all'); }} />
@@ -189,7 +202,7 @@ I'm interested in this tour. Please share pricing and details.`;
                     onClick={() => props.onNavigateToTours(null)}
                     className="adventure-gradient text-white px-12 py-5 rounded-[2rem] text-[11px] font-black uppercase tracking-[0.3em] shadow-2xl shadow-brand-primary/20 hover:scale-105 active:scale-95 transition-all"
                 >
-                    View All Tours
+                    {siteContent.adventuresCtaLabel || 'View All Tours'}
                 </button>
             </div>
           </section>
@@ -295,24 +308,27 @@ I'm interested in this tour. Please share pricing and details.`;
           <section key="customize" className="py-16 container mx-auto px-6">
             <div className="adventure-gradient rounded-[3rem] p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
                <div className="relative z-10 max-w-xl"><h3 className="text-3xl md:text-5xl font-black font-display text-white italic tracking-tighter mb-4">{siteContent.customizeTitle}</h3><p className="text-white/80 font-medium">{siteContent.customizeSubtitle}</p></div>
-               <button onClick={props.onNavigateCustomize} className="relative z-10 bg-white text-brand-primary font-black uppercase tracking-widest text-xs px-10 py-5 rounded-2xl shadow-xl">Initialize Custom Build</button>
+               <button onClick={props.onNavigateCustomize} className="relative z-10 bg-white text-brand-primary font-black uppercase tracking-widest text-xs px-10 py-5 rounded-2xl shadow-xl">
+                 {siteContent.customizeCtaLabel || 'Initialize Custom Build'}
+               </button>
             </div>
           </section>
         );
       case 'WHY_CHOOSE_US':
+        const whyCards = (siteContent.whyChooseUsCards || []).filter((c) => c && (c.title || c.desc || c.icon));
         return (
           <section key="why_choose" className="py-24" style={activeBgStyle(siteContent.whyChooseUsBgImage, sectionConfig.backgroundOpacity)}>
             <div className="container mx-auto px-4 sm:px-6 text-center mb-16">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">The Revrom Edge</h2>
-                <h3 className="text-4xl font-black font-display italic tracking-tight">Why We Lead the Pack</h3>
+                 <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.whyChooseUsKicker || 'The Revrom Edge'}</h2>
+                 <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.whyChooseUsTitle || 'Why We Lead the Pack'}</h3>
             </div>
             <div className="container mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-3 gap-12">
-               {[
+               {(whyCards.length ? whyCards : [
                    { title: 'Local Expertise', desc: 'We know these mountains inside out.', icon: '🏔️' },
                    { title: 'Safety First', desc: 'Support and backup on every trip.', icon: '🛡️' },
                    { title: 'Reliable Bikes', desc: 'Well-prepared bikes tuned for high-altitude performance.', icon: '🏍️' },
-               ].map(perk => (
-                <div key={perk.title} className="text-center p-8 rounded-[2rem] bg-slate-50 dark:bg-neutral-900 border border-border dark:border-dark-border hover:border-brand-primary transition-all">
+                ]).map(perk => (
+                 <div key={`${perk.title}-${perk.icon}`} className="text-center p-8 rounded-[2rem] bg-slate-50 dark:bg-neutral-900 border border-border dark:border-dark-border hover:border-brand-primary transition-all">
                     <div className="text-5xl mb-6">{perk.icon}</div>
                     <h4 className="text-xl font-black uppercase italic tracking-tighter mb-4">{perk.title}</h4>
                     <p className="text-muted-foreground text-sm leading-relaxed">{perk.desc}</p>
@@ -329,7 +345,34 @@ I'm interested in this tour. Please share pricing and details.`;
                   <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-4">{siteContent.rootsKicker || 'Born in Chushul'}</h2>
                   <h3 className="text-4xl md:text-6xl font-black font-display text-white italic leading-tight mb-8">{siteContent.rootsTitle}</h3>
                   <p className="text-lg text-white/60 leading-relaxed mb-8">{siteContent.rootsBody}</p>
-                  <button onClick={() => props.onSelectBlogPost(blogPosts[0])} className="text-brand-primary font-black uppercase tracking-[0.3em] text-xs hover:gap-4 flex items-center gap-2 transition-all">{siteContent.rootsButton} <span className="text-xl">→</span></button>
+                  <button
+                    onClick={() => {
+                      switch (siteContent.rootsCtaTarget) {
+                        case 'contact':
+                          props.onNavigateContact();
+                          return;
+                        case 'customize':
+                          props.onNavigateCustomize();
+                          return;
+                        case 'tours':
+                          props.onNavigateToTours(null);
+                          return;
+                        case 'blog':
+                          props.onNavigateBlog();
+                          return;
+                        case 'blogFirstPost':
+                        default: {
+                          const first = blogPosts?.[0];
+                          if (first) props.onSelectBlogPost(first);
+                          else props.onNavigateBlog();
+                          return;
+                        }
+                      }
+                    }}
+                    className="text-brand-primary font-black uppercase tracking-[0.3em] text-xs hover:gap-4 flex items-center gap-2 transition-all"
+                  >
+                    {siteContent.rootsButton} <span className="text-xl">→</span>
+                  </button>
                </div>
                <div className="relative">
                   <img
@@ -347,7 +390,10 @@ I'm interested in this tour. Please share pricing and details.`;
         return (
           <section key="reviews" className="py-24 border-y border-border dark:border-dark-border overflow-hidden" style={activeBgStyle(siteContent.reviewsBgImage, sectionConfig.backgroundOpacity)}>
              <div className="container mx-auto px-4 sm:px-6">
-                <div className="text-center mb-16"><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Rider Feedback</h2><h3 className="text-4xl font-black font-display italic tracking-tight">Debriefings from the Road</h3></div>
+                <div className="text-center mb-16">
+                  <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.reviewsKicker || 'Rider Feedback'}</h2>
+                  <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.reviewsTitle || 'Debriefings from the Road'}</h3>
+                </div>
                 <div className="flex gap-8 overflow-x-auto pb-12 no-scrollbar px-4 -mx-4 snap-x snap-mandatory">
                    {googleReviews.map(review => (
                       <div key={review.id} className="min-w-[320px] md:min-w-[450px] bg-white dark:bg-neutral-900 p-8 rounded-[2rem] shadow-sm border flex flex-col justify-between hover:shadow-xl transition-all snap-center">
@@ -366,7 +412,7 @@ I'm interested in this tour. Please share pricing and details.`;
         return (
           <section key="blog" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.blogBgImage, sectionConfig.backgroundOpacity)}>
              <div className="container mx-auto px-4 sm:px-6 mb-16">
-                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Blog</h2>
+                <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.blogKicker || 'Blog'}</h2>
                 <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.blogTitle}</h3>
              </div>
              <div className="w-full">
@@ -387,8 +433,8 @@ I'm interested in this tour. Please share pricing and details.`;
           <section key="gallery" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.galleryBgImage, sectionConfig.backgroundOpacity)}>
              <div className="container mx-auto px-4 sm:px-6 mb-12">
                 <div className="flex justify-between items-end">
-                    <div><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Gallery</h2><h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.galleryTitle}</h3></div>
-                    <button onClick={props.onNavigateGallery} className="text-xs font-black uppercase tracking-widest hover:text-brand-primary">Open Archive &rarr;</button>
+                    <div><h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.galleryKicker || 'Gallery'}</h2><h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.galleryTitle}</h3></div>
+                    <button onClick={props.onNavigateGallery} className="text-xs font-black uppercase tracking-widest hover:text-brand-primary">{siteContent.galleryCtaLabel || 'Open Archive →'}</button>
                 </div>
             </div>
             <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-4 px-6 pb-4">
@@ -407,7 +453,7 @@ I'm interested in this tour. Please share pricing and details.`;
         return (
           <section key="instagram" className="py-24 overflow-hidden" style={activeBgStyle(siteContent.instagramBgImage, sectionConfig.backgroundOpacity)}>
             <div className="container mx-auto px-4 sm:px-6 text-center mb-16">
-              <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">Live Feed</h2>
+              <h2 className="text-xs font-black uppercase tracking-[0.4em] text-brand-primary mb-3">{siteContent.instagramKicker || 'Live Feed'}</h2>
               <h3 className="text-4xl font-black font-display italic tracking-tight mb-4">{siteContent.instagramTitle}</h3>
               <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-brand-primary font-black uppercase tracking-[0.3em] text-[10px] inline-block hover:underline">{siteContent.instagramSubtitle}</a>
             </div>

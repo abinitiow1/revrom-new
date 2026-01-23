@@ -91,17 +91,30 @@ export const initialSiteContent: SiteContent = {
     heroTitle: 'RIDE. ROAM. RELAX.',
     heroSubtitle: 'Friendly mountain tours led by locals who love their home. Explore the beautiful Himalayas with us.',
     heroBgImage: 'https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000',
+    heroBadgeText: 'Est. 2024 • Local-led journeys',
+    heroPrimaryCtaLabel: 'Browse Tours',
+    heroSecondaryCtaLabel: 'Plan Your Trip',
     
+    adventuresKicker: 'Upcoming Tours',
     adventuresTitle: 'EXPLORE OUR TRIPS',
     adventuresSubtitle: 'Discover our favorite routes through the beautiful Himalayas.',
     adventuresBgImage: '',
+    adventuresCtaLabel: 'View All Tours',
     
     departuresTitle: 'UPCOMING DATES',
     departuresBgImage: '',
     
     customizeTitle: 'PLAN YOUR OWN TRIP',
     customizeSubtitle: 'Let us help you create a personalized journey that fits your schedule.',
+    customizeCtaLabel: 'Initialize Custom Build',
     
+    whyChooseUsKicker: 'The Revrom Edge',
+    whyChooseUsTitle: 'Why We Lead the Pack',
+    whyChooseUsCards: [
+      { icon: '🏔️', title: 'Local Expertise', desc: 'We know these mountains inside out.' },
+      { icon: '🛡️', title: 'Safety First', desc: 'Support and backup on every trip.' },
+      { icon: '🏍️', title: 'Reliable Bikes', desc: 'Well-prepared bikes tuned for high-altitude performance.' },
+    ],
     whyChooseUsBgImage: '',
     
     rootsKicker: 'Born in Chushul',
@@ -110,16 +123,23 @@ export const initialSiteContent: SiteContent = {
     rootsButton: 'ABOUT US',
     rootsBgImage: '',
     rootsImageUrl: 'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200',
+    rootsCtaTarget: 'blogFirstPost',
     
     reviewsBgImage: '',
+    reviewsKicker: 'Rider Feedback',
+    reviewsTitle: 'Debriefings from the Road',
     
+    blogKicker: 'Blog',
     blogTitle: 'TRAVEL STORIES',
     blogBgImage: '',
     
+    galleryKicker: 'Gallery',
     galleryTitle: 'PHOTO GALLERY',
     gallerySubtitle: 'Captured on our recent journeys.',
     galleryBgImage: '',
+    galleryCtaLabel: 'Open Archive →',
     
+    instagramKicker: 'Live Feed',
     instagramTitle: 'FOLLOW US',
     instagramSubtitle: '@revrom.expeditions',
     instagramBgImage: '',

@@ -121,7 +121,11 @@ const App: React.FC = () => {
   const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>(() => (isSupabaseMode ? initialGalleryPhotos : getStored('galleryPhotos', initialGalleryPhotos)));
   const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => (isSupabaseMode ? initialInstagramPosts : getStored('instagramPosts', initialInstagramPosts)));
   const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => (isSupabaseMode ? initialGoogleReviews : getStored('googleReviews', initialGoogleReviews)));
-  const [siteContent, setSiteContent] = useState<SiteContent>(() => (isSupabaseMode ? initialSiteContent : getStored('siteContent', initialSiteContent)));
+  const [siteContent, setSiteContent] = useState<SiteContent>(() => {
+    if (isSupabaseMode) return initialSiteContent;
+    const stored = getStored('siteContent', initialSiteContent) as any;
+    return { ...initialSiteContent, ...(stored || {}) };
+  });
   const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
   const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
 
@@ -242,7 +246,7 @@ const App: React.FC = () => {
           setGalleryPhotos(loaded.snapshot.galleryPhotos || []);
           setInstagramPosts(loaded.snapshot.instagramPosts || []);
           setGoogleReviews(loaded.snapshot.googleReviews || []);
-          setSiteContent(loaded.snapshot.siteContent || initialSiteContent);
+          setSiteContent({ ...initialSiteContent, ...((loaded.snapshot.siteContent as any) || {}) });
           setCustomPages(loaded.snapshot.customPages || []);
         }
       } catch (err) {
@@ -621,6 +625,8 @@ const App: React.FC = () => {
                   onNavigateGallery={() => setView('gallery')} onNavigateCustomize={() => setView('customize')}
                   initialDestinationFilter={initialDestinationFilter} onClearInitialFilter={() => setInitialDestinationFilter(null)}
                   onAddInquiry={addInquiry}
+                  onNavigateContact={() => setView('contact')}
+                  onNavigateBlog={() => setView('blog')}
                   onNavigateToTours={(dest) => { setInitialDestinationFilter(dest); setView('allTours'); }}
                />;
     }
