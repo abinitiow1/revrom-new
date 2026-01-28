@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import type { Trip, ItineraryQuery, ItineraryDay } from '../types';
+import type { Trip, ItineraryDay } from '../types';
 import type { Theme } from '../App';
 import TripRouteMap from '../components/TripRouteMap';
 import SEOHead from '../components/SEOHead';
@@ -9,7 +9,6 @@ interface TripDetailPageProps {
   trip: Trip;
   onBookNow: (trip: Trip) => void;
   onBack: () => void;
-  onAddQuery: (query: Omit<ItineraryQuery, 'id' | 'date'>) => void;
   theme: Theme;
 }
 
@@ -77,7 +76,7 @@ const ItineraryDayAccordion: React.FC<{
   );
 };
 
-const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack, onAddQuery, theme }) => {
+const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack, theme }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeDay, setActiveDay] = useState<number | null>(1);
 

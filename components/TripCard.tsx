@@ -8,12 +8,6 @@ interface TripCardProps {
   onBookNow: (trip: Trip) => void;
 }
 
-const RoadIcon: React.FC<{className?: string}> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.82m5.84-2.56a16.5 16.5 0 00-1.232-1.232l-2.433 2.433m-2.911-2.911l2.433 2.433m0 0l2.433-2.433m-2.433 2.433l-2.433-2.433" />
-    </svg>
-);
-
 const CalendarIcon: React.FC<{className?: string}> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
         <path fillRule="evenodd" d="M5.75 3a.75.75 0 0 1 .75.75V4h7V3.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V3.75A.75.75 0 0 1 5.75 3zM4.5 8.25a.75.75 0 0 0 0 1.5h11a.75.75 0 0 0 0-1.5h-11z" clipRule="evenodd" />
@@ -29,8 +23,18 @@ const TripCard: React.FC<TripCardProps> = ({ trip, onSelectTrip, onBookNow }) =>
 
   return (
     <div 
-      className="bg-card dark:bg-dark-card rounded-2xl shadow-adventure-dark overflow-hidden transform transition-all duration-500 cursor-pointer group flex flex-col border border-border/50 dark:border-dark-border hover:border-brand-primary active:scale-[0.98]"
+      role="button"
+      tabIndex={0}
+      aria-label={`View details for ${trip.title}`}
+      className="bg-card dark:bg-dark-card rounded-2xl shadow-adventure-dark overflow-hidden transform transition-all duration-500 cursor-pointer group flex flex-col border border-border/50 dark:border-dark-border hover:border-brand-primary active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
       onClick={() => onSelectTrip(trip)}
+      onKeyDown={(e) => {
+        // Only treat Enter/Space as "open" when the card itself is focused (not nested controls).
+        if (e.target !== e.currentTarget) return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        onSelectTrip(trip);
+      }}
     >
       <div className="relative overflow-hidden h-64">
         <img src={trip.imageUrl} alt={trip.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />

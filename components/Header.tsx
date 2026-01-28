@@ -122,6 +122,7 @@ const Header: React.FC<HeaderProps> = ({
 
             <button onClick={onNavigateCustomize} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Plan Your Trip</button>
             <button onClick={onNavigateBlog} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Blog</button>
+            <button onClick={onNavigateGallery} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Gallery</button>
             <button onClick={onNavigateContact} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Contact</button>
             <button onClick={onNavigateAdmin} className="text-[10px] font-black uppercase tracking-widest text-brand-primary opacity-50 hover:opacity-100 transition-all border border-brand-primary/20 px-3 py-1 rounded-md">Admin</button>
             
@@ -161,7 +162,17 @@ const Header: React.FC<HeaderProps> = ({
               { label: 'Home', action: () => handleMobileNavClick(onNavigateHome) },
               { label: 'All Tours', action: () => handleMobileNavClick(onNavigateToTours, null) },
               { label: 'Customize', action: () => handleMobileNavClick(onNavigateCustomize) },
-              { label: 'About Us', action: () => handleMobileNavClick(() => onNavigateToTours(null)) },
+              {
+                label: 'About Us',
+                action: () =>
+                  handleMobileNavClick(() => {
+                    onNavigateHome();
+                    // Home view is state-driven; give it a tick before scrolling.
+                    window.setTimeout(() => {
+                      document.getElementById('roots')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 50);
+                  }),
+              },
               { label: 'Gallery', action: () => handleMobileNavClick(onNavigateGallery) },
               { label: 'Blog', action: () => handleMobileNavClick(onNavigateBlog) },
               { label: 'Contact', action: () => handleMobileNavClick(onNavigateContact) },

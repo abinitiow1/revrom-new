@@ -1,11 +1,12 @@
 
 import React, { useState } from 'react';
-import type { Trip, SiteContent } from '../types';
+import type { ItineraryQuery, SiteContent, Trip } from '../types';
 
 interface BookingPageProps {
   trip: Trip;
   onBack: () => void;
   siteContent: SiteContent;
+  onAddInquiry: (query: Omit<ItineraryQuery, 'id' | 'date'>) => void;
 }
 
 const WhatsAppIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -26,7 +27,7 @@ const HomeIcon: React.FC<{className?: string}> = ({ className }) => (
     </svg>
 );
 
-const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent }) => {
+const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, onAddInquiry }) => {
   const [travelers, setTravelers] = useState(1);
   const [roomType, setRoomType] = useState<'double' | 'single'>('double');
   const [name, setName] = useState('');
@@ -35,6 +36,23 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent }) 
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+
+    // Save a lead for admin visibility when we have usable details.
+    // (Supabase schema enforces 8-15 digits for whatsapp_number.)
+    try {
+      const normalizedPhone = (phone || '').replace(/\\D/g, '');
+      const normalizedName = (name || '').trim();
+      if (normalizedPhone.length >= 8 && normalizedPhone.length <= 15) {
+        onAddInquiry({
+          tripId: trip.id,
+          tripTitle: trip.title,
+          name: normalizedName.length >= 2 ? normalizedName : 'Web User',
+          whatsappNumber: normalizedPhone,
+          planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
+        });
+      }
+    } catch {}
+
     const adminPhone = siteContent.adminWhatsappNumber.replace(/\D/g, '');
     const message = `TRIP INQUIRY:
 Adventure: ${trip.title}

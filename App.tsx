@@ -503,11 +503,11 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (view) {
       case 'tripDetail':
-        return selectedTrip && <TripDetailPage trip={selectedTrip} onBookNow={t => { setSelectedTrip(t); setView('booking'); }} onBack={() => setView('home')} onAddQuery={addInquiry} theme={theme} />;
+        return selectedTrip && <TripDetailPage trip={selectedTrip} onBookNow={t => { setSelectedTrip(t); setView('booking'); }} onBack={() => setView('home')} theme={theme} />;
       case 'allTours':
         return <AllToursPage trips={trips} onSelectTrip={t => { setSelectedTrip(t); setView('tripDetail'); }} onBookNow={t => { setSelectedTrip(t); setView('booking'); }} onNavigateContact={() => setView('contact')} initialDestinationFilter={initialDestinationFilter} />;
       case 'booking':
-        return selectedTrip && <BookingPage trip={selectedTrip} onBack={() => setView('tripDetail')} siteContent={siteContent} />;
+        return selectedTrip && <BookingPage trip={selectedTrip} onBack={() => setView('tripDetail')} siteContent={siteContent} onAddInquiry={addInquiry} />;
       case 'contact':
         return <ContactPage siteContent={siteContent} />;
       case 'blog':
