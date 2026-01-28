@@ -30,12 +30,12 @@ const WhyChooseUsSection: React.FC<Props> = ({ siteContent, sectionConfig }) => 
         {(whyCards.length
           ? whyCards
           : [
-              { title: 'Local Expertise', desc: 'We know these mountains inside out.', icon: '🏔️' },
-              { title: 'Safety First', desc: 'Support and backup on every trip.', icon: '🛡️' },
+              { title: 'Local Expertise', desc: 'We know these mountains inside out.', icon: 'LOCAL' },
+              { title: 'Safety First', desc: 'Support and backup on every trip.', icon: 'SAFE' },
               {
                 title: 'Reliable Bikes',
                 desc: 'Well-prepared bikes tuned for high-altitude performance.',
-                icon: '🏍️',
+                icon: 'BIKE',
               },
             ]
         ).map((perk) => (
@@ -56,4 +56,3 @@ const WhyChooseUsSection: React.FC<Props> = ({ siteContent, sectionConfig }) => 
 };
 
 export default WhyChooseUsSection;
-

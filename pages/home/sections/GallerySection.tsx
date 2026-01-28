@@ -30,7 +30,7 @@ const GallerySection: React.FC<Props> = ({ siteContent, galleryPhotos, sectionCo
             onClick={onNavigateGallery}
             className="text-xs font-black uppercase tracking-widest hover:text-brand-primary"
           >
-            {siteContent.galleryCtaLabel || 'Open Archive →'}
+            {siteContent.galleryCtaLabel || 'Open Archive ->'}
           </button>
         </div>
       </div>
@@ -62,4 +62,3 @@ const GallerySection: React.FC<Props> = ({ siteContent, galleryPhotos, sectionCo
 };
 
 export default GallerySection;
-

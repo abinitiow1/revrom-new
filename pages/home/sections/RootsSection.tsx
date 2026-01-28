@@ -65,7 +65,7 @@ const RootsSection: React.FC<Props> = ({
             }}
             className="text-brand-primary font-black uppercase tracking-[0.3em] text-xs hover:gap-4 flex items-center gap-2 transition-all"
           >
-            {siteContent.rootsButton} <span className="text-xl">→</span>
+            {siteContent.rootsButton} <span className="text-xl">{'->'}</span>
           </button>
         </div>
         <div className="relative">

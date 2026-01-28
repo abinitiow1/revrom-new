@@ -84,14 +84,15 @@ export const itineraryQueries: ItineraryQuery[] = [];
 
 export const initialCustomPages: CustomPage[] = [
     { id: '1', title: 'Terms & Conditions', slug: 'terms-and-conditions', content: '# Terms & Conditions\n\n## 1. Simple Booking\nA small deposit is all you need to save your spot.\n\n## 2. Cancellation\nWe offer full refunds for cancellations made 60 days in advance.', isVisible: true },
-    { id: '2', title: 'Privacy Policy', slug: 'privacy-policy', content: '# Privacy Policy\n\nYour information is safe and secure with us.', isVisible: true }
+    { id: '2', title: 'Privacy Policy', slug: 'privacy-policy', content: '# Privacy Policy\n\nYour information is safe and secure with us.', isVisible: true },
+    { id: '3', title: 'FAQ', slug: 'faq', content: '# FAQ\n\n## 1. What should I pack?\nWe will share a packing list after you inquire.\n\n## 2. Do I need riding experience?\nSome tours require prior experience. Check the tour difficulty.\n\n## 3. How do I book?\nTap \"Inquire\" and we will confirm availability on WhatsApp.', isVisible: true }
 ];
 
 export const initialSiteContent: SiteContent = {
     heroTitle: 'RIDE. ROAM. RELAX.',
     heroSubtitle: 'Friendly mountain tours led by locals who love their home. Explore the beautiful Himalayas with us.',
-    heroBgImage: 'https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000',
-    heroBadgeText: 'Est. 2024 • Local-led journeys',
+    heroBgImage: 'https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=1600',
+    heroBadgeText: 'Est. 2024 - Local-led journeys',
     heroPrimaryCtaLabel: 'Browse Tours',
     heroSecondaryCtaLabel: 'Plan Your Trip',
     
@@ -111,9 +112,9 @@ export const initialSiteContent: SiteContent = {
     whyChooseUsKicker: 'The Revrom Edge',
     whyChooseUsTitle: 'Why We Lead the Pack',
     whyChooseUsCards: [
-      { icon: '🏔️', title: 'Local Expertise', desc: 'We know these mountains inside out.' },
-      { icon: '🛡️', title: 'Safety First', desc: 'Support and backup on every trip.' },
-      { icon: '🏍️', title: 'Reliable Bikes', desc: 'Well-prepared bikes tuned for high-altitude performance.' },
+      { icon: 'LOCAL', title: 'Local Expertise', desc: 'We know these mountains inside out.' },
+      { icon: 'SAFE', title: 'Safety First', desc: 'Support and backup on every trip.' },
+      { icon: 'BIKE', title: 'Reliable Bikes', desc: 'Well-prepared bikes tuned for high-altitude performance.' },
     ],
     whyChooseUsBgImage: '',
     
@@ -137,7 +138,7 @@ export const initialSiteContent: SiteContent = {
     galleryTitle: 'PHOTO GALLERY',
     gallerySubtitle: 'Captured on our recent journeys.',
     galleryBgImage: '',
-    galleryCtaLabel: 'Open Archive →',
+    galleryCtaLabel: 'Open Archive ->',
     
     instagramKicker: 'Live Feed',
     instagramTitle: 'FOLLOW US',

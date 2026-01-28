@@ -51,8 +51,8 @@ const InstagramSection: React.FC<Props> = ({ siteContent, instagramPosts, sectio
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 <div className="flex gap-4">
-                  <span className="text-white font-black text-xs">❤️ {post.likes}</span>
-                  <span className="text-white font-black text-xs">💬 {post.comments}</span>
+                  <span className="text-white font-black text-xs">LIKES {post.likes}</span>
+                  <span className="text-white font-black text-xs">COMMENTS {post.comments}</span>
                 </div>
               </div>
             </a>
@@ -64,4 +64,3 @@ const InstagramSection: React.FC<Props> = ({ siteContent, instagramPosts, sectio
 };
 
 export default InstagramSection;
-

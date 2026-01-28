@@ -91,6 +91,8 @@ const Header: React.FC<HeaderProps> = ({
               <img 
                 src={siteContent.logoUrl} 
                 alt="Revrom Logo" 
+                loading="eager"
+                decoding="async"
                 style={{ height: `${siteContent.logoHeight}px` }} 
                 className="w-auto max-h-10 sm:max-h-14 object-contain transition-transform group-hover:scale-105" 
               />
@@ -194,7 +196,7 @@ const Header: React.FC<HeaderProps> = ({
           
           {/* Decorative Footer */}
           <div className="mt-8 pt-8 border-t border-white/5 text-center">
-             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Revrom • Local-led journeys</p>
+             <p className="text-[9px] font-black uppercase tracking-[0.4em] text-white/20">Revrom - Local-led journeys</p>
           </div>
         </div>
       )}

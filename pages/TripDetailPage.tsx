@@ -136,7 +136,7 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
           <div className="container mx-auto">
             <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 bg-white/20 text-white backdrop-blur-md border border-white/20 shadow-xl`}>{trip.difficulty}</span>
             <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl font-black text-white font-display italic tracking-tighter leading-tight mb-2 drop-shadow-lg">{trip.title}</h1>
-            <p className="text-white/80 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs drop-shadow-md">{trip.destination} • {trip.duration} days</p>
+            <p className="text-white/80 font-bold uppercase tracking-[0.3em] text-[10px] md:text-xs drop-shadow-md">{trip.destination} - {trip.duration} days</p>
           </div>
         </div>
       </section>
@@ -234,10 +234,10 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
         <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 py-4 flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
             <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-primary mb-0.5">Booking Info</p>
-                <h4 className="text-xl font-black italic text-foreground dark:text-dark-foreground">INQUIRE FOR PRICE</h4>
+                <h4 className="text-xl font-black italic text-foreground dark:text-dark-foreground">BOOK / INQUIRE</h4>
             </div>
             <button onClick={() => onBookNow(trip)} className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all">
-                INQUIRE NOW
+                BOOK / INQUIRE
             </button>
         </div>
       </div>

@@ -62,7 +62,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     </p>
                     {!isSupabaseMode && !isProd && (
                         <p className="mt-3 text-center text-xs font-bold uppercase tracking-widest text-amber-700 dark:text-amber-200">
-                            Demo mode (local) — not for production
+                            Demo mode (local) - not for production
                         </p>
                     )}
                 </div>

@@ -87,6 +87,8 @@ const Footer: React.FC<FooterProps> = ({
                 <img 
                   src={siteContent.logoUrl} 
                   alt="Revrom Logo" 
+                  loading="lazy"
+                  decoding="async"
                   style={{ height: `${siteContent.logoHeight}px` }} 
                   className="w-auto object-contain transition-transform group-hover:scale-105" 
                 />
@@ -223,10 +225,11 @@ const Footer: React.FC<FooterProps> = ({
 
         {/* Bottom Bar */}
         <div className="border-t border-border dark:border-dark-border pt-8 mt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-[9px] text-muted-foreground dark:text-dark-muted-foreground uppercase tracking-[0.2em] font-black">
-          <p>© {currentYear} REVROM.IN. Ride. Roam. Relax. All rights reserved.</p>
+          <p>(c) {currentYear} REVROM.IN. Ride. Roam. Relax. All rights reserved.</p>
           <div className="flex items-center space-x-6">
+            <button onClick={() => onNavigateCustomPage('faq')} className="hover:text-brand-primary transition-colors">FAQ</button>
             <button onClick={() => onNavigateCustomPage('privacy-policy')} className="hover:text-brand-primary transition-colors">Privacy Policy</button>
-            <button onClick={() => onNavigateCustomPage('terms-and-conditions')} className="hover:text-brand-primary transition-colors">Terms of Service</button>
+            <button onClick={() => onNavigateCustomPage('terms-and-conditions')} className="hover:text-brand-primary transition-colors">Terms</button>
             <button onClick={onNavigateAdmin} className="hover:text-brand-primary transition-colors opacity-50 hover:opacity-100">Admin</button>
           </div>
         </div>

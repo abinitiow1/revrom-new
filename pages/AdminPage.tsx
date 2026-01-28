@@ -802,7 +802,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <div className="flex gap-3">
                           <button
                             type="button"
-                            onClick={() => onUpdateSiteContent({ whyChooseUsCards: [...(siteContent.whyChooseUsCards || []), { icon: '⭐', title: 'New benefit', desc: 'Describe it here.' }] })}
+                            onClick={() => onUpdateSiteContent({ whyChooseUsCards: [...(siteContent.whyChooseUsCards || []), { icon: '*', title: 'New benefit', desc: 'Describe it here.' }] })}
                             className="flex-1 px-4 py-3 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-black text-[10px] font-black uppercase tracking-widest"
                           >
                             Add card

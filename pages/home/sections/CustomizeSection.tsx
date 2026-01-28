@@ -12,7 +12,7 @@ const CustomizeSection: React.FC<Props> = ({ siteContent, sectionConfig, onNavig
   return (
     <section
       className="py-16 container mx-auto px-6"
-      style={getActiveBgStyle(siteContent.customizeBgImage, sectionConfig.backgroundOpacity)}
+      style={getActiveBgStyle(sectionConfig.backgroundImage, sectionConfig.backgroundOpacity)}
     >
       <div className="adventure-gradient rounded-[3rem] p-8 md:p-16 flex flex-col md:flex-row items-center justify-between gap-8 shadow-2xl relative overflow-hidden">
         <div className="relative z-10 max-w-xl">
@@ -34,4 +34,3 @@ const CustomizeSection: React.FC<Props> = ({ siteContent, sectionConfig, onNavig
 };
 
 export default CustomizeSection;
-

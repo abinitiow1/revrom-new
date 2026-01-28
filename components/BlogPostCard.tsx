@@ -25,7 +25,7 @@ const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, onSelectPost }) => {
       onClick={() => onSelectPost(post)}
     >
       <div className="relative">
-        <img src={post.imageUrl} alt={post.title} className="w-full h-56 object-cover" loading="lazy" />
+        <img src={post.imageUrl} alt={post.title} className="w-full h-56 object-cover" loading="lazy" decoding="async" />
       </div>
       <div className="p-6 flex flex-col flex-grow">
         <div className="flex items-center text-xs text-muted-foreground dark:text-dark-muted-foreground mb-3">
