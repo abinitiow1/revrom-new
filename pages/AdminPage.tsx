@@ -1117,8 +1117,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
 
   const isSupabaseMode = !!props.isSupabaseMode;
-  // Keep the persistence logic, but keep the UI simple: explicit Save button.
-  const autoSaveEnabled = false;
+  // In Supabase mode, saving is controlled by App.tsx. We expose a UI toggle here.
+  const autoSaveEnabled = !!props.autoSaveEnabled;
   const saveStatus = props.saveStatus ?? 'idle';
   const isDirty = saveStatus === 'dirty' || saveStatus === 'error';
   const isSaving = saveStatus === 'saving';
@@ -1182,7 +1182,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Select an existing photo for your content</p>
               </div>
-              <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">Ã—</button>
+              <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">X</button>
             </div>
             <div className="flex-grow overflow-y-auto p-5 sm:p-8 no-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1211,7 +1211,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black">Edit caption for this photo</h3>
-              <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">Ã—</button>
+              <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">X</button>
             </div>
             {captionModal.photo && (
               <div className="space-y-4">
@@ -1342,21 +1342,40 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                             : 'Saved'}
                       </div>
                       <div className="hidden sm:block text-xs text-muted-foreground">
-                        Click Save to publish your updates.
+                        {autoSaveEnabled ? 'Auto-save is ON. You can also click Save now.' : 'Auto-save is OFF. Click Save to publish.'}
                       </div>
                     </div>
                   </div>
 
                   <button
+                    type="button"
+                    onClick={() => {
+                      if (!isSupabaseMode) return;
+                      props.onToggleAutoSave?.(!autoSaveEnabled);
+                    }}
+                    disabled={!isSupabaseMode}
+                    className={`w-full md:w-auto px-6 py-3.5 sm:py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${
+                      !isSupabaseMode
+                        ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 border-transparent cursor-not-allowed'
+                        : autoSaveEnabled
+                          ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20 hover:scale-[1.01] active:scale-95'
+                          : 'bg-amber-500/10 text-amber-700 dark:text-amber-200 border-amber-500/20 hover:scale-[1.01] active:scale-95'
+                    }`}
+                  >
+                    Auto-save: {autoSaveEnabled ? 'ON' : 'OFF'}
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => props.onSaveNow?.()}
                     disabled={!isDirty || isSaving}
                     className={`w-full md:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
                       !isDirty || isSaving
                         ? 'bg-slate-200 dark:bg-neutral-800 text-slate-500 dark:text-slate-500 cursor-not-allowed'
-                        : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95'
+                      : 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 hover:scale-[1.02] active:scale-95'
                     }`}
                   >
-                    {isSaving ? 'Saving...' : 'Save'}
+                    {isSaving ? 'Saving...' : 'Save now'}
                   </button>
                 </div>
               </div>
@@ -1371,7 +1390,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {editingItem && (
         <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center p-4 overflow-y-auto">
            <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-6 sm:p-10 lg:p-16 rounded-[2.5rem] sm:rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
-              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">Ã—</button>
+              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">X</button>
               <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
                 {activeTab === 'TOURS'
                   ? 'Edit tour'
@@ -1471,7 +1490,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                 <div key={(g && g.id) || idx} className="flex flex-col items-start gap-2">
                                   <div className="relative w-28 h-16 rounded-md overflow-hidden border border-border">
                                     <img src={g.imageUrl} className="w-full h-full object-cover" />
-                                    <button onClick={() => setEditingItem({...editingItem, gallery: (editingItem.gallery || []).filter((_: any, i: number) => i !== idx)})} className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">Ã—</button>
+                                    <button onClick={() => setEditingItem({...editingItem, gallery: (editingItem.gallery || []).filter((_: any, i: number) => i !== idx)})} className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">X</button>
                                   </div>
                                   <input value={g.caption || ''} onChange={e => {
                                       const next = (editingItem.gallery || []).map((item: any, i: number) => i === idx ? { ...item, caption: e.target.value } : item);
