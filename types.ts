@@ -97,6 +97,19 @@ export interface ItineraryQuery {
 
 export type LeadStatus = 'new' | 'contacted' | 'closed';
 
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface NewsletterSubscriber {
+  email: string;
+  createdAt: string;
+}
+
 export interface ColorSet {
   primary: string;
   primaryDark: string;

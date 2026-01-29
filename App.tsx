@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo, useEffect, Suspense, lazy } from 'react';
-import type { Trip, Departure, BlogPost, GalleryPhoto, InstagramPost, Review, GoogleReview, SiteContent, ItineraryQuery, ThemeColors, CustomPage } from './types';
+import type { Trip, Departure, BlogPost, GalleryPhoto, InstagramPost, Review, GoogleReview, SiteContent, ItineraryQuery, ThemeColors, CustomPage, ContactMessage, NewsletterSubscriber } from './types';
 import { trips as initialTrips, departures as initialDepartures, blogPosts as initialBlogPosts, galleryPhotos as initialGalleryPhotos, instagramPosts as initialInstagramPosts, googleReviews as initialGoogleReviews, initialSiteContent, itineraryQueries as initialItineraryQueries, initialCustomPages } from './data/mockData';
 import { themes } from './data/themes';
 import Header from './components/Header';
@@ -13,6 +13,8 @@ import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
 import { listItineraryQueries, submitItineraryQuery, updateItineraryQueryStatus } from './services/itineraryQueryService';
+import { listContactMessages } from './services/contactMessageService';
+import { listNewsletterSubscribers } from './services/newsletterService';
 import { getIsAdmin } from './services/adminService';
 
 const ContactPage = lazy(() => import('./pages/ContactPage'));
@@ -127,6 +129,8 @@ const App: React.FC = () => {
     return { ...initialSiteContent, ...(stored || {}) };
   });
   const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
+  const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => []);
+  const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>(() => []);
   const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
 
   const buildSnapshot = useCallback(
@@ -334,6 +338,32 @@ const App: React.FC = () => {
         if (!canceled) setItineraryQueries(leads);
       } catch (err) {
         console.error('Failed to load leads from Supabase:', err);
+        try {
+          console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
+        } catch {}
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [isSupabaseMode, isAdmin, isLoggedIn]);
+
+  // Supabase: load contact messages + newsletter subscribers (admin only).
+  useEffect(() => {
+    if (!isSupabaseMode) return;
+    if (!isLoggedIn) return;
+    if (!isAdmin) return;
+    let canceled = false;
+
+    (async () => {
+      try {
+        const [messages, subs] = await Promise.all([listContactMessages(), listNewsletterSubscribers()]);
+        if (canceled) return;
+        setContactMessages(messages);
+        setNewsletterSubscribers(subs);
+      } catch (err) {
+        console.error('Failed to load inbox data from Supabase:', err);
         try {
           console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
         } catch {}
@@ -604,6 +634,8 @@ const App: React.FC = () => {
                     galleryPhotos={galleryPhotos} instagramPosts={instagramPosts}
                     googleReviews={googleReviews} siteContent={siteContent}
                     itineraryQueries={itineraryQueries} customPages={customPages}
+                    contactMessages={contactMessages}
+                    newsletterSubscribers={newsletterSubscribers}
                     onUpdateLeadStatus={setLeadStatus}
                     isSupabaseMode={isSupabaseMode}
                     autoSaveEnabled={autoSaveEnabled}

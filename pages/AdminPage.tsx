@@ -1,7 +1,7 @@
 ﻿
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { Trip, Departure, BlogPost, GalleryPhoto, SiteContent, ItineraryQuery, CustomPage, InstagramPost, SectionConfig } from '../types';
+import type { Trip, Departure, BlogPost, GalleryPhoto, SiteContent, ItineraryQuery, CustomPage, InstagramPost, SectionConfig, ContactMessage, NewsletterSubscriber } from '../types';
 import type { Theme } from '../App';
 import { getSupabase } from '../services/supabaseClient';
 
@@ -15,6 +15,8 @@ interface AdminPageProps {
   siteContent: SiteContent;
   itineraryQueries: ItineraryQuery[];
   onUpdateLeadStatus?: (id: string, status: ItineraryQuery['status']) => void | Promise<void>;
+  contactMessages: ContactMessage[];
+  newsletterSubscribers: NewsletterSubscriber[];
   customPages: CustomPage[];
   isSupabaseMode?: boolean;
   autoSaveEnabled?: boolean;
@@ -42,12 +44,12 @@ interface AdminPageProps {
   theme: Theme;
 }
 
-type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'HOMEPAGE' | 'SETTINGS';
+type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'MESSAGES' | 'SUBSCRIBERS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'HOMEPAGE' | 'SETTINGS';
 
 type DepartureDraft = Omit<Departure, 'id'> & { id?: string };
 
 const AdminPage: React.FC<AdminPageProps> = (props) => {
-  const { trips, departures, blogPosts, galleryPhotos, siteContent, itineraryQueries, customPages, onUpdateSiteContent } = props;
+  const { trips, departures, blogPosts, galleryPhotos, siteContent, itineraryQueries, customPages, onUpdateSiteContent, contactMessages, newsletterSubscribers } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('TOURS');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -483,6 +485,146 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 ))
               )}
             </div>
+          </div>
+        );
+
+      case 'MESSAGES':
+        return (
+          <div className="space-y-8 animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Contact messages</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  const escapeCsv = (value: unknown) => {
+                    const s = String(value ?? '');
+                    return `"${s.replace(/\"/g, '\"\"')}"`;
+                  };
+
+                  const header = ['id', 'name', 'email', 'message', 'created_at'].join(',');
+                  const rows = (contactMessages || []).map((m) =>
+                    [escapeCsv(m.id), escapeCsv(m.name), escapeCsv(m.email), escapeCsv(m.message), escapeCsv(m.createdAt)].join(','),
+                  );
+                  const csv = [header, ...rows].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+
+                  const now = new Date();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const fileName = `contact-messages-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={!contactMessages || contactMessages.length === 0}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
+              >
+                Export CSV
+              </button>
+            </div>
+
+            {(!contactMessages || contactMessages.length === 0) ? (
+              <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No contact messages yet.</div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {contactMessages.map((m) => (
+                  <div key={m.id} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border shadow-sm">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                      <div>
+                        <h4 className="text-lg font-black italic uppercase">{m.name}</h4>
+                        <a className="text-xs font-bold text-brand-primary break-all" href={`mailto:${m.email}`}>{m.email}</a>
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-2">
+                          {new Date(m.createdAt).toLocaleString()}
+                        </div>
+                      </div>
+                      <a
+                        href={`mailto:${m.email}?subject=${encodeURIComponent('Revrom inquiry')}`}
+                        className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all"
+                      >
+                        Reply email
+                      </a>
+                    </div>
+                    <div className="mt-4 text-sm text-muted-foreground dark:text-dark-muted-foreground whitespace-pre-wrap">
+                      {m.message}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+
+      case 'SUBSCRIBERS':
+        return (
+          <div className="space-y-8 animate-fade-in">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Newsletter subscribers</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  const escapeCsv = (value: unknown) => {
+                    const s = String(value ?? '');
+                    return `"${s.replace(/\"/g, '\"\"')}"`;
+                  };
+
+                  const header = ['email', 'created_at'].join(',');
+                  const rows = (newsletterSubscribers || []).map((s) => [escapeCsv(s.email), escapeCsv(s.createdAt)].join(','));
+                  const csv = [header, ...rows].join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+
+                  const now = new Date();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const fileName = `newsletter-subscribers-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={!newsletterSubscribers || newsletterSubscribers.length === 0}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
+              >
+                Export CSV
+              </button>
+            </div>
+
+            {(!newsletterSubscribers || newsletterSubscribers.length === 0) ? (
+              <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No subscribers yet.</div>
+            ) : (
+              <div className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden border border-border dark:border-dark-border">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left min-w-[520px]">
+                    <thead className="bg-slate-50 dark:bg-black border-b">
+                      <tr>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest">Email</th>
+                        <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest">Date</th>
+                        <th className="px-6 py-4"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {newsletterSubscribers.map((s) => (
+                        <tr key={s.email}>
+                          <td className="px-6 py-5 text-xs font-bold break-all">{s.email}</td>
+                          <td className="px-6 py-5 text-xs">{new Date(s.createdAt).toLocaleString()}</td>
+                          <td className="px-6 py-5 text-right">
+                            <a className="text-[10px] font-black uppercase tracking-widest text-brand-primary" href={`mailto:${s.email}`}>Email</a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
         );
 
@@ -935,7 +1077,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
                 {settingsMode === 'global' && (
                 <div className="space-y-12">
-                   <div className="space-y-8">
+                  <div className="space-y-8">
                       <h4 className="text-xs font-black uppercase text-brand-primary tracking-widest border-b border-border/50 pb-3 mb-8">Contact</h4>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Admin WhatsApp</label>
@@ -944,6 +1086,14 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact email</label>
                         <input value={siteContent.contactEmail} onChange={e => onUpdateSiteContent({contactEmail: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact phone</label>
+                        <input value={siteContent.contactPhone || ''} onChange={e => onUpdateSiteContent({contactPhone: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                      </div>
+                      <div className="flex flex-col gap-2 mb-8">
+                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact address</label>
+                        <textarea value={siteContent.contactAddress || ''} onChange={e => onUpdateSiteContent({contactAddress: e.target.value})} rows={3} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
                       </div>
                    </div>
 
@@ -1114,7 +1264,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     }
   };
 
-  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
+  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'MESSAGES', 'SUBSCRIBERS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
 
   const isSupabaseMode = !!props.isSupabaseMode;
   // In Supabase mode, saving is controlled by App.tsx. We expose a UI toggle here.
