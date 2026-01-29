@@ -92,7 +92,10 @@ export interface ItineraryQuery {
     whatsappNumber: string;
     planningTime: string;
     date: string;
+    status?: LeadStatus;
 }
+
+export type LeadStatus = 'new' | 'contacted' | 'closed';
 
 export interface ColorSet {
   primary: string;

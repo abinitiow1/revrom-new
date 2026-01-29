@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Trip, Departure, BlogPost, GalleryPhoto, SiteContent, ItineraryQuery, CustomPage, InstagramPost, SectionConfig } from '../types';
@@ -14,6 +14,7 @@ interface AdminPageProps {
   googleReviews: any[];
   siteContent: SiteContent;
   itineraryQueries: ItineraryQuery[];
+  onUpdateLeadStatus?: (id: string, status: ItineraryQuery['status']) => void | Promise<void>;
   customPages: CustomPage[];
   isSupabaseMode?: boolean;
   autoSaveEnabled?: boolean;
@@ -340,7 +341,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     <img src={trip.imageUrl} className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover flex-shrink-0" />
                     <div>
                       <h4 className="font-black uppercase tracking-tight text-base sm:text-lg italic leading-tight">{trip.title}</h4>
-                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">{trip.destination} • {trip.duration} DAYS</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">{trip.destination} â€¢ {trip.duration} DAYS</p>
                     </div>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
@@ -398,7 +399,62 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       case 'LEADS':
         return (
           <div className="space-y-8 animate-fade-in">
-            <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Leads</h3>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Leads</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  const escapeCsv = (value: unknown) => {
+                    const s = String(value ?? '');
+                    return `"${s.replace(/\"/g, '\"\"')}"`;
+                  };
+
+                  const header = [
+                    'id',
+                    'trip_title',
+                    'trip_id',
+                    'name',
+                    'whatsapp_number',
+                    'planning_time',
+                    'date',
+                    'status',
+                  ].join(',');
+
+                  const rows = itineraryQueries.map((lead) =>
+                    [
+                      escapeCsv(lead.id),
+                      escapeCsv(lead.tripTitle),
+                      escapeCsv(lead.tripId),
+                      escapeCsv(lead.name),
+                      escapeCsv(lead.whatsappNumber),
+                      escapeCsv(lead.planningTime),
+                      escapeCsv(lead.date),
+                      escapeCsv(lead.status || 'new'),
+                    ].join(','),
+                  );
+
+                  const csv = [header, ...rows].join('\\n');
+                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+
+                  const now = new Date();
+                  const pad = (n: number) => String(n).padStart(2, '0');
+                  const fileName = `leads-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = fileName;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                }}
+                disabled={itineraryQueries.length === 0}
+                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
+              >
+                Export CSV
+              </button>
+            </div>
             <div className="grid grid-cols-1 gap-4">
               {itineraryQueries.length === 0 ? (
                 <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No leads captured yet.</div>
@@ -408,9 +464,21 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-widest text-brand-primary mb-1">{lead.tripTitle}</p>
                       <h4 className="text-lg font-black italic uppercase">{lead.name}</h4>
-                      <p className="text-xs text-muted-foreground">{lead.whatsappNumber} • {new Date(lead.date).toLocaleDateString()}</p>
+                      <p className="text-xs text-muted-foreground">{lead.whatsappNumber} - {new Date(lead.date).toLocaleDateString()}</p>
+                      <div className="mt-3 flex items-center gap-3">
+                        <span className="text-[9px] font-black uppercase tracking-widest opacity-50">Status</span>
+                        <select
+                          value={lead.status || 'new'}
+                          onChange={(e) => props.onUpdateLeadStatus?.(lead.id, e.target.value as any)}
+                          className="px-3 py-2 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border text-[10px] font-black uppercase tracking-widest outline-none focus:border-brand-primary"
+                        >
+                          <option value="new">New</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="closed">Closed</option>
+                        </select>
+                      </div>
                     </div>
-                    <a href={`https://wa.me/${lead.whatsappNumber.replace(/\D/g,'')}`} target="_blank" className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Reply</a>
+                    <a href={`https://wa.me/${lead.whatsappNumber.replace(/\\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Reply</a>
                   </div>
                 ))
               )}
@@ -1114,7 +1182,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Select an existing photo for your content</p>
               </div>
-              <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">×</button>
+              <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">Ã—</button>
             </div>
             <div className="flex-grow overflow-y-auto p-5 sm:p-8 no-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1143,7 +1211,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black">Edit caption for this photo</h3>
-              <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">×</button>
+              <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">Ã—</button>
             </div>
             {captionModal.photo && (
               <div className="space-y-4">
@@ -1178,7 +1246,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
            }}
            className="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-background/60 dark:bg-dark-background/40 border border-border dark:border-dark-border text-foreground dark:text-dark-foreground active:scale-95 transition-transform"
          >
-           ← Site
+           â† Site
          </button>
          <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">ADMIN</span>
@@ -1303,7 +1371,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {editingItem && (
         <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center p-4 overflow-y-auto">
            <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl p-6 sm:p-10 lg:p-16 rounded-[2.5rem] sm:rounded-[4rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-[92vh] flex flex-col">
-              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">×</button>
+              <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">Ã—</button>
               <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
                 {activeTab === 'TOURS'
                   ? 'Edit tour'
@@ -1403,7 +1471,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                 <div key={(g && g.id) || idx} className="flex flex-col items-start gap-2">
                                   <div className="relative w-28 h-16 rounded-md overflow-hidden border border-border">
                                     <img src={g.imageUrl} className="w-full h-full object-cover" />
-                                    <button onClick={() => setEditingItem({...editingItem, gallery: (editingItem.gallery || []).filter((_: any, i: number) => i !== idx)})} className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">×</button>
+                                    <button onClick={() => setEditingItem({...editingItem, gallery: (editingItem.gallery || []).filter((_: any, i: number) => i !== idx)})} className="absolute top-1 right-1 bg-black/60 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm">Ã—</button>
                                   </div>
                                   <input value={g.caption || ''} onChange={e => {
                                       const next = (editingItem.gallery || []).map((item: any, i: number) => i === idx ? { ...item, caption: e.target.value } : item);
@@ -1503,10 +1571,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                     <div key={dep.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border dark:border-dark-border bg-background/40 dark:bg-dark-background/40">
                                       <div className="min-w-0">
                                         <div className="text-xs font-black text-foreground dark:text-dark-foreground truncate">
-                                          {dep.startDate} → {dep.endDate}
+                                          {dep.startDate} â†’ {dep.endDate}
                                         </div>
                                         <div className="text-[11px] text-muted-foreground">
-                                          {dep.status} · {dep.slots} slots
+                                          {dep.status} Â· {dep.slots} slots
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2 shrink-0">
@@ -1784,3 +1852,4 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 };
 
 export default AdminPage;
+

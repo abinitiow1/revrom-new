@@ -12,7 +12,7 @@ import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
 import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
-import { listItineraryQueries, submitItineraryQuery } from './services/itineraryQueryService';
+import { listItineraryQueries, submitItineraryQuery, updateItineraryQueryStatus } from './services/itineraryQueryService';
 import { getIsAdmin } from './services/adminService';
 
 const ContactPage = lazy(() => import('./pages/ContactPage'));
@@ -414,6 +414,7 @@ const App: React.FC = () => {
         ...q,
         id: makeId(),
         date: new Date().toISOString(),
+        status: 'new',
       };
 
       // Always submit to Supabase in Supabase mode (public insert); keep local fallback otherwise.
@@ -429,6 +430,29 @@ const App: React.FC = () => {
       }
     },
     [isSupabaseMode],
+  );
+
+  const setLeadStatus = useCallback(
+    async (id: string, status: ItineraryQuery['status']) => {
+      if (!status) return;
+      // Optimistic UI update (works for both local + supabase mode).
+      setItineraryQueries((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
+
+      if (!isSupabaseMode) return;
+      if (!isLoggedIn) return;
+      if (!isAdmin) return;
+      try {
+        await updateItineraryQueryStatus(id, status);
+      } catch (err) {
+        console.error('Failed to update lead status:', err);
+        // Best-effort rollback by refetching leads
+        try {
+          const leads = await listItineraryQueries();
+          setItineraryQueries(leads);
+        } catch {}
+      }
+    },
+    [isAdmin, isLoggedIn, isSupabaseMode],
   );
 
   // ----- URL hash sync (preserve view on reload / back-forward navigation) -----
@@ -580,6 +604,7 @@ const App: React.FC = () => {
                     galleryPhotos={galleryPhotos} instagramPosts={instagramPosts}
                     googleReviews={googleReviews} siteContent={siteContent}
                     itineraryQueries={itineraryQueries} customPages={customPages}
+                    onUpdateLeadStatus={setLeadStatus}
                     isSupabaseMode={isSupabaseMode}
                     autoSaveEnabled={autoSaveEnabled}
                     saveStatus={saveStatus}

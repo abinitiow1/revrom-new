@@ -39,6 +39,7 @@ create table if not exists public.itinerary_queries (
   name text not null,
   whatsapp_number text not null,
   planning_time text not null,
+  status text not null default 'new',
   date timestamptz not null default now()
 );
 
@@ -138,16 +139,22 @@ as $$
 $$;
 
 -- Basic validation constraints (server-side; complements client-side validation).
+-- Lead status (safe to re-run).
+alter table public.itinerary_queries
+  add column if not exists status text not null default 'new';
+
 alter table public.itinerary_queries
   drop constraint if exists itinerary_queries_name_len,
   drop constraint if exists itinerary_queries_whatsapp_len,
   drop constraint if exists itinerary_queries_planning_time_len,
-  drop constraint if exists itinerary_queries_trip_title_len;
+  drop constraint if exists itinerary_queries_trip_title_len,
+  drop constraint if exists itinerary_queries_status_chk;
 alter table public.itinerary_queries
   add constraint itinerary_queries_name_len check (length(trim(name)) between 2 and 80) not valid,
   add constraint itinerary_queries_whatsapp_len check (length(regexp_replace(whatsapp_number, '[^0-9]', '', 'g')) between 8 and 15) not valid,
   add constraint itinerary_queries_planning_time_len check (length(trim(planning_time)) between 2 and 50) not valid,
-  add constraint itinerary_queries_trip_title_len check (length(trim(trip_title)) between 2 and 140) not valid;
+  add constraint itinerary_queries_trip_title_len check (length(trim(trip_title)) between 2 and 140) not valid,
+  add constraint itinerary_queries_status_chk check (status in ('new', 'contacted', 'closed')) not valid;
 
 alter table public.contact_messages
   drop constraint if exists contact_messages_name_len,
@@ -346,6 +353,18 @@ using (
   public.is_admin()
 );
 
+drop policy if exists "admin update itinerary_queries" on public.itinerary_queries;
+create policy "admin update itinerary_queries"
+on public.itinerary_queries
+for update
+to authenticated
+using (
+  public.is_admin()
+)
+with check (
+  public.is_admin()
+);
+
 -- Public can submit contact messages. Only admins can read them.
 drop policy if exists "public insert contact_messages" on public.contact_messages;
 create policy "public insert contact_messages"
@@ -386,6 +405,7 @@ grant select on table public.app_state to anon, authenticated;
 grant insert, update on table public.app_state to authenticated;
 grant insert on table public.itinerary_queries to anon, authenticated;
 grant select on table public.itinerary_queries to authenticated;
+grant update on table public.itinerary_queries to authenticated;
 grant insert on table public.contact_messages to anon, authenticated;
 grant select on table public.contact_messages to authenticated;
 grant insert on table public.newsletter_subscribers to anon, authenticated;

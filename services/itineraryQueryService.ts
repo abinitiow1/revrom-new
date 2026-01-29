@@ -11,6 +11,7 @@ type ItineraryQueryRow = {
   whatsapp_number: string;
   planning_time: string;
   date: string;
+  status: string | null;
 };
 
 const toRow = (lead: ItineraryQuery): ItineraryQueryRow => ({
@@ -21,6 +22,7 @@ const toRow = (lead: ItineraryQuery): ItineraryQueryRow => ({
   whatsapp_number: lead.whatsappNumber,
   planning_time: lead.planningTime,
   date: lead.date,
+  status: lead.status ?? 'new',
 });
 
 const fromRow = (row: ItineraryQueryRow): ItineraryQuery => ({
@@ -31,6 +33,7 @@ const fromRow = (row: ItineraryQueryRow): ItineraryQuery => ({
   whatsappNumber: row.whatsapp_number,
   planningTime: row.planning_time,
   date: row.date,
+  status: (row.status || 'new') as any,
 });
 
 export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> => {
@@ -43,11 +46,17 @@ export const listItineraryQueries = async (): Promise<ItineraryQuery[]> => {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from(TABLE)
-    .select('id,trip_id,trip_title,name,whatsapp_number,planning_time,date')
+    .select('id,trip_id,trip_title,name,whatsapp_number,planning_time,date,status')
     .order('date', { ascending: false })
     .limit(200)
     .returns<ItineraryQueryRow[]>();
 
   if (error) throw error;
   return (data || []).map(fromRow);
+};
+
+export const updateItineraryQueryStatus = async (id: string, status: string): Promise<void> => {
+  const supabase = getSupabase();
+  const { error } = await supabase.from(TABLE).update({ status }).eq('id', id);
+  if (error) throw error;
 };
