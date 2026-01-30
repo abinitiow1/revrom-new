@@ -44,9 +44,9 @@ VITE_SUPABASE_ANON_KEY=...
 - `App.tsx` hydrates from Supabase on load (when `VITE_DATA_MODE=supabase`) and auto-saves changes (debounced).
 - `pages/LoginPage.tsx` uses Supabase Auth in `supabase` mode, otherwise uses local demo credentials.
 
-## “Supabase sleeps” / keep-alive ping
+## "Supabase sleeps" / keep-alive ping
 
-Supabase DB projects generally don’t “sleep” like hobby dynos, but some endpoints can have cold starts. If you still want a keep-alive ping, there is an optional GitHub Action at `.github/workflows/ping.yml`.
+Supabase DB projects generally don't "sleep" like hobby dynos, but some endpoints can have cold starts. If you still want a keep-alive ping, there is an optional GitHub Action at `.github/workflows/ping.yml`.
 
 - Set `PING_URL` as a GitHub repo secret (use your deployed Vercel URL).
 - The workflow will `curl` it on a schedule.

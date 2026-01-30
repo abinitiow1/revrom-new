@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { Trip } from '../types';
-import { generateCustomItinerary } from '../services/geminiService';
+import { buildTripPlan, type InterestTag, type PlannedItinerary } from '../services/tripPlannerService';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const SparklesIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -16,44 +16,105 @@ interface CustomizePageProps {
 }
 
 const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips }) => {
+    const destinationOptions = Array.from(new Set((trips || []).map(t => (t.destination || '').trim()).filter(Boolean))).sort();
+    const initialDestination = destinationOptions[0] || '';
+    const initialTripId = (trips || []).find(t => (t.destination || '').trim() === initialDestination)?.id || (trips?.[0]?.id || '');
+
     const [formData, setFormData] = useState({
-        tripId: trips?.[0]?.id || '',
+        destination: initialDestination,
+        tripId: initialTripId,
         travelers: '2',
         duration: '10',
         startDate: '',
         endDate: '',
-        destinations: 'Ladakh, Spiti Valley',
         style: 'Adventure Focused',
-        interests: 'High passes like Khardung La, ancient monasteries like Key & Diskit, and pristine lakes like Pangong Tso.'
+        interestTags: ['adventure', 'mountain', 'lakes'] as InterestTag[],
+        notes: 'High passes like Khardung La, ancient monasteries, and pristine lakes like Pangong Tso.'
     });
     const [isLoading, setIsLoading] = useState(false);
-    const [generatedItinerary, setGeneratedItinerary] = useState('');
+    const [generatedPlan, setGeneratedPlan] = useState<PlannedItinerary | null>(null);
     const [error, setError] = useState('');
+    const [isEndDateAuto, setIsEndDateAuto] = useState(true);
+
+    const computeEndDate = (startDate: string, durationStr: string) => {
+        // Use YYYY-MM-DD (what <input type="date"> expects).
+        const days = Math.max(1, parseInt(durationStr || '0', 10) || 1);
+        if (!startDate) return '';
+        const base = new Date(`${startDate}T00:00:00`);
+        if (Number.isNaN(base.getTime())) return '';
+        // Inclusive end date: Day 1 is startDate => add (days - 1).
+        base.setDate(base.getDate() + Math.max(0, days - 1));
+        const yyyy = base.getFullYear();
+        const mm = String(base.getMonth() + 1).padStart(2, '0');
+        const dd = String(base.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({...prev, [name]: value}));
+
+        if (name === 'endDate') setIsEndDateAuto(false);
+        if (name === 'startDate') setIsEndDateAuto(true);
+
+        setFormData(prev => {
+            const next: any = { ...prev, [name]: value };
+
+            if (name === 'startDate') {
+                if (!value) {
+                    if (isEndDateAuto) next.endDate = '';
+                } else {
+                    next.endDate = computeEndDate(value, String(next.duration || prev.duration || ''));
+                }
+            }
+
+            if (name === 'duration') {
+                const start = String(prev.startDate || '');
+                if (start && isEndDateAuto) next.endDate = computeEndDate(start, String(value));
+            }
+
+            return next;
+        });
+    };
+
+    const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const destination = e.target.value;
+        const requestedDays = Number(formData.duration || 0);
+        const nextTripId =
+            (trips || []).find(t => (t.destination || '').trim() === destination && (t.duration || 0) <= requestedDays)?.id ||
+            (trips || []).find(t => (t.destination || '').trim() === destination)?.id ||
+            '';
+        setFormData(prev => ({ ...prev, destination, tripId: nextTripId || prev.tripId }));
+    };
+
+    const handleInterestToggle = (tag: InterestTag) => {
+        setFormData(prev => {
+            const set = new Set(prev.interestTags || []);
+            if (set.has(tag)) set.delete(tag);
+            else set.add(tag);
+            return { ...prev, interestTags: Array.from(set) as InterestTag[] };
+        });
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError('');
-        setGeneratedItinerary('');
+        setGeneratedPlan(null);
         try {
-            const itinerary = await generateCustomItinerary(formData, trips);
-            setGeneratedItinerary(itinerary);
+            const plan = await buildTripPlan({
+                destination: formData.destination,
+                requestedDays: Number(formData.duration),
+                baseTripId: formData.tripId,
+                interestTags: formData.interestTags,
+                notes: formData.notes,
+                trips,
+            });
+            setGeneratedPlan(plan);
         } catch (err: any) {
-            // Friendly error mapping for common API/key failures
             console.error(err);
             const raw = err?.message || err?.toString() || '';
-            if (raw.includes('API key not valid') || raw.includes('API_KEY_INVALID') || raw.includes('INVALID_ARGUMENT')) {
-                setError('AI service unavailable: your Google GenAI API key is missing or invalid. Configure a valid API key for the app (see docs).');
-            } else if (raw.includes('quota') || raw.includes('insufficient')) {
-                setError('AI service limit reached or quota exhausted. Please check your Google Cloud usage and quotas.');
-            } else {
-                setError('An unexpected error occurred while generating the itinerary. Please try again.');
-            }
+            if (raw.toLowerCase().includes('geoapify') || raw.toLowerCase().includes('api key')) setError(raw);
+            else setError('An unexpected error occurred while building the itinerary. Please try again.');
         } finally {
             setIsLoading(false);
             const resultsSection = document.getElementById('results-section');
@@ -64,66 +125,129 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     };
     
     const handleStartOver = () => {
-        setGeneratedItinerary('');
+        setGeneratedPlan(null);
         setError('');
     };
 
     const buildQuotePrefillMessage = () => {
         const trip = trips.find(t => t.id === formData.tripId);
-        const interests = (formData.interests || '').replace(/\s+/g, ' ').trim();
+        const notes = (formData.notes || '').replace(/\s+/g, ' ').trim();
         const dateRange = formData.startDate && formData.endDate
             ? `${formData.startDate} to ${formData.endDate}`
             : (formData.startDate ? `Starting ${formData.startDate}` : (formData.endDate ? `Until ${formData.endDate}` : 'Flexible'));
 
-        const itineraryHint = generatedItinerary
+        const itineraryHint = generatedPlan
             ? 'I also generated an initial itinerary in your Trip Planner. Please review and suggest the best option.'
             : 'Please suggest the best itinerary for these preferences.';
+
+        const planLines = generatedPlan
+            ? [
+                '',
+                'Draft plan:',
+                ...generatedPlan.days.map(d => {
+                    const first = d.stops?.[0];
+                    const stopNames = (d.stops || []).map(s => s.name).filter(Boolean).join(', ');
+                    const extra = first?.distanceKmFromCenter ? ` (~${first.distanceKmFromCenter} km from ${generatedPlan.destination})` : '';
+                    return `- Day ${d.day}: ${stopNames || d.title}${extra}`;
+                }),
+            ]
+            : [];
 
         return [
             'Hello Revrom, I would like a quote for my trip:',
             '',
-            `- Trip: ${trip?.title || formData.destinations || 'Custom plan'}`,
+            `- Destination: ${formData.destination || 'N/A'}`,
+            `- Base trip: ${trip?.title || 'Custom plan'}`,
             `- People: ${formData.travelers || '1'} rider(s)`,
             `- Duration: ${formData.duration || 'N/A'} days`,
             `- Dates: ${dateRange}`,
             `- Style: ${formData.style || 'N/A'}`,
-            `- Interests: ${interests || 'N/A'}`,
+            `- Interests: ${(formData.interestTags || []).join(', ') || 'N/A'}`,
+            `- Notes: ${notes || 'N/A'}`,
             '',
             itineraryHint,
+            ...planLines,
         ].join('\\n');
     };
     
-    const renderMarkdown = (text: string) => {
-        const parts = text.split(/(\n)/).map(part => part.trim());
-        const elements: React.ReactNode[] = [];
-        let listItems: string[] = [];
-    
-        const flushList = () => {
-            if (listItems.length > 0) {
-                elements.push(
-                    <ul key={`ul-${elements.length}`} className="list-disc list-inside space-y-2 my-4 pl-4 text-muted-foreground dark:text-dark-muted-foreground">
-                        {listItems.map((item, i) => <li key={i}>{item}</li>)}
-                    </ul>
-                );
-                listItems = [];
-            }
-        };
-    
-        parts.forEach((line, index) => {
-            if (line.startsWith('# ')) {
-                elements.push(<h1 key={index} className="text-3xl font-bold font-display text-foreground dark:text-dark-foreground mb-4">{line.substring(2)}</h1>);
-            } else if (line.startsWith('### ')) {
-                elements.push(<h3 key={index} className="text-xl font-semibold text-foreground dark:text-dark-foreground mt-6 mb-2">{line.substring(4)}</h3>);
-            } else if (line.startsWith('* ')) {
-                listItems.push(line.substring(2));
-            } else if (line) {
-                flushList();
-                elements.push(<p key={index} className="text-muted-foreground dark:text-dark-muted-foreground leading-relaxed mb-4">{line}</p>);
-            }
-        });
-    
-        flushList();
-        return elements;
+    const filteredTrips = (trips || []).filter(t => (t.destination || '').trim() === (formData.destination || '').trim());
+    const baseTripOptions = filteredTrips.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0));
+
+    const renderPlan = (plan: PlannedItinerary) => {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <h2 className="text-2xl md:text-3xl font-bold font-display text-foreground dark:text-dark-foreground">Your Draft Itinerary</h2>
+                    <p className="mt-2 text-muted-foreground dark:text-dark-muted-foreground">
+                        Destination: <span className="font-semibold text-foreground dark:text-dark-foreground">{plan.destination}</span>
+                        {plan.baseTripTitle ? <> | Base: <span className="font-semibold text-foreground dark:text-dark-foreground">{plan.baseTripTitle}</span></> : null}
+                    </p>
+                    {plan.notices?.length ? (
+                        <div className="mt-3 space-y-2">
+                            {plan.notices.map((n, i) => (
+                                <div key={i} className="rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-sm text-muted-foreground dark:text-dark-muted-foreground">
+                                    {n}
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+                </div>
+
+                <div className="divide-y divide-border dark:divide-dark-border rounded-2xl border border-border dark:border-dark-border overflow-hidden">
+                    {plan.days.map((d) => (
+                        <div key={d.day} className="p-5 md:p-6 bg-background dark:bg-dark-background">
+                            {(() => {
+                                const hasGeoapify = (d.stops || []).some(s => s.source === 'geoapify');
+                                const hasPlaceholder = (d.stops || []).some(s => s.source === 'placeholder');
+                                const badgeText = hasGeoapify ? 'Suggested places added' : (hasPlaceholder ? 'Added day' : 'Base itinerary');
+                                const badgeClass = hasGeoapify
+                                    ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'
+                                    : (hasPlaceholder ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200');
+
+                                const cleanedTitle = d.title.replace(/^Day\s+\d+\s*:\s*/i, '');
+
+                                return (
+                                  <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <h3 className="text-lg md:text-xl font-extrabold text-foreground dark:text-dark-foreground">
+                                        Day {d.day}: {cleanedTitle}
+                                    </h3>
+                                    <p className="mt-2 text-sm md:text-base text-muted-foreground dark:text-dark-muted-foreground">
+                                        {(d.stops || []).map((s) => s.name).filter(Boolean).join(', ')}
+                                    </p>
+                                </div>
+                                <div className={`shrink-0 rounded-full px-3 py-1 text-xs font-bold ${badgeClass}`}>
+                                    {badgeText}
+                                </div>
+                            </div>
+                                );
+                            })()}
+
+                            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(d.stops || []).map((s, i) => (
+                                    <div key={`${d.day}-${i}`} className="rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card p-4">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="text-sm font-extrabold text-foreground dark:text-dark-foreground">{s.name}</div>
+                                            <div className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${s.source === 'geoapify' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200' : (s.source === 'placeholder' ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200')}`}>
+                                                {s.source === 'geoapify' ? 'Suggested' : (s.source === 'placeholder' ? 'Flexible' : 'Included')}
+                                            </div>
+                                        </div>
+                                        {s.description ? (
+                                            <div className="mt-1 text-sm text-muted-foreground dark:text-dark-muted-foreground">{s.description}</div>
+                                        ) : null}
+                                        {typeof s.distanceKmFromCenter === 'number' ? (
+                                            <div className="mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                                Approx {s.distanceKmFromCenter} km from {plan.destination}
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
     };
 
 
@@ -151,19 +275,18 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </div>
                         </header>
 
-                        <div id="trip-planner-form" className="container mx-auto px-4 sm:px-6 py-12 md:py-16 max-w-7xl">
+                        <div id="trip-planner-form" className="container mx-auto px-4 sm:px-6 py-12 md:py-16 max-w-4xl">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold font-display text-foreground dark:text-dark-foreground">Design Your Dream Adventure</h2>
-                    <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground">Tell our AI assistant your vision for the perfect Himalayan motorcycle tour. It will craft a custom-tailored preliminary itinerary just for you.</p>
+                    <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground">Start from an admin-created base itinerary, then extend it with nearby places based on your interests.</p>
                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-                                    <div className="md:col-span-2">
-                                        {!generatedItinerary && (
+                                <div className="w-full">
+                                        {!generatedPlan && (
                                             <form onSubmit={handleSubmit} className="bg-gradient-to-br from-white/60 to-slate-50 dark:from-black/60 dark:to-neutral-900 p-6 md:p-8 rounded-3xl shadow-2xl space-y-6 border border-border dark:border-dark-border">
                                                 <div className="flex items-center justify-between gap-4 mb-2">
                                                     <div>
                                                         <h3 className="text-xl font-extrabold tracking-tight">Customize Your Trip</h3>
-                                                        <p className="text-sm text-muted-foreground">Fill the basics and let the AI draft an itinerary.</p>
+                                                        <p className="text-sm text-muted-foreground">Fill the basics and get a draft day-by-day itinerary.</p>
                                                     </div>
                                                     <div className="text-sm text-muted-foreground font-black uppercase tracking-wider">Step 1 of 2</div>
                                                 </div>
@@ -178,6 +301,27 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </div>
                         </div>
                         <div>
+                            <label htmlFor="destination" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Destination / Region</label>
+                            <select
+                                name="destination"
+                                id="destination"
+                                value={formData.destination}
+                                onChange={handleDestinationChange}
+                                required
+                                className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                            >
+                                {destinationOptions.length === 0 ? (
+                                    <option value="">No destinations yet (create a trip in Admin)</option>
+                                ) : null}
+                                {destinationOptions.map((d) => (
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </select>
+                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                This dropdown is built from destinations on trips created by admin.
+                            </p>
+                        </div>
+                        <div>
                             <label htmlFor="tripId" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Base trip (admin itinerary)</label>
                             <select
                                 name="tripId"
@@ -186,9 +330,9 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                 onChange={handleInputChange}
                                 className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
                             >
-                                {trips.map(t => (
+                                {(baseTripOptions.length ? baseTripOptions : trips).map(t => (
                                     <option key={t.id} value={t.id}>
-                                        {t.title}
+                                        {t.title} ({t.duration} days)
                                     </option>
                                 ))}
                             </select>
@@ -207,10 +351,6 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </div>
                         </div>
                         <div>
-                            <label htmlFor="destinations" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Preferred Destinations / Regions</label>
-                            <input type="text" name="destinations" id="destinations" value={formData.destinations} onChange={handleInputChange} placeholder="e.g., Ladakh, Spiti, Zanskar, Kashmir" required className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
-                        </div>
-                        <div>
                             <label htmlFor="style" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Preferred Travel Style</label>
                             <select name="style" id="style" value={formData.style} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground">
                                 <option>Adventure Focused</option>
@@ -221,21 +361,38 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </select>
                         </div>
                         <div>
-                            <label htmlFor="interests" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">What are you most excited to see or do?</label>
-                            <textarea name="interests" id="interests" value={formData.interests} onChange={handleInputChange} placeholder="Tell us about your must-see places, activities, or any special requests." rows={4} required className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"></textarea>
+                            <div className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Interests</div>
+                            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                {(['mountain','valley','river','lakes','monasteries','culture','adventure','photography'] as InterestTag[]).map((tag) => {
+                                    const checked = (formData.interestTags || []).includes(tag);
+                                    return (
+                                        <label key={tag} className="flex items-center gap-2 text-sm text-foreground dark:text-dark-foreground">
+                                            <input type="checkbox" checked={checked} onChange={() => handleInterestToggle(tag)} />
+                                            <span className="capitalize">{tag}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                Used to extend your itinerary when the base plan is shorter than your requested duration.
+                            </p>
+                        </div>
+                        <div>
+                            <label htmlFor="notes" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Notes (optional)</label>
+                            <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any must-see places or special requests (optional)." rows={4} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"></textarea>
                         </div>
                                                 <div>
                                                         <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3 px-8 rounded-full transition-colors duration-300 text-lg disabled:bg-brand-primary/50 shadow-xl">
                                                                 <SparklesIcon className="w-6 h-6"/>
-                                                                {isLoading ? 'Crafting Your Adventure...' : 'Generate My Itinerary'}
+                                                                {isLoading ? 'Building Your Itinerary...' : 'Build My Itinerary'}
                                                         </button>
                                                 </div>
                                             </form>
                                         )}
 
-                                        {generatedItinerary && (
+                                        {generatedPlan && (
                                             <div className="mt-6 bg-card dark:bg-dark-card p-6 md:p-8 rounded-3xl shadow-2xl border border-border">
-                                                {renderMarkdown(generatedItinerary)}
+                                                {renderPlan(generatedPlan)}
 
                                                 <div className="mt-8 pt-8 border-t border-border dark:border-dark-border text-center">
                                                         <h3 className="text-2xl font-bold font-display text-foreground dark:text-dark-foreground">Ready for the Next Step?</h3>
@@ -262,9 +419,6 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                                 </div>
                                             </div>
                                         )}
-                                    </div>
-
-                                    
                                 </div>
                 
                 <div id="results-section" className="mt-6">

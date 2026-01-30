@@ -731,9 +731,23 @@ const App: React.FC = () => {
       )}
 
       <style>{`
-        input[type="date"],
-        input[type="time"] {
-          color-scheme: light dark;
+        /* Match native date/time picker styling to the app theme.
+           Using "light dark" can cause the UA to pick an unexpected scheme vs our toggle. */
+        html:not(.dark) input[type="date"],
+        html:not(.dark) input[type="time"] {
+          color-scheme: light;
+        }
+
+        html.dark input[type="date"],
+        html.dark input[type="time"] {
+          color-scheme: dark;
+        }
+
+        /* Improve contrast for the calendar/clock icons in dark mode on WebKit-based browsers. */
+        html.dark input[type="date"]::-webkit-calendar-picker-indicator,
+        html.dark input[type="time"]::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          opacity: 0.9;
         }
       `}</style>
     </div>

@@ -44,13 +44,18 @@ interface AdminPageProps {
   theme: Theme;
 }
 
-type AdminTab = 'TOURS' | 'DATES' | 'LEADS' | 'MESSAGES' | 'SUBSCRIBERS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'HOMEPAGE' | 'SETTINGS';
+type AdminTab = 'TOURS' | 'DATES' | 'INBOX' | 'SUBSCRIBERS' | 'BLOG' | 'PAGES' | 'VISUALS' | 'LAYOUT' | 'HOMEPAGE' | 'SETTINGS';
 
 type DepartureDraft = Omit<Departure, 'id'> & { id?: string };
 
 const AdminPage: React.FC<AdminPageProps> = (props) => {
   const { trips, departures, blogPosts, galleryPhotos, siteContent, itineraryQueries, customPages, onUpdateSiteContent, contactMessages, newsletterSubscribers } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('TOURS');
+  const [inboxType, setInboxType] = useState<'all' | 'lead' | 'message'>('all');
+  const [inboxStatus, setInboxStatus] = useState<'all' | 'new' | 'contacted' | 'closed'>('all');
+  const [inboxQuery, setInboxQuery] = useState('');
+  const [inboxFromDate, setInboxFromDate] = useState('');
+  const [inboxToDate, setInboxToDate] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGalleryPickerOpen, setIsGalleryPickerOpen] = useState<{ isOpen: boolean; onSelect: (url: string) => void }>({ isOpen: false, onSelect: () => {} });
@@ -343,7 +348,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     <img src={trip.imageUrl} className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl object-cover flex-shrink-0" />
                     <div>
                       <h4 className="font-black uppercase tracking-tight text-base sm:text-lg italic leading-tight">{trip.title}</h4>
-                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">{trip.destination} â€¢ {trip.duration} DAYS</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold text-muted-foreground uppercase">{trip.destination} - {trip.duration} DAYS</p>
                     </div>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
@@ -398,159 +403,260 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           </div>
         );
 
-      case 'LEADS':
+            case 'INBOX': {
+        type InboxItem =
+          | { type: 'lead'; id: string; name: string; contact: string; source: string; date: string; status: ItineraryQuery['status']; raw: ItineraryQuery }
+          | { type: 'message'; id: string; name: string; contact: string; source: string; date: string; status: null; raw: ContactMessage };
+
+        const parseDateOnly = (value: string): number | null => {
+          if (!value) return null;
+          const parts = value.split('-').map(Number);
+          if (parts.length !== 3) return null;
+          const [y, m, d] = parts;
+          if (!y || !m || !d) return null;
+          const dt = new Date(y, m - 1, d);
+          return Number.isNaN(dt.getTime()) ? null : dt.getTime();
+        };
+
+        const fromTs = parseDateOnly(inboxFromDate);
+        const toTs = parseDateOnly(inboxToDate);
+        const q = inboxQuery.trim().toLowerCase();
+
+        const items: InboxItem[] = [
+          ...(itineraryQueries || []).map((lead) => ({
+            type: 'lead' as const,
+            id: lead.id,
+            name: lead.name,
+            contact: lead.whatsappNumber,
+            source: lead.tripTitle || 'Trip inquiry',
+            date: lead.date,
+            status: lead.status || 'new',
+            raw: lead,
+          })),
+          ...(contactMessages || []).map((m) => ({
+            type: 'message' as const,
+            id: m.id,
+            name: m.name,
+            contact: m.email,
+            source: 'Contact page',
+            date: m.createdAt,
+            status: null,
+            raw: m,
+          })),
+        ];
+
+        const filtered = items
+          .filter((it) => {
+            if (inboxType !== 'all' && it.type !== inboxType) return false;
+            if (it.type === 'lead' && inboxStatus !== 'all' && it.status !== inboxStatus) return false;
+
+            if (q) {
+              const hay = [
+                it.type,
+                it.name,
+                it.contact,
+                it.source,
+                it.type === 'message'
+                  ? (it.raw as ContactMessage).message
+                  : (it.raw as ItineraryQuery).planningTime,
+              ]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+              if (!hay.includes(q)) return false;
+            }
+
+            if (fromTs || toTs) {
+              const dt = new Date(it.date);
+              const t = Number.isNaN(dt.getTime()) ? null : new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+              if (t === null) return false;
+              if (fromTs !== null && t < fromTs) return false;
+              if (toTs !== null && t > toTs) return false;
+            }
+
+            return true;
+          })
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+        const exportCsv = () => {
+          const escapeCsv = (value: unknown) => {
+            const s = String(value ?? '');
+            return `"${s.replace(/"/g, '""')}"`;
+          };
+
+          const header = ['type', 'id', 'name', 'contact', 'source', 'date', 'status', 'message_or_planning_time'].join(',');
+          const rows = filtered.map((it) =>
+            [
+              escapeCsv(it.type),
+              escapeCsv(it.id),
+              escapeCsv(it.name),
+              escapeCsv(it.contact),
+              escapeCsv(it.source),
+              escapeCsv(it.date),
+              escapeCsv(it.type === 'lead' ? (it.status || 'new') : ''),
+              escapeCsv(it.type === 'message' ? (it.raw as ContactMessage).message : (it.raw as ItineraryQuery).planningTime),
+            ].join(','),
+          );
+
+          const csv = [header, ...rows].join('\n');
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+
+          const now = new Date();
+          const pad = (n: number) => String(n).padStart(2, '0');
+          const fileName = `inbox-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
+
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+        };
+
+        const badgeClass = (type: InboxItem['type']) =>
+          type === 'lead'
+            ? 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
+            : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20';
+
         return (
           <div className="space-y-8 animate-fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Leads</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  const escapeCsv = (value: unknown) => {
-                    const s = String(value ?? '');
-                    return `"${s.replace(/\"/g, '\"\"')}"`;
-                  };
-
-                  const header = [
-                    'id',
-                    'trip_title',
-                    'trip_id',
-                    'name',
-                    'whatsapp_number',
-                    'planning_time',
-                    'date',
-                    'status',
-                  ].join(',');
-
-                  const rows = itineraryQueries.map((lead) =>
-                    [
-                      escapeCsv(lead.id),
-                      escapeCsv(lead.tripTitle),
-                      escapeCsv(lead.tripId),
-                      escapeCsv(lead.name),
-                      escapeCsv(lead.whatsappNumber),
-                      escapeCsv(lead.planningTime),
-                      escapeCsv(lead.date),
-                      escapeCsv(lead.status || 'new'),
-                    ].join(','),
-                  );
-
-                  const csv = [header, ...rows].join('\\n');
-                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-                  const url = URL.createObjectURL(blob);
-
-                  const now = new Date();
-                  const pad = (n: number) => String(n).padStart(2, '0');
-                  const fileName = `leads-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
-
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = fileName;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  URL.revokeObjectURL(url);
-                }}
-                disabled={itineraryQueries.length === 0}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
-              >
-                Export CSV
-              </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {itineraryQueries.length === 0 ? (
-                <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No leads captured yet.</div>
-              ) : (
-                itineraryQueries.map(lead => (
-                  <div key={lead.id} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border flex justify-between items-center shadow-sm">
-                    <div>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-brand-primary mb-1">{lead.tripTitle}</p>
-                      <h4 className="text-lg font-black italic uppercase">{lead.name}</h4>
-                      <p className="text-xs text-muted-foreground">{lead.whatsappNumber} - {new Date(lead.date).toLocaleDateString()}</p>
-                      <div className="mt-3 flex items-center gap-3">
-                        <span className="text-[9px] font-black uppercase tracking-widest opacity-50">Status</span>
-                        <select
-                          value={lead.status || 'new'}
-                          onChange={(e) => props.onUpdateLeadStatus?.(lead.id, e.target.value as any)}
-                          className="px-3 py-2 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border text-[10px] font-black uppercase tracking-widest outline-none focus:border-brand-primary"
-                        >
-                          <option value="new">New</option>
-                          <option value="contacted">Contacted</option>
-                          <option value="closed">Closed</option>
-                        </select>
-                      </div>
-                    </div>
-                    <a href={`https://wa.me/${lead.whatsappNumber.replace(/\\D/g,'')}`} target="_blank" rel="noopener noreferrer" className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest">Reply</a>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        );
-
-      case 'MESSAGES':
-        return (
-          <div className="space-y-8 animate-fade-in">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Contact messages</h3>
-              <button
-                type="button"
-                onClick={() => {
-                  const escapeCsv = (value: unknown) => {
-                    const s = String(value ?? '');
-                    return `"${s.replace(/\"/g, '\"\"')}"`;
-                  };
-
-                  const header = ['id', 'name', 'email', 'message', 'created_at'].join(',');
-                  const rows = (contactMessages || []).map((m) =>
-                    [escapeCsv(m.id), escapeCsv(m.name), escapeCsv(m.email), escapeCsv(m.message), escapeCsv(m.createdAt)].join(','),
-                  );
-                  const csv = [header, ...rows].join('\n');
-                  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-                  const url = URL.createObjectURL(blob);
-
-                  const now = new Date();
-                  const pad = (n: number) => String(n).padStart(2, '0');
-                  const fileName = `contact-messages-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.csv`;
-
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = fileName;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  URL.revokeObjectURL(url);
-                }}
-                disabled={!contactMessages || contactMessages.length === 0}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
-              >
-                Export CSV
-              </button>
+            <div className="flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4">
+              <div>
+                <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Inbox</h3>
+                <p className="text-xs text-muted-foreground dark:text-dark-muted-foreground mt-1">Leads + contact messages in one place.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all"
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={filtered.length === 0}
+                  className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest disabled:opacity-60 hover:border-brand-primary transition-all"
+                >
+                  Export CSV
+                </button>
+              </div>
             </div>
 
-            {(!contactMessages || contactMessages.length === 0) ? (
-              <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No contact messages yet.</div>
+            <div className="bg-white dark:bg-neutral-900 rounded-3xl border border-border dark:border-dark-border p-4 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 items-end">
+                <div className="md:col-span-2 xl:col-span-4 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Search</label>
+                  <input
+                    value={inboxQuery}
+                    onChange={(e) => setInboxQuery(e.target.value)}
+                    placeholder="Name, contact, trip, message..."
+                    className="mt-1 w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                  />
+                </div>
+                <div className="xl:col-span-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Type</label>
+                  <select
+                    value={inboxType}
+                    onChange={(e) => setInboxType(e.target.value as any)}
+                    className="mt-1 w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-black uppercase tracking-widest text-[10px] outline-none focus:border-brand-primary"
+                  >
+                    <option value="all">All</option>
+                    <option value="lead">Lead</option>
+                    <option value="message">Message</option>
+                  </select>
+                </div>
+                <div className="xl:col-span-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Status (leads)</label>
+                  <select
+                    value={inboxStatus}
+                    onChange={(e) => setInboxStatus(e.target.value as any)}
+                    disabled={inboxType === 'message'}
+                    className="mt-1 w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-black uppercase tracking-widest text-[10px] outline-none focus:border-brand-primary disabled:opacity-60"
+                  >
+                    <option value="all">All</option>
+                    <option value="new">New</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+                <div className="xl:col-span-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-60">From</label>
+                  <input
+                    type="date"
+                    value={inboxFromDate}
+                    onChange={(e) => setInboxFromDate(e.target.value)}
+                    className="mt-1 w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                  />
+                </div>
+                <div className="xl:col-span-2 min-w-0">
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-60">To</label>
+                  <input
+                    type="date"
+                    value={inboxToDate}
+                    onChange={(e) => setInboxToDate(e.target.value)}
+                    className="mt-1 w-full p-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary text-foreground dark:text-dark-foreground"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {filtered.length === 0 ? (
+              <div className="py-20 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No inbox items match your filters.</div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
-                {contactMessages.map((m) => (
-                  <div key={m.id} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border shadow-sm">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div>
-                        <h4 className="text-lg font-black italic uppercase">{m.name}</h4>
-                        <a className="text-xs font-bold text-brand-primary break-all" href={`mailto:${m.email}`}>{m.email}</a>
-                        <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-2">
-                          {new Date(m.createdAt).toLocaleString()}
+                {filtered.map((it) => (
+                  <div key={`${it.type}-${it.id}`} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border shadow-sm">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${badgeClass(it.type)}`}>
+                          {it.type === 'lead' ? 'Lead' : 'Message'}
+                        </div>
+                        <h4 className="mt-3 text-lg font-black italic uppercase truncate">{it.name}</h4>
+                        <div className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground break-all">{it.contact} - {it.source}</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-2">{new Date(it.date).toLocaleString()}</div>
+
+                        <div className="mt-4 text-sm text-muted-foreground dark:text-dark-muted-foreground whitespace-pre-wrap">
+                          {it.type === 'message'
+                            ? (it.raw as ContactMessage).message
+                            : `Planning time: ${(it.raw as ItineraryQuery).planningTime}`}
                         </div>
                       </div>
-                      <a
-                        href={`mailto:${m.email}?subject=${encodeURIComponent('Revrom inquiry')}`}
-                        className="w-full sm:w-auto px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all"
-                      >
-                        Reply email
-                      </a>
-                    </div>
-                    <div className="mt-4 text-sm text-muted-foreground dark:text-dark-muted-foreground whitespace-pre-wrap">
-                      {m.message}
+
+                      <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:items-end">
+                        {it.type === 'lead' && (
+                          <select
+                            value={it.status || 'new'}
+                            onChange={(e) => props.onUpdateLeadStatus?.(it.id, e.target.value as any)}
+                            className="px-4 py-3 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border text-[10px] font-black uppercase tracking-widest outline-none focus:border-brand-primary"
+                          >
+                            <option value="new">New</option>
+                            <option value="contacted">Contacted</option>
+                            <option value="closed">Closed</option>
+                          </select>
+                        )}
+
+                        {it.type === 'lead' ? (
+                          <a
+                            href={`https://wa.me/${(it.raw as ItineraryQuery).whatsappNumber.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                          >
+                            Reply WhatsApp
+                          </a>
+                        ) : (
+                          <a
+                            href={`mailto:${(it.raw as ContactMessage).email}?subject=${encodeURIComponent('Revrom inquiry')}`}
+                            className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all text-center"
+                          >
+                            Reply Email
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -558,8 +664,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
             )}
           </div>
         );
-
-      case 'SUBSCRIBERS':
+      }case 'SUBSCRIBERS':
         return (
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -1264,7 +1369,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     }
   };
 
-  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'LEADS', 'MESSAGES', 'SUBSCRIBERS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
+  const menuItems: AdminTab[] = ['TOURS', 'DATES', 'INBOX', 'SUBSCRIBERS', 'BLOG', 'PAGES', 'VISUALS', 'LAYOUT', 'HOMEPAGE', 'SETTINGS'];
 
   const isSupabaseMode = !!props.isSupabaseMode;
   // In Supabase mode, saving is controlled by App.tsx. We expose a UI toggle here.
@@ -2021,4 +2126,6 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 };
 
 export default AdminPage;
+
+
 
