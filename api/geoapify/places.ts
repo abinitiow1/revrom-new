@@ -8,7 +8,10 @@ import {
   readJsonBody,
   sendJson,
   type InterestTag,
-} from './_shared';
+} from './shared';
+
+// Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
+export const config = { runtime: 'nodejs' };
 
 type GeoapifyFeatureCollection = {
   type: 'FeatureCollection';
@@ -91,4 +94,3 @@ export default async function handler(req: any, res: any) {
     return sendJson(res, status, { error: e?.message || 'Server error.' }, headers);
   }
 }
-

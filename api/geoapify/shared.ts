@@ -51,13 +51,13 @@ export const rateLimitOrThrow = (req: any, limit: number, windowMs: number) => {
 
 export const readJsonBody = async (req: any): Promise<any> => {
   if (req?.body && typeof req.body === 'object') return req.body;
-  const chunks: Buffer[] = [];
+  const chunks: any[] = [];
   await new Promise<void>((resolve, reject) => {
-    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('data', (c: any) => chunks.push(c));
     req.on('end', () => resolve());
     req.on('error', (e: any) => reject(e));
   });
-  const raw = Buffer.concat(chunks).toString('utf-8').trim();
+  const raw = Buffer.concat(chunks as any).toString('utf-8').trim();
   if (!raw) return {};
   try {
     return JSON.parse(raw);
@@ -123,11 +123,9 @@ export const mapInterestTagsToGeoapifyCategories = (tags: InterestTag[]) => {
     }
     if (tag === 'culture') {
       set.add('tourism.attraction');
-      // Keep culture within tourism/attraction buckets to avoid invalid categories.
       set.add('tourism.sights');
     }
     if (tag === 'adventure') {
-      // Don't add aggressive categories; keep results focused on POIs.
       set.add('tourism.sights');
     }
     if (tag === 'photography') {
@@ -137,3 +135,4 @@ export const mapInterestTagsToGeoapifyCategories = (tags: InterestTag[]) => {
 
   return Array.from(set);
 };
+

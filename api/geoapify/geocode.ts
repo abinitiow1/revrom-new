@@ -1,4 +1,7 @@
-import { cacheGet, cacheSet, getGeoapifyApiKey, getQuery, rateLimitOrThrow, readJsonBody, sendJson } from './_shared';
+import { cacheGet, cacheSet, getGeoapifyApiKey, getQuery, rateLimitOrThrow, readJsonBody, sendJson } from './shared';
+
+// Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
+export const config = { runtime: 'nodejs' };
 
 type GeoapifyFeatureCollection = {
   type: 'FeatureCollection';
@@ -49,4 +52,3 @@ export default async function handler(req: any, res: any) {
     return sendJson(res, status, { error: e?.message || 'Server error.' }, headers);
   }
 }
-
