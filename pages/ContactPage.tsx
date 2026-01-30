@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { SiteContent } from '../types';
 import { submitContactMessage } from '../services/contactMessageService';
+import Turnstile from '../components/Turnstile';
 
 interface ContactPageProps {
     siteContent: SiteContent;
@@ -48,6 +49,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
     const [honeypot, setHoneypot] = useState('');
     const [notice, setNotice] = useState<string>('');
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const [turnstileError, setTurnstileError] = useState('');
+
+    const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
+    const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
 
     const validateForm = () => {
         const newErrors: { name?: string; email?: string; message?: string } = {};
@@ -94,6 +100,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotice('');
+        setTurnstileError('');
 
         if (honeypot.trim()) {
             setSubmitted(true);
@@ -118,7 +125,12 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             if (isRateLimited()) {
                 setNotice('Opening WhatsApp… (saving is temporarily limited)');
             } else {
-                await submitContactMessage({ name, email, message });
+                if (!isLocalhost && !turnstileToken) {
+                    setNotice('Opening WhatsAppâ€¦ (verification is required to save your message)');
+                } else {
+                    await submitContactMessage({ name, email, message, turnstileToken: turnstileToken || undefined });
+                    setTurnstileToken('');
+                }
             }
             setSubmitted(true);
             setName('');
@@ -205,6 +217,18 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
                                     {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
                                 </div>
+                                {!isLocalhost && turnstileSiteKey ? (
+                                    <div className="space-y-2">
+                                        <div className="text-sm font-semibold text-foreground dark:text-dark-foreground">Verification</div>
+                                        <Turnstile
+                                            siteKey={turnstileSiteKey}
+                                            theme="auto"
+                                            onToken={(t) => setTurnstileToken(t)}
+                                            onError={(m) => setTurnstileError(m)}
+                                        />
+                                        {turnstileError ? <p className="text-sm text-red-600 dark:text-red-300">{turnstileError}</p> : null}
+                                    </div>
+                                ) : null}
                                 <div>
                                     <button 
                                         type="submit" 

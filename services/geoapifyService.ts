@@ -30,7 +30,7 @@ const mapInterestTagsToSafeCategories = (interestTags: string[]) => {
 
 export type GeoPoint = { lat: number; lon: number; formatted?: string };
 
-export const geoapifyGeocode = async (text: string): Promise<GeoPoint> => {
+export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: string }): Promise<GeoPoint> => {
   const q = (text || '').trim();
   if (!q) throw new Error('Destination is required.');
 
@@ -61,7 +61,7 @@ export const geoapifyGeocode = async (text: string): Promise<GeoPoint> => {
   const res = await fetch('/api/geoapify/geocode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: q }),
+    body: JSON.stringify({ text: q, turnstileToken: opts?.turnstileToken }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Geoapify geocode failed (${res.status}).`);
@@ -82,6 +82,7 @@ export const geoapifyPlacesNearby = async (args: {
   radiusMeters: number;
   interestTags: string[];
   limit: number;
+  turnstileToken?: string;
   // Optional free-text to help relevance (Geoapify supports it as "name" filter only indirectly, so we keep it for future).
 }): Promise<GeoapifyPlace[]> => {
   const { center, radiusMeters, limit } = args;
@@ -134,6 +135,7 @@ export const geoapifyPlacesNearby = async (args: {
       radiusMeters,
       limit,
       interestTags: args.interestTags || [],
+      turnstileToken: args.turnstileToken,
     }),
   });
   const data = await res.json().catch(() => ({}));

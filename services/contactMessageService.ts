@@ -7,15 +7,30 @@ export type ContactMessageInput = {
   name: string;
   email: string;
   message: string;
+  turnstileToken?: string;
 };
 
 export const submitContactMessage = async (input: ContactMessageInput): Promise<void> => {
+  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+  if (!isLocalhost) {
+    const res = await fetch('/api/forms/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: input.name,
+        email: input.email,
+        message: input.message,
+        turnstileToken: input.turnstileToken,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to send message.');
+    return;
+  }
+
+  // Local dev fallback (no Vercel API routes unless using `vercel dev`).
   const supabase = getSupabase();
-  const { error } = await supabase.from(TABLE).insert({
-    name: input.name,
-    email: input.email,
-    message: input.message,
-  });
+  const { error } = await supabase.from(TABLE).insert({ name: input.name, email: input.email, message: input.message });
   if (error) throw error;
 };
 

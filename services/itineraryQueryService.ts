@@ -37,6 +37,32 @@ const fromRow = (row: ItineraryQueryRow): ItineraryQuery => ({
 });
 
 export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> => {
+  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+  if (!isLocalhost) {
+    // Require Turnstile token on production/preview to prevent automated spam.
+    const token = (lead as any)?.turnstileToken as string | undefined;
+    if (!token) return; // best-effort: still allow the UX (WhatsApp) without saving a lead.
+
+    const res = await fetch('/api/forms/lead', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tripId: lead.tripId,
+        tripTitle: lead.tripTitle,
+        name: lead.name,
+        whatsappNumber: lead.whatsappNumber,
+        planningTime: lead.planningTime,
+        date: lead.date,
+        status: lead.status ?? 'new',
+        turnstileToken: token,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || 'Failed to submit lead.');
+    return;
+  }
+
+  // Local dev fallback (no Vercel API routes unless using `vercel dev`).
   const supabase = getSupabase();
   const { error } = await supabase.from(TABLE).insert(toRow(lead));
   if (error) throw error;

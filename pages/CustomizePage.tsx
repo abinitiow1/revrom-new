@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import type { Trip } from '../types';
 import { buildTripPlan, type InterestTag, type PlannedItinerary } from '../services/tripPlannerService';
 import LoadingSpinner from '../components/LoadingSpinner';
+import Turnstile from '../components/Turnstile';
 
 const SparklesIcon: React.FC<{className?: string}> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -34,9 +35,14 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const [isLoading, setIsLoading] = useState(false);
     const [generatedPlan, setGeneratedPlan] = useState<PlannedItinerary | null>(null);
     const [error, setError] = useState('');
+    const [turnstileToken, setTurnstileToken] = useState('');
+    const [turnstileError, setTurnstileError] = useState('');
     const [isEndDateAuto, setIsEndDateAuto] = useState(true);
     const startDateRef = useRef<HTMLInputElement | null>(null);
     const endDateRef = useRef<HTMLInputElement | null>(null);
+
+    const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
+    const hasClientGeoKey = Boolean((import.meta as any).env?.VITE_GEOAPIFY_API_KEY);
 
     const todayLocal = (() => {
         const d = new Date();
@@ -67,6 +73,12 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         const anyEl = el as any;
         if (typeof anyEl.showPicker === 'function') anyEl.showPicker();
         else el.focus();
+    };
+
+    const getTripDayCount = (trip: Trip | undefined) => {
+        if (!trip) return 0;
+        const itineraryDays = (trip.itinerary || []).filter((d: any) => (d.day ?? 0) >= 1).length;
+        return itineraryDays || Number(trip.duration) || 0;
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -118,17 +130,29 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         e.preventDefault();
         setIsLoading(true);
         setError('');
+        setTurnstileError('');
         setGeneratedPlan(null);
         try {
+            const selectedTrip = trips.find(t => t.id === formData.tripId);
+            const baseDays = getTripDayCount(selectedTrip);
+            const needsGeoapify = !hasClientGeoKey && Number(formData.duration || 0) > baseDays;
+            if (needsGeoapify && !turnstileToken) {
+                setIsLoading(false);
+                setTurnstileError('Please complete the verification to continue.');
+                return;
+            }
+
             const plan = await buildTripPlan({
                 destination: formData.destination,
                 requestedDays: Number(formData.duration),
                 baseTripId: formData.tripId,
                 interestTags: formData.interestTags,
                 notes: formData.notes,
+                turnstileToken: turnstileToken || undefined,
                 trips,
             });
             setGeneratedPlan(plan);
+            setTurnstileToken('');
         } catch (err: any) {
             console.error(err);
             const raw = err?.message || err?.toString() || '';
@@ -193,6 +217,13 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const baseTripOptions = filteredTrips.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0));
 
     const renderPlan = (plan: PlannedItinerary) => {
+        const interestLabel = (formData.interestTags || [])
+            .map((t) => (t || '').trim())
+            .filter(Boolean)
+            .map((t) => t.charAt(0).toUpperCase() + t.slice(1))
+            .join(', ');
+        const notesLabel = (formData.notes || '').trim();
+
         return (
             <div className="space-y-6">
                 <div>
@@ -201,6 +232,20 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         Destination: <span className="font-semibold text-foreground dark:text-dark-foreground">{plan.destination}</span>
                         {plan.baseTripTitle ? <> | Base: <span className="font-semibold text-foreground dark:text-dark-foreground">{plan.baseTripTitle}</span></> : null}
                     </p>
+                    {(interestLabel || notesLabel) ? (
+                        <div className="mt-3 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-sm text-muted-foreground dark:text-dark-muted-foreground">
+                            {interestLabel ? (
+                                <div>
+                                    <span className="font-semibold text-foreground dark:text-dark-foreground">Preferences:</span> {interestLabel}
+                                </div>
+                            ) : null}
+                            {notesLabel ? (
+                                <div className={interestLabel ? 'mt-1' : ''}>
+                                    <span className="font-semibold text-foreground dark:text-dark-foreground">Notes:</span> {notesLabel}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : null}
                     {plan.notices?.length ? (
                         <div className="mt-3 space-y-2">
                             {plan.notices.map((n, i) => (
@@ -218,7 +263,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             {(() => {
                                 const hasGeoapify = (d.stops || []).some(s => s.source === 'geoapify');
                                 const hasPlaceholder = (d.stops || []).some(s => s.source === 'placeholder');
-                                const badgeText = hasGeoapify ? 'Suggested places added' : (hasPlaceholder ? 'Added day' : 'Base itinerary');
+                                const badgeText = hasGeoapify ? 'Additional stops' : (hasPlaceholder ? 'Flexible day' : 'Base plan');
                                 const badgeClass = hasGeoapify
                                     ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200'
                                     : (hasPlaceholder ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200');
@@ -247,9 +292,11 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                     <div key={`${d.day}-${i}`} className="rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card p-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="text-sm font-extrabold text-foreground dark:text-dark-foreground">{s.name}</div>
-                                            <div className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${s.source === 'geoapify' ? 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200' : (s.source === 'placeholder' ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200' : 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-200')}`}>
-                                                {s.source === 'geoapify' ? 'Suggested' : (s.source === 'placeholder' ? 'Flexible' : 'Included')}
-                                            </div>
+                                            {s.source === 'placeholder' ? (
+                                                <div className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wider bg-indigo-100 text-indigo-900 dark:bg-indigo-900/30 dark:text-indigo-200">
+                                                    Flexible
+                                                </div>
+                                            ) : null}
                                         </div>
                                         {s.description ? (
                                             <div className="mt-1 text-sm text-muted-foreground dark:text-dark-muted-foreground">{s.description}</div>
@@ -446,6 +493,36 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             <label htmlFor="notes" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Notes (optional)</label>
                             <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any must-see places or special requests (optional)." rows={4} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"></textarea>
                         </div>
+
+                        {(() => {
+                            const selectedTrip = trips.find(t => t.id === formData.tripId);
+                            const baseDays = getTripDayCount(selectedTrip);
+                            const needsGeoapify = !hasClientGeoKey && Number(formData.duration || 0) > baseDays;
+                            if (!needsGeoapify) return null;
+
+                            if (!turnstileSiteKey) {
+                                return (
+                                    <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/80 dark:bg-red-900/20 px-4 py-3 text-sm text-red-800 dark:text-red-200">
+                                        Missing <span className="font-bold">VITE_TURNSTILE_SITE_KEY</span>. Add it in Vercel and redeploy.
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="space-y-2">
+                                    <div className="text-sm font-semibold text-foreground dark:text-dark-foreground">Verification</div>
+                                    <Turnstile
+                                        siteKey={turnstileSiteKey}
+                                        theme="auto"
+                                        onToken={(t) => setTurnstileToken(t)}
+                                        onError={(m) => setTurnstileError(m)}
+                                    />
+                                    {turnstileError ? (
+                                        <div className="text-sm text-red-600 dark:text-red-300">{turnstileError}</div>
+                                    ) : null}
+                                </div>
+                            );
+                        })()}
                                                 <div>
                                                         <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3 px-8 rounded-full transition-colors duration-300 text-lg disabled:bg-brand-primary/50 shadow-xl">
                                                                 <SparklesIcon className="w-6 h-6"/>

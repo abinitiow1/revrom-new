@@ -29,9 +29,9 @@ export const getClientIp = (req: any) => {
   return 'unknown';
 };
 
-export const rateLimitOrThrow = (req: any, limit: number, windowMs: number) => {
+export const rateLimitOrThrow = (req: any, limit: number, windowMs: number, bucket: string = 'default') => {
   const ip = getClientIp(req);
-  const key = ip;
+  const key = `${bucket}:${ip}`;
   const now = Date.now();
   const cur = rateMap.get(key);
   if (!cur || now > cur.resetAt) {
@@ -93,6 +93,39 @@ export const getGeoapifyApiKey = () => {
   return key;
 };
 
+export const verifyTurnstileOrThrow = async (req: any, token: string | undefined) => {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  // Allow local/dev to function without Turnstile configured.
+  if (!secret) return;
+
+  const response = (token || '').trim();
+  if (!response) {
+    const err: any = new Error('Missing Turnstile token.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const ip = getClientIp(req);
+  const params = new URLSearchParams();
+  params.set('secret', secret);
+  params.set('response', response);
+  if (ip && ip !== 'unknown') params.set('remoteip', ip);
+
+  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+
+  const data: any = await r.json().catch(() => null);
+  if (!data?.success) {
+    const codes = Array.isArray(data?.['error-codes']) ? data['error-codes'].join(', ') : '';
+    const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);
+    err.statusCode = 403;
+    throw err;
+  }
+};
+
 export type InterestTag =
   | 'mountain'
   | 'valley'
@@ -136,4 +169,3 @@ export const mapInterestTagsToGeoapifyCategories = (tags: InterestTag[]) => {
 
   return Array.from(set);
 };
-

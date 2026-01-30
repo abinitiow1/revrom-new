@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import type { SiteContent } from '../types';
 import { subscribeNewsletter } from '../services/newsletterService';
+import Turnstile from './Turnstile';
 
 interface FooterProps {
   onNavigateHome: () => void;
@@ -65,6 +66,11 @@ const Footer: React.FC<FooterProps> = ({
   const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
   const [newsletterToast, setNewsletterToast] = useState<string | null>(null);
   const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileError, setTurnstileError] = useState('');
+
+  const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
+  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
 
   const showNewsletterToast = (text: string) => {
     setNewsletterToast(text);
@@ -178,8 +184,13 @@ const Footer: React.FC<FooterProps> = ({
 
                 setNewsletterSubmitting(true);
                 try {
-                  await subscribeNewsletter(email);
+                  if (!isLocalhost && !turnstileToken) {
+                    setTurnstileError('Please complete the verification to subscribe.');
+                    return;
+                  }
+                  await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
                   setNewsletterEmail('');
+                  setTurnstileToken('');
                   showNewsletterToast('Thanks for subscribing');
                 } catch (err: any) {
                   const msg = String(err?.message || '');
@@ -212,6 +223,20 @@ const Footer: React.FC<FooterProps> = ({
                 disabled={newsletterSubmitting}
                 className="w-full p-4 text-[10px] font-black uppercase tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
+              {!isLocalhost && turnstileSiteKey ? (
+                <div className="space-y-2">
+                  <Turnstile
+                    siteKey={turnstileSiteKey}
+                    theme="auto"
+                    size="compact"
+                    onToken={(t) => setTurnstileToken(t)}
+                    onError={(m) => setTurnstileError(m)}
+                  />
+                  {turnstileError ? (
+                    <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{turnstileError}</div>
+                  ) : null}
+                </div>
+              ) : null}
               <button
                 type="submit"
                 disabled={newsletterSubmitting}

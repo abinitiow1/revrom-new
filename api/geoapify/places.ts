@@ -7,6 +7,7 @@ import {
   rateLimitOrThrow,
   readJsonBody,
   sendJson,
+  verifyTurnstileOrThrow,
   type InterestTag,
 } from './shared.js';
 
@@ -28,16 +29,19 @@ type GeoapifyFeatureCollection = {
 
 export default async function handler(req: any, res: any) {
   try {
-    rateLimitOrThrow(req, 60, 5 * 60 * 1000); // 60 requests / 5 minutes / IP
+    rateLimitOrThrow(req, 60, 5 * 60 * 1000, 'geoapify:places'); // 60 requests / 5 minutes / IP
 
     const q = getQuery(req);
     const body = await readJsonBody(req);
+    const turnstileToken = String(body?.turnstileToken || '').trim();
 
     const lat = Number(q.get('lat') || body?.lat);
     const lon = Number(q.get('lon') || body?.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
       return sendJson(res, 400, { error: 'Missing or invalid "lat"/"lon".' });
     }
+
+    await verifyTurnstileOrThrow(req, turnstileToken);
 
     const radiusMeters = Number(q.get('radiusMeters') || body?.radiusMeters || 150000);
     const limit = Number(q.get('limit') || body?.limit || 40);

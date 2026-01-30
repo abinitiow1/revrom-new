@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import type { ItineraryQuery, SiteContent, Trip } from '../types';
+import Turnstile from '../components/Turnstile';
 
 interface BookingPageProps {
   trip: Trip;
@@ -33,9 +34,15 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileError, setTurnstileError] = useState('');
+
+  const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
+  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setTurnstileError('');
 
     // Save a lead for admin visibility when we have usable details.
     // (Supabase schema enforces 8-15 digits for whatsapp_number.)
@@ -43,13 +50,22 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
       const normalizedPhone = (phone || '').replace(/\\D/g, '');
       const normalizedName = (name || '').trim();
       if (normalizedPhone.length >= 8 && normalizedPhone.length <= 15) {
-        onAddInquiry({
-          tripId: trip.id,
-          tripTitle: trip.title,
-          name: normalizedName.length >= 2 ? normalizedName : 'Web User',
-          whatsappNumber: normalizedPhone,
-          planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
-        });
+        const needsVerification = !isLocalhost && !!turnstileSiteKey;
+        if (needsVerification && !turnstileToken) {
+          // Do not block WhatsApp; just skip saving the lead if verification is missing.
+          setTurnstileError('Please complete the verification to save your inquiry.');
+        } else {
+          onAddInquiry({
+            tripId: trip.id,
+            tripTitle: trip.title,
+            name: normalizedName.length >= 2 ? normalizedName : 'Web User',
+            whatsappNumber: normalizedPhone,
+            planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
+            // Pass token through for server-side save; not persisted in DB.
+            ...(turnstileToken ? ({ turnstileToken } as any) : {}),
+          } as any);
+          setTurnstileToken('');
+        }
       }
     } catch {}
 
@@ -163,6 +179,25 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                         </div>
                     </div>
                 </section>
+
+                {!isLocalhost && turnstileSiteKey ? (
+                  <div className="space-y-2">
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-40">Verification</div>
+                    <Turnstile
+                      siteKey={turnstileSiteKey}
+                      theme="auto"
+                      size="compact"
+                      onToken={(t) => setTurnstileToken(t)}
+                      onError={(m) => setTurnstileError(m)}
+                    />
+                    {turnstileError ? (
+                      <div className="text-sm text-red-600 dark:text-red-300">{turnstileError}</div>
+                    ) : null}
+                    <div className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                      This helps prevent spam. Your WhatsApp message will still open even if verification fails.
+                    </div>
+                  </div>
+                ) : null}
 
                 <button 
                     type="submit" 
