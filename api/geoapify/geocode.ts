@@ -1,4 +1,6 @@
-import { cacheGet, cacheSet, getGeoapifyApiKey, getQuery, rateLimitOrThrow, readJsonBody, sendJson } from './shared';
+// Note: Vercel runs API routes as ESM; relative imports must include the file extension at runtime.
+// TypeScript will resolve this to `shared.ts` locally and emit an import to `shared.js` for the deployed function.
+import { cacheGet, cacheSet, getGeoapifyApiKey, getQuery, rateLimitOrThrow, readJsonBody, sendJson } from './shared.js';
 
 // Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
 export const config = { runtime: 'nodejs' };

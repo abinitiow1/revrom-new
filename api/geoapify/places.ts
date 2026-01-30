@@ -8,7 +8,7 @@ import {
   readJsonBody,
   sendJson,
   type InterestTag,
-} from './shared';
+} from './shared.js';
 
 // Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
 export const config = { runtime: 'nodejs' };
