@@ -105,37 +105,35 @@ export type InterestTag =
 export const mapInterestTagsToGeoapifyCategories = (tags: InterestTag[]) => {
   const set = new Set<string>();
 
-  // Baseline: try to return "interesting places" and nature.
+  // Baseline: keep mapping conservative; invalid categories cause upstream 400s.
+  set.add('tourism.attraction');
   set.add('tourism.sights');
-  set.add('natural');
+  set.add('natural.mountain');
+  set.add('natural.water');
 
   for (const tag of tags || []) {
     if (tag === 'mountain' || tag === 'valley') {
       set.add('natural.mountain');
-      set.add('tourism.viewpoint');
     }
     if (tag === 'river' || tag === 'lakes') {
       set.add('natural.water');
-      set.add('tourism.viewpoint');
     }
     if (tag === 'monasteries') {
-      set.add('religion.place_of_worship');
       set.add('tourism.attraction');
     }
     if (tag === 'culture') {
       set.add('tourism.attraction');
-      set.add('heritage');
+      // Keep culture within tourism/attraction buckets to avoid invalid categories.
+      set.add('tourism.sights');
     }
     if (tag === 'adventure') {
-      set.add('sport');
-      set.add('entertainment.activity_park');
+      // Don't add aggressive categories; keep results focused on POIs.
+      set.add('tourism.sights');
     }
     if (tag === 'photography') {
-      set.add('tourism.viewpoint');
       set.add('tourism.sights');
     }
   }
 
   return Array.from(set);
 };
-

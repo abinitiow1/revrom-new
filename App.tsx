@@ -743,11 +743,26 @@ const App: React.FC = () => {
           color-scheme: dark;
         }
 
-        /* Improve contrast for the calendar/clock icons in dark mode on WebKit-based browsers. */
+        /* Improve contrast for the calendar/clock icons on WebKit-based browsers.
+           Some UAs ignore color-scheme for the indicator; force contrast explicitly. */
+        html:not(.dark) input[type="date"]::-webkit-calendar-picker-indicator,
+        html:not(.dark) input[type="time"]::-webkit-calendar-picker-indicator {
+          filter: invert(0) !important;
+          opacity: 0.85;
+        }
+
         html.dark input[type="date"]::-webkit-calendar-picker-indicator,
         html.dark input[type="time"]::-webkit-calendar-picker-indicator {
-          filter: invert(1);
+          filter: invert(1) !important;
           opacity: 0.9;
+        }
+
+        /* Use a custom calendar icon on specific inputs where native icons become inconsistent. */
+        .date-input::-webkit-calendar-picker-indicator {
+          opacity: 0 !important;
+          display: block;
+          width: 0;
+          height: 0;
         }
       `}</style>
     </div>

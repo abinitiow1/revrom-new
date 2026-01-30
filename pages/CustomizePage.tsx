@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { Trip } from '../types';
 import { buildTripPlan, type InterestTag, type PlannedItinerary } from '../services/tripPlannerService';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -35,6 +35,16 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const [generatedPlan, setGeneratedPlan] = useState<PlannedItinerary | null>(null);
     const [error, setError] = useState('');
     const [isEndDateAuto, setIsEndDateAuto] = useState(true);
+    const startDateRef = useRef<HTMLInputElement | null>(null);
+    const endDateRef = useRef<HTMLInputElement | null>(null);
+
+    const todayLocal = (() => {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    })();
 
     const computeEndDate = (startDate: string, durationStr: string) => {
         // Use YYYY-MM-DD (what <input type="date"> expects).
@@ -48,6 +58,15 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         const mm = String(base.getMonth() + 1).padStart(2, '0');
         const dd = String(base.getDate()).padStart(2, '0');
         return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const openDatePicker = (ref: React.RefObject<HTMLInputElement>) => {
+        const el = ref.current;
+        if (!el) return;
+        // showPicker is supported in Chromium-based browsers.
+        const anyEl = el as any;
+        if (typeof anyEl.showPicker === 'function') anyEl.showPicker();
+        else el.focus();
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -343,11 +362,57 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label htmlFor="startDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Start date (optional)</label>
-                                <input type="date" name="startDate" id="startDate" value={formData.startDate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                                <div className="relative mt-1">
+                                  <input
+                                    ref={startDateRef}
+                                    type="date"
+                                    name="startDate"
+                                    id="startDate"
+                                    value={formData.startDate}
+                                    min={todayLocal}
+                                    onChange={handleInputChange}
+                                    className="date-input block w-full pr-10 px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => openDatePicker(startDateRef)}
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground"
+                                    aria-label="Open start date picker"
+                                  >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M8 2v2M16 2v2" />
+                                      <path d="M3 10h18" />
+                                      <path d="M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+                                    </svg>
+                                  </button>
+                                </div>
                             </div>
                             <div>
                                 <label htmlFor="endDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">End date (optional)</label>
-                                <input type="date" name="endDate" id="endDate" value={formData.endDate} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                                <div className="relative mt-1">
+                                  <input
+                                    ref={endDateRef}
+                                    type="date"
+                                    name="endDate"
+                                    id="endDate"
+                                    value={formData.endDate}
+                                    min={formData.startDate && formData.startDate > todayLocal ? formData.startDate : todayLocal}
+                                    onChange={handleInputChange}
+                                    className="date-input block w-full pr-10 px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => openDatePicker(endDateRef)}
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground"
+                                    aria-label="Open end date picker"
+                                  >
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M8 2v2M16 2v2" />
+                                      <path d="M3 10h18" />
+                                      <path d="M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
+                                    </svg>
+                                  </button>
+                                </div>
                             </div>
                         </div>
                         <div>

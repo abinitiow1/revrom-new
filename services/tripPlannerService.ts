@@ -152,14 +152,27 @@ export const buildTripPlan = async (args: {
   let center: { lat: number; lon: number; formatted?: string } | null = null;
   try {
     center = await geoapifyGeocode(destination);
-    // Conservative radius: works for large regions but avoids suggesting very far places.
-    const radiusMeters = 150_000;
-    candidates = await geoapifyPlacesNearby({
-      center,
-      radiusMeters,
-      interestTags: args.interestTags || [],
-      limit: Math.max(30, remaining * 10),
-    });
+    // Fetch in increasing radii to reduce "generic" placeholder days.
+    const radii = [75_000, 150_000, 250_000];
+    const want = Math.max(30, remaining * 12);
+    const combined: GeoapifyPlace[] = [];
+    const seen = new Set<string>();
+    for (const radiusMeters of radii) {
+      const batch = await geoapifyPlacesNearby({
+        center,
+        radiusMeters,
+        interestTags: args.interestTags || [],
+        limit: want,
+      });
+      for (const p of batch) {
+        if (!p?.id) continue;
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        combined.push(p);
+      }
+      if (combined.length >= want) break;
+    }
+    candidates = combined;
   } catch (e: any) {
     // Do not fail the whole planner if Geoapify is down/misconfigured.
     // We still return a complete day count using placeholders.
@@ -184,14 +197,34 @@ export const buildTripPlan = async (args: {
     if (!key) continue;
     if (existing.has(key)) continue;
 
-    // Filter obvious non-POI names.
-    if (key.includes('hotel') || key.includes('restaurant')) continue;
-
     const distanceKm = center ? haversineKm(center, { lat: p.lat, lon: p.lon }) : 0;
     uniquePlaces.push({ ...p, distanceKm });
   }
 
   uniquePlaces.sort((a, b) => a.distanceKm - b.distanceKm);
+
+  // If we still don't have enough places, relax filters slightly (but keep them last).
+  if (uniquePlaces.length < remaining) {
+    const relaxed: (GeoapifyPlace & { distanceKm: number })[] = [];
+    for (const p of candidates) {
+      if (!p?.name) continue;
+      const key = normalize(p.name);
+      if (!key || existing.has(key)) continue;
+      // Only include obvious commercial POIs if we are short on options.
+      if (!(key.includes('hotel') || key.includes('restaurant') || key.includes('cafe'))) continue;
+      const distanceKm = center ? haversineKm(center, { lat: p.lat, lon: p.lon }) : 0;
+      relaxed.push({ ...p, distanceKm });
+    }
+    relaxed.sort((a, b) => a.distanceKm - b.distanceKm);
+    for (const p of relaxed) {
+      if (uniquePlaces.length >= remaining * 2) break;
+      // Avoid duplicates by name.
+      const k = normalize(p.name);
+      if (!k) continue;
+      if (uniquePlaces.some((x) => normalize(x.name) === k)) continue;
+      uniquePlaces.push(p);
+    }
+  }
 
   const extraDays: PlannedDay[] = [];
   const startDay = baseCount + 1;
