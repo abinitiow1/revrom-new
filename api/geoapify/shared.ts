@@ -85,6 +85,7 @@ export const sendJson = (res: any, statusCode: number, data: any, headers?: Reco
 export const getGeoapifyApiKey = () => {
   const key = process.env.GEOAPIFY_API_KEY;
   if (!key) {
+    console.error('Geoapify API key missing: process.env.GEOAPIFY_API_KEY is not set');
     const err: any = new Error('Missing GEOAPIFY_API_KEY server environment variable.');
     err.statusCode = 500;
     throw err;
