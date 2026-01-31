@@ -110,14 +110,39 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   params.set('secret', secret);
   params.set('response', response);
   if (ip && ip !== 'unknown') params.set('remoteip', ip);
+  let r: any;
+  try {
+    r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    });
+  } catch (fetchErr: any) {
+    console.error('Turnstile verification fetch error:', fetchErr?.message || fetchErr);
+    const err: any = new Error('Failed to verify Turnstile token (network error).');
+    err.statusCode = 502;
+    throw err;
+  }
 
-  const r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: params.toString(),
-  });
-
+  const status = r?.status || 0;
   const data: any = await r.json().catch(() => null);
+
+  // Log the verification response for diagnostics (do not log secrets or tokens)
+  console.error('Turnstile verify result', { status, body: data, remoteip: ip });
+
+  // Cloudflare returns 401 when the secret is invalid/unauthorized.
+  if (status === 401) {
+    const err: any = new Error('Turnstile server returned 401 (invalid secret or unauthorized).');
+    err.statusCode = 401;
+    throw err;
+  }
+
+  if (!r.ok) {
+    const err: any = new Error(`Turnstile verification request failed (${status}).`);
+    err.statusCode = status || 502;
+    throw err;
+  }
+
   if (!data?.success) {
     const codes = Array.isArray(data?.['error-codes']) ? data['error-codes'].join(', ') : '';
     const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);

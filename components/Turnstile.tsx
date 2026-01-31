@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 declare global {
   interface Window {
@@ -16,15 +16,35 @@ type Props = {
   onError?: (message: string) => void;
   theme?: 'auto' | 'light' | 'dark';
   size?: 'normal' | 'compact';
+  showRetry?: boolean;
 };
 
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 
-export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal' }: Props) {
+export default function Turnstile({
+  siteKey,
+  onToken,
+  onError,
+  theme = 'auto',
+  size = 'normal',
+  showRetry = true,
+}: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
+  const [hasError, setHasError] = useState(false);
 
   const scriptId = useMemo(() => 'cf-turnstile-script', []);
+
+  const reset = useCallback(() => {
+    if (!window.turnstile?.reset) return;
+    try {
+      window.turnstile.reset(widgetIdRef.current || undefined);
+      setHasError(false);
+      onToken('');
+    } catch {
+      // ignore
+    }
+  }, [onToken]);
 
   useEffect(() => {
     if (!siteKey) return;
@@ -55,11 +75,21 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
           sitekey: siteKey,
           theme,
           size,
-          callback: (token: string) => onToken(token),
-          'expired-callback': () => onToken(''),
+          callback: (token: string) => {
+            setHasError(false);
+            onToken(token);
+          },
+          'expired-callback': () => {
+            onToken('');
+            // Expired tokens are common; reset so the user can re-verify.
+            setTimeout(() => reset(), 50);
+          },
           'error-callback': () => {
             onToken('');
+            setHasError(true);
             onError?.('Turnstile verification failed. Please try again.');
+            // If Cloudflare fails (common on some devices/browsers), reset so user can retry.
+            setTimeout(() => reset(), 200);
           },
         });
       } catch (e: any) {
@@ -82,8 +112,29 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       }
       widgetIdRef.current = null;
     };
-  }, [onError, onToken, scriptId, siteKey, size, theme]);
+  }, [onError, onToken, reset, scriptId, siteKey, size, theme]);
 
-  return <div ref={containerRef} />;
+  return (
+    <div>
+      <div ref={containerRef} />
+      {showRetry && hasError && (
+        <button
+          type="button"
+          onClick={reset}
+          style={{
+            marginTop: 8,
+            fontSize: 12,
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            textDecoration: 'underline',
+            cursor: 'pointer',
+            color: 'inherit',
+          }}
+        >
+          Retry verification
+        </button>
+      )}
+    </div>
+  );
 }
-
