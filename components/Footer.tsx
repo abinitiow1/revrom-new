@@ -172,6 +172,9 @@ const Footer: React.FC<FooterProps> = ({
                   showNewsletterToast('Enter a valid email');
                   return;
                 }
+
+                // Client-side throttle: only block if the previous *successful* submit was recent.
+                // Do not set the timestamp before the request, otherwise a failed request "locks" the user out.
                 try {
                   const key = 'newsletter_last_submit_ts';
                   const last = Number(localStorage.getItem(key) || '0');
@@ -180,7 +183,6 @@ const Footer: React.FC<FooterProps> = ({
                     showNewsletterToast('Please wait and try again');
                     return;
                   }
-                  localStorage.setItem(key, String(now));
                 } catch {}
 
                 setNewsletterSubmitting(true);
@@ -196,6 +198,9 @@ const Footer: React.FC<FooterProps> = ({
                     }
                   }
                   await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
+                  try {
+                    localStorage.setItem('newsletter_last_submit_ts', String(Date.now()));
+                  } catch {}
                   setNewsletterEmail('');
                   setTurnstileToken('');
                   showNewsletterToast('Thanks for subscribing');
