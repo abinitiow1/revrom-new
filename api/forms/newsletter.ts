@@ -13,7 +13,10 @@ export default async function handler(req: any, res: any) {
     const turnstileToken = String(body?.turnstileToken || '').trim();
     await verifyTurnstileOrThrow(req, turnstileToken);
 
-    const email = String(body?.email || '').trim().toLowerCase();
+    const email = String(body?.email || '')
+      .replace(/[\\s\\u200B-\\u200D\\uFEFF]/g, '')
+      .trim()
+      .toLowerCase();
     if (!email || !/\\S+@\\S+\\.\\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' });
 
     const supabase = getSupabaseAdmin() as any;

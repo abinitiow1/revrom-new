@@ -7,7 +7,11 @@ export const subscribeNewsletter = async (
   email: string,
   opts?: { turnstileToken?: string }
 ): Promise<{ duplicate?: boolean }> => {
-  const normalized = (email || '').trim().toLowerCase();
+  // Normalize aggressively: users often paste emails with spaces/zero-width chars via autofill.
+  const normalized = (email || '')
+    .replace(/[\s\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .toLowerCase();
 
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
   if (!isLocalhost) {

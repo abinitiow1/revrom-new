@@ -167,7 +167,10 @@ const Footer: React.FC<FooterProps> = ({
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (newsletterHoneypot.trim()) return;
-                const email = (newsletterEmail || '').replace(/\s+/g, '').trim().toLowerCase();
+                const email = (newsletterEmail || '')
+                  .replace(/[\s\u200B-\u200D\uFEFF]/g, '')
+                  .trim()
+                  .toLowerCase();
                 if (!/\S+@\S+\.\S+/.test(email)) {
                   showNewsletterToast('Enter a valid email');
                   return;
