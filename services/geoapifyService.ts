@@ -82,7 +82,6 @@ export const geoapifyPlacesNearby = async (args: {
   radiusMeters: number;
   interestTags: string[];
   limit: number;
-  turnstileToken?: string;
   // Optional free-text to help relevance (Geoapify supports it as "name" filter only indirectly, so we keep it for future).
 }): Promise<GeoapifyPlace[]> => {
   const { center, radiusMeters, limit } = args;
@@ -135,7 +134,6 @@ export const geoapifyPlacesNearby = async (args: {
       radiusMeters,
       limit,
       interestTags: args.interestTags || [],
-      turnstileToken: args.turnstileToken,
     }),
   });
   const data = await res.json().catch(() => ({}));

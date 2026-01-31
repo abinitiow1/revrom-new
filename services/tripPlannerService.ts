@@ -111,7 +111,6 @@ export const buildTripPlan = async (args: {
   baseTripId?: string;
   interestTags: InterestTag[];
   notes?: string;
-  turnstileToken?: string;
   trips: Trip[];
 }): Promise<PlannedItinerary> => {
   const destination = (args.destination || '').trim();
@@ -169,7 +168,7 @@ export const buildTripPlan = async (args: {
   let candidates: GeoapifyPlace[] = [];
   let center: { lat: number; lon: number; formatted?: string } | null = null;
   try {
-    center = await geoapifyGeocode(destination, { turnstileToken: args.turnstileToken });
+    center = await geoapifyGeocode(destination);
     // Fetch in increasing radii to reduce "generic" placeholder days.
     const radii = [75_000, 150_000, 250_000];
     const want = Math.max(30, remaining * 12);
@@ -181,7 +180,6 @@ export const buildTripPlan = async (args: {
         radiusMeters,
         interestTags: args.interestTags || [],
         limit: want,
-        turnstileToken: args.turnstileToken,
       });
       for (const p of batch) {
         if (!p?.id) continue;

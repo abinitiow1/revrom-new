@@ -41,7 +41,7 @@ VITE_TURNSTILE_SITE_KEY=...   # Cloudflare Turnstile site key (public)
 If you deploy to Vercel and want the `/api/*` routes (forms, Turnstile verification, Geoapify proxy) to work, set these in Vercel Project Settings → Environment Variables:
 
 ```
-TURNSTILE_SECRET_KEY=...           # Cloudflare Turnstile secret key (server-only)
+TURNSTILE_SECRET_KEY=...           # Cloudflare Turnstile secret key (server-only) - used for forms
 TURNSTILE_EXPECTED_HOSTNAMES=...   # optional: comma-separated hostnames
 SUPABASE_URL=...
 SUPABASE_SERVICE_ROLE_KEY=...      # server-only (never expose as VITE_*)

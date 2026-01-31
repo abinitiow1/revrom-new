@@ -41,7 +41,7 @@ const App: React.FC = () => {
   const DATA_MODE =
     ((import.meta as any).env?.VITE_DATA_MODE as string | undefined) ||
     ((window as any).__REVROM_DATA_MODE__ as string | undefined) ||
-    'local';
+    (((import.meta as any).env?.PROD as boolean | undefined) ? 'supabase' : 'local');
   const isSupabaseMode = DATA_MODE === 'supabase';
   const [isRemoteReady, setIsRemoteReady] = useState(!isSupabaseMode);
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
