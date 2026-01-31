@@ -4,6 +4,11 @@ type CacheEntry<T> = { value: T; expiresAt: number };
 
 const memoryCache = new Map<string, CacheEntry<any>>();
 
+// Turnstile tokens are intended to be single-use, but real UIs can trigger duplicate server calls
+// (double-clicks, retries, parallel requests). To avoid false negatives, cache successful
+// verifications for a short window keyed by token + IP.
+const verifiedTurnstileCache = new Map<string, number>();
+
 export const cacheGet = <T>(key: string): T | null => {
   const entry = memoryCache.get(key);
   if (!entry) return null;
@@ -118,6 +123,12 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   }
 
   const ip = getClientIp(req);
+  const cacheKey = `${response}:${ip || 'unknown'}`;
+  const now = Date.now();
+  const cachedOkUntil = verifiedTurnstileCache.get(cacheKey);
+  if (cachedOkUntil && now < cachedOkUntil) return;
+  if (cachedOkUntil && now >= cachedOkUntil) verifiedTurnstileCache.delete(cacheKey);
+
   const params = new URLSearchParams();
   params.set('secret', secret);
   params.set('response', response);
@@ -157,9 +168,24 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
 
   if (!data?.success) {
     const codes = Array.isArray(data?.['error-codes']) ? data['error-codes'].join(', ') : '';
+
+    // If we already verified this token recently for this IP, treat it as OK.
+    // This specifically avoids spurious "timeout-or-duplicate" failures from repeated calls.
+    if (cachedOkUntil && codes.includes('timeout-or-duplicate')) return;
+
     const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);
     err.statusCode = 403;
     throw err;
+  }
+
+  // Cache successful verification briefly to tolerate duplicate requests.
+  verifiedTurnstileCache.set(cacheKey, now + 2 * 60 * 1000); // 2 minutes
+  // Best-effort pruning to avoid unbounded growth.
+  if (verifiedTurnstileCache.size > 2000) {
+    for (const [k, exp] of verifiedTurnstileCache.entries()) {
+      if (exp <= now) verifiedTurnstileCache.delete(k);
+      if (verifiedTurnstileCache.size <= 1500) break;
+    }
   }
 
   // Optional: lock verification to expected hostnames (comma-separated list).
