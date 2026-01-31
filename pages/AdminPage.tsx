@@ -57,6 +57,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [inboxFromDate, setInboxFromDate] = useState('');
   const [inboxToDate, setInboxToDate] = useState('');
   const [editingItem, setEditingItem] = useState<any>(null);
+  const [itineraryInput, setItineraryInput] = useState('');
+  const [itineraryInputError, setItineraryInputError] = useState<string>('');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGalleryPickerOpen, setIsGalleryPickerOpen] = useState<{ isOpen: boolean; onSelect: (url: string) => void }>({ isOpen: false, onSelect: () => {} });
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
@@ -76,6 +78,21 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
     // auto-clear after 2500ms
     noticeTimerRef.current = window.setTimeout(() => setAdminNotice(null), 2500);
+  };
+
+  const parseDayFromToken = (s: string): number => {
+    const m = String(s || '').match(/(\d{1,3})/);
+    if (!m) return NaN;
+    return Number(m[1]);
+  };
+
+  const formatItineraryLines = (itinerary: Trip['itinerary']): string => {
+    const rows = Array.isArray(itinerary) ? itinerary : [];
+    return rows
+      .slice()
+      .sort((a, b) => (a.day ?? 0) - (b.day ?? 0))
+      .map((d) => `${d.day} | ${String(d.title || '').trim()} | ${String(d.description || '').trim()}`.trim())
+      .join('\n');
   };
 
   const normalizeTripItinerary = (value: unknown): Trip['itinerary'] | null => {
@@ -131,6 +148,56 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
     mapped.sort((a, b) => (a.day ?? 0) - (b.day ?? 0));
     return mapped;
+  };
+
+  const parseItineraryText = (text: string): { itinerary: Trip['itinerary']; error: string | null } => {
+    const raw = String(text || '').trim();
+    if (!raw) return { itinerary: [], error: null };
+
+    // Power users can still paste JSON.
+    if (raw.startsWith('[') || raw.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(raw);
+        const normalized = normalizeTripItinerary(parsed);
+        if (!normalized) return { itinerary: [], error: 'Invalid JSON itinerary. Expected an array of {day,title,description} or an object with { itinerary: [...] }.' };
+        return { itinerary: normalized, error: null };
+      } catch {
+        return { itinerary: [], error: 'Invalid JSON: could not parse.' };
+      }
+    }
+
+    // Human-friendly format: `1 | Title | Description`
+    const lines = raw
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    const out: Trip['itinerary'] = [];
+    const seenDays = new Set<number>();
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const parts = line.split('|').map((p) => p.trim());
+      if (parts.length < 2) {
+        return { itinerary: [], error: `Line ${i + 1} is invalid. Use: Day | Title | Description` };
+      }
+      const day = parseDayFromToken(parts[0]);
+      if (!Number.isFinite(day) || day < 1) {
+        return { itinerary: [], error: `Line ${i + 1} has invalid day. Use "1" or "Day 1".` };
+      }
+      if (seenDays.has(day)) {
+        return { itinerary: [], error: `Duplicate day "${day}" on line ${i + 1}.` };
+      }
+      seenDays.add(day);
+
+      const title = String(parts[1] || '').trim();
+      if (!title) return { itinerary: [], error: `Line ${i + 1} is missing a title.` };
+      const description = String(parts.slice(2).join(' | ') || '').trim();
+      out.push({ day, title, description });
+    }
+
+    out.sort((a, b) => (a.day ?? 0) - (b.day ?? 0));
+    return { itinerary: out, error: null };
   };
 
   const parseDateInput = (value: string): Date | null => {
@@ -191,6 +258,25 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
   useEffect(() => {
     setValidationAttempted(false);
+  }, [activeTab, editingItem]);
+
+  const itinerarySeedRef = React.useRef<string | null>(null);
+  useEffect(() => {
+    if (activeTab !== 'TOURS') return;
+    if (!editingItem) {
+      itinerarySeedRef.current = null;
+      setItineraryInput('');
+      setItineraryInputError('');
+      return;
+    }
+
+    const key = String(editingItem?.id || '__new__');
+    if (itinerarySeedRef.current === key) return;
+    itinerarySeedRef.current = key;
+
+    const current = Array.isArray(editingItem?.itinerary) ? (editingItem.itinerary as Trip['itinerary']) : [];
+    setItineraryInput(formatItineraryLines(current));
+    setItineraryInputError('');
   }, [activeTab, editingItem]);
 
   const readFileAsDataUrl = (file: File): Promise<string> =>
@@ -1449,6 +1535,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       if (!editingItem.destination?.trim()) return 'Destination is required.';
       if (!Number.isFinite(Number(editingItem.duration)) || Number(editingItem.duration) <= 0) return 'Duration must be > 0.';
       if (!editingItem.imageUrl?.trim()) return 'Tour main image is required.';
+      if (itineraryInputError) return itineraryInputError;
       if (editingItem.itinerary != null && !Array.isArray(editingItem.itinerary)) {
         return 'Itinerary must be a JSON array (or an object with { itinerary: [...] }).';
       }
@@ -1861,22 +1948,26 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                               <textarea value={editingItem.longDescription} onChange={e => setEditingItem({...editingItem, longDescription: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium h-56 outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed text-foreground dark:text-dark-foreground" />
                           </div>
                            <div className="flex flex-col gap-2 mb-6">
-                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Itinerary (JSON)</label>
-                              <textarea 
-                                value={JSON.stringify(editingItem.itinerary, null, 2)} 
-                               onChange={e => { 
-                                 try { 
-                                   const parsed = JSON.parse(e.target.value);
-                                   const normalized = normalizeTripItinerary(parsed);
-                                   if (!normalized) return;
-                                   setEditingItem({ ...editingItem, itinerary: normalized });
-                                 } catch(err) {} 
-                               }} 
-                                className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" 
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Itinerary</label>
+                              <textarea
+                                value={itineraryInput}
+                                onChange={(e) => {
+                                  const next = e.target.value;
+                                  setItineraryInput(next);
+                                  const parsed = parseItineraryText(next);
+                                  setItineraryInputError(parsed.error || '');
+                                  if (!parsed.error) setEditingItem({ ...editingItem, itinerary: parsed.itinerary });
+                                }}
+                                placeholder={`1 | Arrival in Leh | Acclimatization & leisure\n2 | Sham Valley | Hall of Fame, Sangam, Shanti Stupa`}
+                                className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[12px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
                               />
-                              <div className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
-                                Paste either <span className="font-mono">[{`{day,title,description}`}]</span> or <span className="font-mono">{`{ itinerary: [...] }`}</span>. Extra fields (stay/activities) are converted into description.
-                              </div>
+                              {itineraryInputError ? (
+                                <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{itineraryInputError}</div>
+                              ) : (
+                                <div className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                                  Format: <span className="font-mono">Day | Title | Description</span>. Example: <span className="font-mono">1 | Arrival | Check-in</span>. JSON is also accepted.
+                                </div>
+                              )}
                            </div>
 
                           <div className="space-y-4">
@@ -2202,5 +2293,4 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 };
 
 export default AdminPage;
-
 
