@@ -1501,7 +1501,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
            }}
            className="px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest bg-background/60 dark:bg-dark-background/40 border border-border dark:border-dark-border text-foreground dark:text-dark-foreground active:scale-95 transition-transform"
          >
-           â† Site
+          ← Site
          </button>
          <div className="flex flex-col min-w-0 flex-1">
             <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-40 leading-none mb-1">ADMIN</span>
@@ -1845,10 +1845,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                     <div key={dep.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border dark:border-dark-border bg-background/40 dark:bg-dark-background/40">
                                       <div className="min-w-0">
                                         <div className="text-xs font-black text-foreground dark:text-dark-foreground truncate">
-                                          {dep.startDate} â†’ {dep.endDate}
+                                          {dep.startDate} → {dep.endDate}
                                         </div>
                                         <div className="text-[11px] text-muted-foreground">
-                                          {dep.status} Â· {dep.slots} slots
+                                          {dep.status} · {dep.slots} slots
                                         </div>
                                       </div>
                                       <div className="flex items-center gap-2 shrink-0">

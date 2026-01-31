@@ -1,6 +1,7 @@
 // Note: Vercel runs API routes as ESM; relative imports must include the file extension at runtime.
 // TypeScript will resolve this to `shared.ts` locally and emit an import to `shared.js` for the deployed function.
 import { cacheGet, cacheSet, getGeoapifyApiKey, getQuery, rateLimitOrThrow, readJsonBody, sendJson } from './shared.js';
+import { fetchWithTimeout } from './fetchWithTimeout.js';
 
 // Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
 export const config = { runtime: 'nodejs' };
@@ -36,8 +37,14 @@ export default async function handler(req: any, res: any) {
         apiKey,
       }).toString();
 
-    const upstream = await fetch(url);
-    if (!upstream.ok) return sendJson(res, 502, { error: `Geoapify geocode failed (${upstream.status}).` });
+    const upstream = await fetchWithTimeout(url, { method: 'GET' }, 4000, 1);
+    if (!upstream.ok) {
+      if (upstream.status === 401) {
+        console.error('Geoapify returned 401 (invalid key). Set GEOAPIFY_API_KEY (server env) with your Geoapify API key.');
+        return sendJson(res, 502, { error: `Geoapify geocode failed (401). Check GEOAPIFY_API_KEY on the server.` });
+      }
+      return sendJson(res, 502, { error: `Geoapify geocode failed (${upstream.status}).` });
+    }
     const data = (await upstream.json()) as GeoapifyFeatureCollection;
     const feature = data?.features?.[0];
     const coords = feature?.geometry?.coordinates;

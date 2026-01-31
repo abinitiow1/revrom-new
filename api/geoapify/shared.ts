@@ -9,6 +9,8 @@ const memoryCache = new Map<string, CacheEntry<any>>();
 // verifications for a short window keyed by token + IP.
 const verifiedTurnstileCache = new Map<string, number>();
 
+import { fetchWithTimeout } from './fetchWithTimeout.js';
+
 export const cacheGet = <T>(key: string): T | null => {
   const entry = memoryCache.get(key);
   if (!entry) return null;
@@ -21,6 +23,14 @@ export const cacheGet = <T>(key: string): T | null => {
 
 export const cacheSet = <T>(key: string, value: T, ttlMs: number) => {
   memoryCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  // Light pruning to avoid unbounded growth
+  if (memoryCache.size > 2000) {
+    const now = Date.now();
+    for (const [k, e] of memoryCache.entries()) {
+      if (e.expiresAt <= now) memoryCache.delete(k);
+      if (memoryCache.size <= 1500) break;
+    }
+  }
 };
 
 type RateState = { count: number; resetAt: number };
@@ -52,6 +62,15 @@ export const rateLimitOrThrow = (req: any, limit: number, windowMs: number, buck
   }
   cur.count += 1;
   rateMap.set(key, cur);
+
+  // Periodic pruning to avoid unbounded map size
+  if (rateMap.size > 5000) {
+    const now = Date.now();
+    for (const [k, v] of rateMap.entries()) {
+      if (v.resetAt + 60 * 60 * 1000 < now) rateMap.delete(k); // purge very old entries
+      if (rateMap.size <= 4000) break;
+    }
+  }
 };
 
 export const readJsonBody = async (req: any): Promise<any> => {
@@ -133,17 +152,18 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   params.set('secret', secret);
   params.set('response', response);
   if (ip && ip !== 'unknown') params.set('remoteip', ip);
+
   let r: any;
   try {
-    r = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    r = await fetchWithTimeout('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
-    });
+    }, 4000, 1);
   } catch (fetchErr: any) {
     console.error('Turnstile verification fetch error:', fetchErr?.message || fetchErr);
-    const err: any = new Error('Failed to verify Turnstile token (network error).');
-    err.statusCode = 502;
+    const err: any = new Error('Failed to verify Turnstile token (network error or timeout).');
+    err.statusCode = fetchErr?.statusCode || 502;
     throw err;
   }
 
@@ -155,7 +175,8 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
 
   // Cloudflare returns 401 when the secret is invalid/unauthorized.
   if (status === 401) {
-    const err: any = new Error('Turnstile server returned 401 (invalid secret or unauthorized).');
+    console.error('Turnstile verification returned 401. The TURNSTILE_SECRET_KEY may be missing, invalid, or belongs to a different account.');
+    const err: any = new Error('Turnstile verification returned 401 (invalid TURNSTILE_SECRET_KEY). Ensure you set the **server** environment variable TURNSTILE_SECRET_KEY to the *secret key* (not the site key) in your deployment (Vercel / server env).');
     err.statusCode = 401;
     throw err;
   }

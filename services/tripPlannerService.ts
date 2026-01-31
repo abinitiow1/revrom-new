@@ -169,18 +169,25 @@ export const buildTripPlan = async (args: {
   let center: { lat: number; lon: number; formatted?: string } | null = null;
   try {
     center = await geoapifyGeocode(destination);
-    // Fetch in increasing radii to reduce "generic" placeholder days.
+    // Fetch in multiple radii in parallel with per-call client timeout to reduce tail latency.
     const radii = [75_000, 150_000, 250_000];
     const want = Math.max(30, remaining * 12);
     const combined: GeoapifyPlace[] = [];
     const seen = new Set<string>();
-    for (const radiusMeters of radii) {
-      const batch = await geoapifyPlacesNearby({
-        center,
-        radiusMeters,
-        interestTags: args.interestTags || [],
-        limit: want,
-      });
+
+    const promises = radii.map((radiusMeters) =>
+      (async () => {
+        try {
+          const batch = await geoapifyPlacesNearby({ center, radiusMeters, interestTags: args.interestTags || [], limit: want });
+          return Array.isArray(batch) ? batch : [];
+        } catch {
+          return [] as GeoapifyPlace[];
+        }
+      })(),
+    );
+
+    const settled = await Promise.all(promises);
+    for (const batch of settled) {
       for (const p of batch) {
         if (!p?.id) continue;
         if (seen.has(p.id)) continue;
@@ -189,8 +196,7 @@ export const buildTripPlan = async (args: {
       }
       if (combined.length >= want) break;
     }
-    candidates = combined;
-  } catch (e: any) {
+
     // Do not fail the whole planner if Geoapify is down/misconfigured.
     // We still return a complete day count using placeholders.
     notices.push('Could not fetch extra places right now. Added flexible placeholder days instead.');

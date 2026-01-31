@@ -126,7 +126,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                 setNotice('Opening WhatsApp… (saving is temporarily limited)');
             } else {
                 if (!isLocalhost && !turnstileToken) {
-                    setNotice('Opening WhatsAppâ€¦ (verification is required to save your message)');
+                    setNotice('Opening WhatsApp… (verification is required to save your message)');
                 } else {
                     await submitContactMessage({ name, email, message, turnstileToken: turnstileToken || undefined });
                     setTurnstileToken('');

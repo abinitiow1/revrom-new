@@ -9,6 +9,7 @@ import {
   sendJson,
   type InterestTag,
 } from './shared.js';
+import { fetchWithTimeout } from './fetchWithTimeout.js';
 
 // Ensure Vercel runs this as a Node.js Serverless Function (not Edge).
 export const config = { runtime: 'nodejs' };
@@ -61,8 +62,14 @@ export default async function handler(req: any, res: any) {
         apiKey,
       }).toString();
 
-    const upstream = await fetch(url);
-    if (!upstream.ok) return sendJson(res, 502, { error: `Geoapify places failed (${upstream.status}).` });
+    const upstream = await fetchWithTimeout(url, { method: 'GET' }, 4000, 1);
+    if (!upstream.ok) {
+      if (upstream.status === 401) {
+        console.error('Geoapify returned 401 (invalid key). Set GEOAPIFY_API_KEY (server env) with your Geoapify API key.');
+        return sendJson(res, 502, { error: `Geoapify places failed (401). Check GEOAPIFY_API_KEY on the server.` });
+      }
+      return sendJson(res, 502, { error: `Geoapify places failed (${upstream.status}).` });
+    }
     const data = (await upstream.json()) as GeoapifyFeatureCollection;
 
     const places = (data?.features || [])

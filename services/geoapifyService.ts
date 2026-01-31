@@ -6,6 +6,8 @@ type GeoapifyFeatureCollection = {
   }>;
 };
 
+import { fetchWithTimeout as clientFetchWithTimeout } from './fetchWithTimeout';
+
 const getClientGeoapifyKeyIfPresent = () =>
   ((import.meta as any).env?.VITE_GEOAPIFY_API_KEY as string | undefined) || undefined;
 
@@ -58,11 +60,12 @@ export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: st
   }
 
   // Otherwise, use server-side proxy (Vercel /api/*).
-  const res = await fetch('/api/geoapify/geocode', {
+
+  const res = await clientFetchWithTimeout('/api/geoapify/geocode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: q }),
-  });
+  }, 4000, 1);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Geoapify geocode failed (${res.status}).`);
   return { lat: data.lat, lon: data.lon, formatted: data.formatted };
@@ -125,7 +128,7 @@ export const geoapifyPlacesNearby = async (args: {
   }
 
   // Otherwise, use server-side proxy (Vercel /api/*).
-  const res = await fetch('/api/geoapify/places', {
+  const res = await clientFetchWithTimeout('/api/geoapify/places', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -135,7 +138,7 @@ export const geoapifyPlacesNearby = async (args: {
       limit,
       interestTags: args.interestTags || [],
     }),
-  });
+  }, 5000, 1);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Geoapify places failed (${res.status}).`);
 
