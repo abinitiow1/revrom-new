@@ -78,6 +78,61 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     noticeTimerRef.current = window.setTimeout(() => setAdminNotice(null), 2500);
   };
 
+  const normalizeTripItinerary = (value: unknown): Trip['itinerary'] | null => {
+    const extractArray = (v: any): any[] | null => {
+      if (Array.isArray(v)) {
+        // Common copy-paste format: [{ state: "...", itinerary: [...] }]
+        if (v.length === 1 && v[0] && typeof v[0] === 'object' && Array.isArray((v[0] as any).itinerary)) {
+          return (v[0] as any).itinerary as any[];
+        }
+        return v as any[];
+      }
+      if (v && typeof v === 'object' && Array.isArray((v as any).itinerary)) {
+        // Common format: { state: "...", itinerary: [...] }
+        return (v as any).itinerary as any[];
+      }
+      return null;
+    };
+
+    const arr = extractArray(value);
+    if (!arr) return null;
+
+    const mapped = arr
+      .map((raw: any, idx: number) => {
+        if (!raw || typeof raw !== 'object') return null;
+        const dayNum = Number((raw as any).day ?? (idx + 1));
+        if (!Number.isFinite(dayNum) || dayNum < 1) return null;
+
+        const title = String((raw as any).title || (raw as any).name || (raw as any).stay || `Day ${dayNum}`).trim();
+        if (!title) return null;
+
+        const descriptionRaw =
+          typeof (raw as any).description === 'string'
+            ? (raw as any).description
+            : (() => {
+                const parts: string[] = [];
+                if ((raw as any).stay) parts.push(`Stay: ${String((raw as any).stay).trim()}`);
+                if ((raw as any).state) parts.push(`State: ${String((raw as any).state).trim()}`);
+                const activities = Array.isArray((raw as any).activities) ? (raw as any).activities : null;
+                if (activities && activities.length) {
+                  parts.push('Activities:');
+                  parts.push(...activities.map((a: any) => `- ${String(a).trim()}`));
+                }
+                return parts.join('\n').trim();
+              })();
+
+        return {
+          day: dayNum,
+          title,
+          description: String(descriptionRaw || '').trim(),
+        };
+      })
+      .filter(Boolean) as Trip['itinerary'];
+
+    mapped.sort((a, b) => (a.day ?? 0) - (b.day ?? 0));
+    return mapped;
+  };
+
   const parseDateInput = (value: string): Date | null => {
     if (!value) return null;
     const parts = value.split('-').map(Number);
@@ -1394,6 +1449,17 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       if (!editingItem.destination?.trim()) return 'Destination is required.';
       if (!Number.isFinite(Number(editingItem.duration)) || Number(editingItem.duration) <= 0) return 'Duration must be > 0.';
       if (!editingItem.imageUrl?.trim()) return 'Tour main image is required.';
+      if (editingItem.itinerary != null && !Array.isArray(editingItem.itinerary)) {
+        return 'Itinerary must be a JSON array (or an object with { itinerary: [...] }).';
+      }
+      if (Array.isArray(editingItem.itinerary)) {
+        for (const d of editingItem.itinerary) {
+          if (!d || typeof d !== 'object') return 'Itinerary items must be objects.';
+          if (!Number.isFinite(Number((d as any).day)) || Number((d as any).day) < 1) return 'Each itinerary item must have a valid "day" number.';
+          if (!String((d as any).title || '').trim()) return 'Each itinerary item must have a "title".';
+          if (typeof (d as any).description !== 'string') return 'Each itinerary item must have a "description" string (can be empty).';
+        }
+      }
       return null;
     }
 
@@ -1794,14 +1860,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                               <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Description (Markdown)</label>
                               <textarea value={editingItem.longDescription} onChange={e => setEditingItem({...editingItem, longDescription: e.target.value})} className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-medium h-56 outline-none resize-none text-sm focus:border-brand-primary shadow-sm leading-relaxed text-foreground dark:text-dark-foreground" />
                           </div>
-                          <div className="flex flex-col gap-2 mb-6">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Itinerary (JSON)</label>
-                             <textarea 
-                               value={JSON.stringify(editingItem.itinerary, null, 2)} 
-                               onChange={e => { try { setEditingItem({...editingItem, itinerary: JSON.parse(e.target.value)}); } catch(err) {} }} 
-                               className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" 
-                             />
-                          </div>
+                           <div className="flex flex-col gap-2 mb-6">
+                              <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Itinerary (JSON)</label>
+                              <textarea 
+                                value={JSON.stringify(editingItem.itinerary, null, 2)} 
+                               onChange={e => { 
+                                 try { 
+                                   const parsed = JSON.parse(e.target.value);
+                                   const normalized = normalizeTripItinerary(parsed);
+                                   if (!normalized) return;
+                                   setEditingItem({ ...editingItem, itinerary: normalized });
+                                 } catch(err) {} 
+                               }} 
+                                className="w-full p-5 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-mono text-[11px] h-56 outline-none resize-none focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" 
+                              />
+                              <div className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                                Paste either <span className="font-mono">[{`{day,title,description}`}]</span> or <span className="font-mono">{`{ itinerary: [...] }`}</span>. Extra fields (stay/activities) are converted into description.
+                              </div>
+                           </div>
 
                           <div className="space-y-4">
                             <div className="flex items-center justify-between gap-3">
@@ -2126,6 +2202,5 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 };
 
 export default AdminPage;
-
 
 
