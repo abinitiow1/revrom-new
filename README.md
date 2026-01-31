@@ -33,6 +33,19 @@ Create `.env.local`:
 VITE_DATA_MODE=supabase
 VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
+VITE_TURNSTILE_SITE_KEY=...   # Cloudflare Turnstile site key (public)
+```
+
+### 4) Vercel API env vars (server-side)
+
+If you deploy to Vercel and want the `/api/*` routes (forms, Turnstile verification, Geoapify proxy) to work, set these in Vercel Project Settings → Environment Variables:
+
+```
+TURNSTILE_SECRET_KEY=...           # Cloudflare Turnstile secret key (server-only)
+TURNSTILE_EXPECTED_HOSTNAMES=...   # optional: comma-separated hostnames
+SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...      # server-only (never expose as VITE_*)
+GEOAPIFY_API_KEY=...
 ```
 
 ### 3) What each function does

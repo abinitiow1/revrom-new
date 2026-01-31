@@ -71,6 +71,7 @@ const Footer: React.FC<FooterProps> = ({
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+  const needsVerification = !isLocalhost;
 
   const showNewsletterToast = (text: string) => {
     setNewsletterToast(text);
@@ -184,9 +185,15 @@ const Footer: React.FC<FooterProps> = ({
 
                 setNewsletterSubmitting(true);
                 try {
-                  if (!isLocalhost && !turnstileToken) {
-                    setTurnstileError('Please complete the verification to subscribe.');
-                    return;
+                  if (needsVerification) {
+                    if (!turnstileSiteKey) {
+                      setTurnstileError('Missing VITE_TURNSTILE_SITE_KEY. Add it in Vercel/Cloudflare and redeploy.');
+                      return;
+                    }
+                    if (!turnstileToken) {
+                      setTurnstileError('Please complete the verification to subscribe.');
+                      return;
+                    }
                   }
                   await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
                   setNewsletterEmail('');

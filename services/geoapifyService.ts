@@ -61,7 +61,7 @@ export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: st
   const res = await fetch('/api/geoapify/geocode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text: q, turnstileToken: opts?.turnstileToken }),
+    body: JSON.stringify({ text: q }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Geoapify geocode failed (${res.status}).`);
