@@ -95,8 +95,20 @@ export const getGeoapifyApiKey = () => {
 
 export const verifyTurnstileOrThrow = async (req: any, token: string | undefined) => {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  // Allow local/dev to function without Turnstile configured.
-  if (!secret) return;
+  const vercelEnv = (process.env.VERCEL_ENV || process.env.NODE_ENV || '').toLowerCase();
+  const shouldEnforce = vercelEnv === 'production' || vercelEnv === 'preview';
+
+  // Allow local/dev to function without Turnstile configured, but fail fast in preview/prod
+  // so misconfiguration doesn't silently disable bot protection.
+  if (!secret) {
+    if (shouldEnforce) {
+      console.error('Turnstile secret missing: process.env.TURNSTILE_SECRET_KEY is not set');
+      const err: any = new Error('Turnstile is not configured on the server (missing TURNSTILE_SECRET_KEY).');
+      err.statusCode = 500;
+      throw err;
+    }
+    return;
+  }
 
   const response = (token || '').trim();
   if (!response) {
@@ -148,6 +160,21 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
     const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);
     err.statusCode = 403;
     throw err;
+  }
+
+  // Optional: lock verification to expected hostnames (comma-separated list).
+  // Example: "revrom.vercel.app,revrom.in,www.revrom.in"
+  const expected = String(process.env.TURNSTILE_EXPECTED_HOSTNAMES || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (expected.length) {
+    const hostname = String(data?.hostname || '').trim();
+    if (!hostname || !expected.includes(hostname)) {
+      const err: any = new Error(`Turnstile hostname mismatch (${hostname || 'missing'}).`);
+      err.statusCode = 403;
+      throw err;
+    }
   }
 };
 

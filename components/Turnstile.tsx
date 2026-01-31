@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 declare global {
   interface Window {
@@ -20,6 +20,7 @@ type Props = {
 };
 
 const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+const SCRIPT_ID = 'cf-turnstile-script';
 
 export default function Turnstile({
   siteKey,
@@ -32,28 +33,39 @@ export default function Turnstile({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [hasError, setHasError] = useState(false);
+  const reportedLoadFailureRef = useRef(false);
 
-  const scriptId = useMemo(() => 'cf-turnstile-script', []);
+  const onTokenRef = useRef(onToken);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+  }, [onToken]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   const reset = useCallback(() => {
     if (!window.turnstile?.reset) return;
     try {
       window.turnstile.reset(widgetIdRef.current || undefined);
-      setHasError(false);
-      onToken('');
     } catch {
       // ignore
     }
-  }, [onToken]);
+    reportedLoadFailureRef.current = false;
+    setHasError(false);
+    onTokenRef.current('');
+  }, []);
 
   useEffect(() => {
     if (!siteKey) return;
 
     const ensureScript = () => {
-      const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+      const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
       if (existing) return existing;
       const s = document.createElement('script');
-      s.id = scriptId;
+      s.id = SCRIPT_ID;
       s.src = SCRIPT_SRC;
       s.async = true;
       s.defer = true;
@@ -63,9 +75,22 @@ export default function Turnstile({
 
     const script = ensureScript();
 
+    const reportLoadFailureOnce = (message: string) => {
+      if (reportedLoadFailureRef.current) return;
+      reportedLoadFailureRef.current = true;
+      setHasError(true);
+      onTokenRef.current('');
+      onErrorRef.current?.(message);
+    };
+
     const render = () => {
       if (!containerRef.current) return;
-      if (!window.turnstile) return;
+      if (!window.turnstile) {
+        reportLoadFailureOnce(
+          'Turnstile failed to load. This is usually caused by a strict Content-Security-Policy (missing unsafe-eval) or a privacy/ad-blocker blocking challenges.cloudflare.com.'
+        );
+        return;
+      }
 
       // If the widget was already rendered, don't render again.
       if (widgetIdRef.current) return;
@@ -77,32 +102,53 @@ export default function Turnstile({
           size,
           callback: (token: string) => {
             setHasError(false);
-            onToken(token);
+            onTokenRef.current(token);
           },
           'expired-callback': () => {
-            onToken('');
+            onTokenRef.current('');
             // Expired tokens are common; reset so the user can re-verify.
             setTimeout(() => reset(), 50);
           },
           'error-callback': () => {
-            onToken('');
+            onTokenRef.current('');
             setHasError(true);
-            onError?.('Turnstile verification failed. Please try again.');
+            onErrorRef.current?.('Turnstile verification failed. Please try again.');
             // If Cloudflare fails (common on some devices/browsers), reset so user can retry.
             setTimeout(() => reset(), 200);
           },
         });
       } catch (e: any) {
-        onError?.(e?.message || 'Turnstile could not be initialized.');
+        reportLoadFailureOnce(e?.message || 'Turnstile could not be initialized.');
       }
     };
 
+    const onScriptError = () => {
+      reportLoadFailureOnce(
+        'Turnstile script failed to load. Check that challenges.cloudflare.com is allowed by your Content-Security-Policy and not blocked by an extension.'
+      );
+    };
+
+    // If the script "loads" but is prevented from executing (common with CSP), we won’t get a clean error.
+    // Add a short watchdog so users see a clear message instead of a stuck widget.
+    const watchdog = window.setTimeout(() => {
+      if (!widgetIdRef.current && !window.turnstile) {
+        reportLoadFailureOnce(
+          'Turnstile is blocked by your site security headers (Content-Security-Policy). Update CSP to allow challenges.cloudflare.com and include unsafe-eval, then redeploy.'
+        );
+      }
+    }, 2500);
+
     // Render immediately if script already loaded, else wait for it.
     if (window.turnstile) render();
-    else script.addEventListener('load', render);
+    else {
+      script.addEventListener('load', render);
+      script.addEventListener('error', onScriptError);
+    }
 
     return () => {
+      window.clearTimeout(watchdog);
       script.removeEventListener('load', render);
+      script.removeEventListener('error', onScriptError);
       if (widgetIdRef.current && window.turnstile?.remove) {
         try {
           window.turnstile.remove(widgetIdRef.current);
@@ -112,7 +158,7 @@ export default function Turnstile({
       }
       widgetIdRef.current = null;
     };
-  }, [onError, onToken, reset, scriptId, siteKey, size, theme]);
+  }, [reset, siteKey, size, theme]);
 
   return (
     <div>
