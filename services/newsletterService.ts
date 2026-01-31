@@ -3,7 +3,10 @@ import { getSupabase } from './supabaseClient';
 
 const TABLE = 'newsletter_subscribers';
 
-export const subscribeNewsletter = async (email: string, opts?: { turnstileToken?: string }): Promise<void> => {
+export const subscribeNewsletter = async (
+  email: string,
+  opts?: { turnstileToken?: string }
+): Promise<{ duplicate?: boolean }> => {
   const normalized = (email || '').trim().toLowerCase();
 
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
@@ -15,13 +18,14 @@ export const subscribeNewsletter = async (email: string, opts?: { turnstileToken
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || 'Could not subscribe.');
-    return;
+    return { duplicate: !!data?.duplicate };
   }
 
   // Local dev fallback (no Vercel API routes unless using `vercel dev`).
   const supabase = getSupabase();
   const { error } = await supabase.from(TABLE).insert({ email: normalized });
   if (error) throw error;
+  return { duplicate: false };
 };
 
 type NewsletterSubscriberRow = {

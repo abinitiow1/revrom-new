@@ -167,7 +167,7 @@ const Footer: React.FC<FooterProps> = ({
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (newsletterHoneypot.trim()) return;
-                const email = newsletterEmail.trim();
+                const email = (newsletterEmail || '').replace(/\s+/g, '').trim().toLowerCase();
                 if (!/\S+@\S+\.\S+/.test(email)) {
                   showNewsletterToast('Enter a valid email');
                   return;
@@ -197,24 +197,37 @@ const Footer: React.FC<FooterProps> = ({
                       return;
                     }
                   }
-                  await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
+                  const result = await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
                   try {
                     localStorage.setItem('newsletter_last_submit_ts', String(Date.now()));
                   } catch {}
                   setNewsletterEmail('');
                   setTurnstileToken('');
-                  showNewsletterToast('Thanks for subscribing');
+                  showNewsletterToast(result?.duplicate ? 'Already subscribed' : 'Thanks for subscribing');
                 } catch (err: any) {
                   const msg = String(err?.message || '');
                   if (msg.toLowerCase().includes('rate limit')) {
                     showNewsletterToast('Please wait and try again');
                     return;
                   }
+
+                  // Common: token expired / reused or missing.
+                  if (
+                    msg.toLowerCase().includes('turnstile') ||
+                    msg.toLowerCase().includes('verification') ||
+                    msg.toLowerCase().includes('token')
+                  ) {
+                    setTurnstileToken('');
+                    setTurnstileError('Verification failed. Please verify again and retry.');
+                  }
+
                   if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
                     showNewsletterToast('Already subscribed');
-                  } else {
-                    showNewsletterToast('Could not subscribe');
+                    return;
                   }
+
+                  // Surface the actual server error (safe: it never contains secrets, only config/table hints).
+                  showNewsletterToast(msg || 'Could not subscribe');
                 } finally {
                   setNewsletterSubmitting(false);
                 }
@@ -231,9 +244,12 @@ const Footer: React.FC<FooterProps> = ({
                 autoComplete="email"
                 placeholder="EMAIL ADDRESS" 
                 value={newsletterEmail}
-                onChange={(e) => setNewsletterEmail(e.target.value)}
+                onChange={(e) => {
+                  setNewsletterEmail(e.target.value);
+                  if (turnstileError) setTurnstileError('');
+                }}
                 disabled={newsletterSubmitting}
-                className="w-full p-4 text-[10px] font-black uppercase tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
+                className="w-full p-4 text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
               {!isLocalhost && turnstileSiteKey ? (
                 <div className="space-y-2">
@@ -241,7 +257,10 @@ const Footer: React.FC<FooterProps> = ({
                     siteKey={turnstileSiteKey}
                     theme="auto"
                     size="compact"
-                    onToken={(t) => setTurnstileToken(t)}
+                    onToken={(t) => {
+                      setTurnstileToken(t);
+                      setTurnstileError('');
+                    }}
                     onError={(m) => setTurnstileError(m)}
                   />
                   {turnstileError ? (
