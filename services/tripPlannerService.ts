@@ -129,8 +129,25 @@ export const buildTripPlan = async (args: {
   if (!baseTrip) throw new Error('No admin-created trips found. Create a trip in Admin first.');
 
   const notices: string[] = [];
+  const adminItineraryCount = (baseTrip.itinerary || []).filter((d) => (d.day ?? 0) >= 1).length;
   const baseAvailableDays = getAdminItineraryDayCount(baseTrip);
-  const adminDays = toPlannedDaysFromAdmin(baseTrip, requestedDays);
+
+  // If the admin trip doesn't have an itinerary (common when only `duration` is set),
+  // treat `duration` as the base and avoid calling Geoapify for "missing" days.
+  const adminDays =
+    adminItineraryCount > 0
+      ? toPlannedDaysFromAdmin(baseTrip, requestedDays)
+      : Array.from({ length: Math.min(requestedDays, baseAvailableDays) }).map((_, i) => ({
+          day: i + 1,
+          title: `Day ${i + 1}`,
+          stops: [
+            {
+              name: baseTrip.title ? `${baseTrip.title} - Day ${i + 1}` : `Day ${i + 1}`,
+              description: '',
+              source: 'admin' as const,
+            },
+          ],
+        }));
   const baseCount = adminDays.length;
   const remaining = Math.max(0, requestedDays - baseCount);
 
