@@ -196,10 +196,13 @@ export const buildTripPlan = async (args: {
       }
       if (combined.length >= want) break;
     }
-
+    // Assign the combined results to `candidates` on success.
+    candidates = combined;
+  } catch (err) {
     // Do not fail the whole planner if Geoapify is down/misconfigured.
     // We still return a complete day count using placeholders.
     notices.push('Could not fetch extra places right now. Added flexible placeholder days instead.');
+    candidates = [];
   }
 
   const existing = new Set<string>();
