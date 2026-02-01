@@ -552,6 +552,15 @@ const App: React.FC = () => {
     return () => window.removeEventListener('hashchange', onHash);
   }, [trips, blogPosts]);
 
+  // Scroll to top on view changes (except on initial load to preserve page position)
+  useEffect(() => {
+    // Skip scroll on first render to avoid interrupting browser's native scroll restoration
+    if (!initializedRef.current) return;
+    
+    // Scroll to top smoothly when view changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
+
   // ---------------------------------------------------------------------------
 
   const renderContent = () => {
