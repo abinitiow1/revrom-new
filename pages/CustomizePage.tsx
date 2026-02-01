@@ -192,7 +192,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
             '',
             itineraryHint,
             ...planLines,
-        ].join('\\n');
+        ].join('\n');
     };
     
     const filteredTrips = (trips || []).filter(t => (t.destination || '').trim() === (formData.destination || '').trim());
