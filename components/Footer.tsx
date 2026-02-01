@@ -108,17 +108,17 @@ const Footer: React.FC<FooterProps> = ({
             </p>
             <div className="flex items-center space-x-4">
               {!!siteContent.facebookUrl && (
-                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="Facebook">
                   <FacebookIcon className="w-6 h-6" />
                 </a>
               )}
               {!!siteContent.instagramUrl && (
-                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="Instagram">
                   <InstagramIcon className="w-6 h-6" />
                 </a>
               )}
               {!!siteContent.youtubeUrl && (
-                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors">
+                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="YouTube">
                   <YoutubeIcon className="w-6 h-6" />
                 </a>
               )}

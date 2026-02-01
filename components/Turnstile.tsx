@@ -162,21 +162,27 @@ export default function Turnstile({
 
   return (
     <div>
+      <style>{`
+        .turnstile-retry-button {
+          margin-top: 8px;
+          font-size: 12px;
+          background: transparent;
+          border: none;
+          padding: 0;
+          text-decoration: underline;
+          cursor: pointer;
+          color: inherit;
+        }
+        .turnstile-retry-button:hover {
+          opacity: 0.8;
+        }
+      `}</style>
       <div ref={containerRef} />
       {showRetry && hasError && (
         <button
           type="button"
           onClick={reset}
-          style={{
-            marginTop: 8,
-            fontSize: 12,
-            background: 'transparent',
-            border: 'none',
-            padding: 0,
-            textDecoration: 'underline',
-            cursor: 'pointer',
-            color: 'inherit',
-          }}
+          className="turnstile-retry-button"
         >
           Retry verification
         </button>
