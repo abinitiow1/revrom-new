@@ -40,6 +40,13 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
   const [errorMsg, setErrorMsg] = useState('');
   const mountedRef = useRef(true);
   const renderAttemptedRef = useRef(false);
+  const onTokenRef = useRef(onToken);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onTokenRef.current = onToken;
+    onErrorRef.current = onError;
+  }, [onToken, onError]);
 
   // Debug logging on mount
   useEffect(() => {
@@ -86,7 +93,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             if (mountedRef.current) {
               setState('verified');
               setErrorMsg('');
-              onToken(token);
+              onTokenRef.current?.(token);
             }
           },
           'expired-callback': () => {
@@ -94,7 +101,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             if (mountedRef.current) {
               setState('error');
               setErrorMsg('Verification expired - click retry');
-              onToken('');
+              onTokenRef.current?.('');
             }
           },
           'error-callback': (code: string) => {
@@ -103,8 +110,8 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
               const msg = ERROR_MAP[code] || `Verification failed (error ${code})`;
               setState('error');
               setErrorMsg(msg);
-              onToken('');
-              onError?.(msg);
+              onTokenRef.current?.('');
+              onErrorRef.current?.(msg);
             }
           },
         });
@@ -170,7 +177,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
         widgetIdRef.current = null;
       }
     };
-  }, [siteKey, theme, size, onToken, onError]);
+  }, [siteKey, theme, size]);
 
   const handleRetry = () => {
     console.log('[Turnstile] Retry clicked');
