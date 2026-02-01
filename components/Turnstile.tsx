@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 declare global {
   interface Window {
     turnstile?: {
       render: (container: HTMLElement, options: Record<string, any>) => string;
-      reset: (widgetId?: string) => void;
+      reset: (widgetId: string) => void;
       remove: (widgetId: string) => void;
     };
+    onTurnstileLoad?: () => void;
   }
 }
 
@@ -16,84 +17,64 @@ type Props = {
   onError?: (message: string) => void;
   theme?: 'auto' | 'light' | 'dark';
   size?: 'normal' | 'compact';
-  showRetry?: boolean;
 };
 
-const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
 const SCRIPT_ID = 'cf-turnstile-script';
+const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad';
 
-export default function Turnstile({
-  siteKey,
-  onToken,
-  onError,
-  theme = 'auto',
-  size = 'normal',
-  showRetry = true,
-}: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+// Cloudflare error codes - https://developers.cloudflare.com/turnstile/reference/client-side-errors/
+const ERROR_MAP: Record<string, string> = {
+  '110200': 'Domain not allowed in Cloudflare widget settings',
+  '400020': 'Domain not allowed - add this hostname to Cloudflare Turnstile',
+  '110420': 'Hostname not allowed for this sitekey',
+  '110100': 'Invalid sitekey - check VITE_TURNSTILE_SITE_KEY',
+  '110110': 'Invalid sitekey format',
+  '110500': 'Challenge timed out',
+  '110600': 'Challenge failed',
+};
+
+export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal' }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-  const [hasError, setHasError] = useState(false);
-  const reportedLoadFailureRef = useRef(false);
+  const [state, setState] = useState<'loading' | 'ready' | 'error' | 'verified'>('loading');
+  const [errorMsg, setErrorMsg] = useState('');
+  const mountedRef = useRef(true);
+  const renderAttemptedRef = useRef(false);
 
-  const onTokenRef = useRef(onToken);
-  const onErrorRef = useRef(onError);
-
+  // Debug logging on mount
   useEffect(() => {
-    onTokenRef.current = onToken;
-  }, [onToken]);
-
-  useEffect(() => {
-    onErrorRef.current = onError;
-  }, [onError]);
-
-  const reset = useCallback(() => {
-    if (!window.turnstile?.reset) return;
-    try {
-      window.turnstile.reset(widgetIdRef.current || undefined);
-    } catch {
-      // ignore
+    console.log('[Turnstile] ===== DEBUG INFO =====');
+    console.log('[Turnstile] Hostname:', window.location.hostname);
+    console.log('[Turnstile] Site key provided:', siteKey ? 'YES (' + siteKey.substring(0, 20) + '...)' : 'NO - MISSING!');
+    console.log('[Turnstile] ========================');
+    
+    if (!siteKey) {
+      setState('error');
+      setErrorMsg('Site key missing - VITE_TURNSTILE_SITE_KEY not set in Vercel');
+      onError?.('Missing site key');
+      return;
     }
-    reportedLoadFailureRef.current = false;
-    setHasError(false);
-    onTokenRef.current('');
-  }, []);
+    
+    if (!siteKey.startsWith('0x')) {
+      setState('error');
+      setErrorMsg('Invalid site key format');
+      onError?.('Invalid key format');
+      return;
+    }
+  }, [siteKey, onError]);
 
   useEffect(() => {
-    if (!siteKey) return;
+    if (!siteKey || !siteKey.startsWith('0x')) return;
+    
+    mountedRef.current = true;
+    renderAttemptedRef.current = false;
 
-    const ensureScript = () => {
-      const existing = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-      if (existing) return existing;
-      const s = document.createElement('script');
-      s.id = SCRIPT_ID;
-      s.src = SCRIPT_SRC;
-      s.async = true;
-      s.defer = true;
-      document.head.appendChild(s);
-      return s;
-    };
-
-    const script = ensureScript();
-
-    const reportLoadFailureOnce = (message: string) => {
-      if (reportedLoadFailureRef.current) return;
-      reportedLoadFailureRef.current = true;
-      setHasError(true);
-      onTokenRef.current('');
-      onErrorRef.current?.(message);
-    };
-
-    const render = () => {
-      if (!containerRef.current) return;
-      if (!window.turnstile) {
-        reportLoadFailureOnce(
-          'Turnstile failed to load. This is usually caused by a strict Content-Security-Policy (missing unsafe-eval) or a privacy/ad-blocker blocking challenges.cloudflare.com.'
-        );
-        return;
-      }
-
-      // If the widget was already rendered, don't render again.
-      if (widgetIdRef.current) return;
+    const renderWidget = () => {
+      if (!mountedRef.current || !containerRef.current || !window.turnstile) return;
+      if (widgetIdRef.current || renderAttemptedRef.current) return;
+      
+      renderAttemptedRef.current = true;
+      console.log('[Turnstile] Rendering widget...');
 
       try {
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
@@ -101,93 +82,137 @@ export default function Turnstile({
           theme,
           size,
           callback: (token: string) => {
-            setHasError(false);
-            onTokenRef.current(token);
+            console.log('[Turnstile] ✓ SUCCESS - Token received');
+            if (mountedRef.current) {
+              setState('verified');
+              setErrorMsg('');
+              onToken(token);
+            }
           },
           'expired-callback': () => {
-            onTokenRef.current('');
-            setHasError(true);
-            onErrorRef.current?.('Verification expired. Please click retry.');
-            // Disabled auto-reset to prevent infinite loops
-            // setTimeout(() => reset(), 50);
+            console.log('[Turnstile] Token expired');
+            if (mountedRef.current) {
+              setState('error');
+              setErrorMsg('Verification expired - click retry');
+              onToken('');
+            }
           },
-          'error-callback': () => {
-            onTokenRef.current('');
-            setHasError(true);
-            onErrorRef.current?.('Turnstile verification failed. Please click retry.');
-            // Disabled auto-retry to prevent infinite loops
-            // setTimeout(() => reset(), 200);
+          'error-callback': (code: string) => {
+            console.error('[Turnstile] ✗ ERROR:', code, ERROR_MAP[code] || 'Unknown error');
+            if (mountedRef.current) {
+              const msg = ERROR_MAP[code] || `Verification failed (error ${code})`;
+              setState('error');
+              setErrorMsg(msg);
+              onToken('');
+              onError?.(msg);
+            }
           },
         });
-      } catch (e: any) {
-        reportLoadFailureOnce(e?.message || 'Turnstile could not be initialized.');
+        
+        console.log('[Turnstile] Widget rendered, ID:', widgetIdRef.current);
+        if (mountedRef.current) {
+          setState('ready');
+        }
+      } catch (err: any) {
+        console.error('[Turnstile] Render exception:', err);
+        if (mountedRef.current) {
+          setState('error');
+          setErrorMsg(err?.message || 'Failed to render widget');
+        }
       }
     };
 
-    const onScriptError = () => {
-      reportLoadFailureOnce(
-        'Turnstile script failed to load. Check that challenges.cloudflare.com is allowed by your Content-Security-Policy and not blocked by an extension.'
-      );
+    // Load script and render
+    const init = () => {
+      if (window.turnstile) {
+        console.log('[Turnstile] Script already loaded, rendering...');
+        renderWidget();
+        return;
+      }
+
+      const existing = document.getElementById(SCRIPT_ID);
+      if (existing) {
+        console.log('[Turnstile] Script tag exists, waiting for load...');
+        window.onTurnstileLoad = renderWidget;
+        return;
+      }
+
+      console.log('[Turnstile] Loading Cloudflare script...');
+      const script = document.createElement('script');
+      script.id = SCRIPT_ID;
+      script.src = SCRIPT_URL;
+      script.async = true;
+      
+      window.onTurnstileLoad = () => {
+        console.log('[Turnstile] Script loaded successfully');
+        renderWidget();
+      };
+      
+      script.onerror = () => {
+        console.error('[Turnstile] Failed to load script');
+        if (mountedRef.current) {
+          setState('error');
+          setErrorMsg('Failed to load Turnstile - check CSP headers');
+        }
+      };
+      
+      document.head.appendChild(script);
     };
 
-    // If the script "loads" but is prevented from executing (common with CSP), we won’t get a clean error.
-    // Add a short watchdog so users see a clear message instead of a stuck widget.
-    const watchdog = window.setTimeout(() => {
-      if (!widgetIdRef.current && !window.turnstile) {
-        reportLoadFailureOnce(
-          'Turnstile is blocked by your site security headers (Content-Security-Policy). Update CSP to allow challenges.cloudflare.com and include unsafe-eval, then redeploy.'
-        );
-      }
-    }, 2500);
-
-    // Render immediately if script already loaded, else wait for it.
-    if (window.turnstile) render();
-    else {
-      script.addEventListener('load', render);
-      script.addEventListener('error', onScriptError);
-    }
+    init();
 
     return () => {
-      window.clearTimeout(watchdog);
-      script.removeEventListener('load', render);
-      script.removeEventListener('error', onScriptError);
+      mountedRef.current = false;
       if (widgetIdRef.current && window.turnstile?.remove) {
-        try {
-          window.turnstile.remove(widgetIdRef.current);
-        } catch {
-          // ignore
-        }
+        try { 
+          window.turnstile.remove(widgetIdRef.current); 
+        } catch {}
+        widgetIdRef.current = null;
       }
-      widgetIdRef.current = null;
     };
-  }, [reset, siteKey, size, theme]);
+  }, [siteKey, theme, size, onToken, onError]);
+
+  const handleRetry = () => {
+    console.log('[Turnstile] Retry clicked');
+    if (widgetIdRef.current && window.turnstile?.reset) {
+      try {
+        setState('loading');
+        setErrorMsg('');
+        window.turnstile.reset(widgetIdRef.current);
+        setState('ready');
+      } catch {
+        window.location.reload();
+      }
+    } else {
+      window.location.reload();
+    }
+  };
 
   return (
-    <div>
-      <style>{`
-        .turnstile-retry-button {
-          margin-top: 8px;
-          font-size: 12px;
-          background: transparent;
-          border: none;
-          padding: 0;
-          text-decoration: underline;
-          cursor: pointer;
-          color: inherit;
-        }
-        .turnstile-retry-button:hover {
-          opacity: 0.8;
-        }
-      `}</style>
+    <div className="turnstile-container">
       <div ref={containerRef} />
-      {showRetry && hasError && (
-        <button
-          type="button"
-          onClick={reset}
-          className="turnstile-retry-button"
-        >
-          Retry verification
-        </button>
+      
+      {state === 'loading' && (
+        <p className="text-xs text-muted-foreground dark:text-dark-muted-foreground">
+          Loading verification...
+        </p>
+      )}
+      
+      {state === 'verified' && (
+        <p className="text-xs text-green-600 dark:text-green-400">✓ Verified</p>
+      )}
+      
+      {state === 'error' && (
+        <div className="mt-2">
+          <p className="text-xs text-red-500 dark:text-red-400 mb-1">{errorMsg}</p>
+          <button
+            type="button"
+            onClick={handleRetry}
+            className="text-xs text-brand-primary underline hover:opacity-80"
+          >
+            Retry verification
+          </button>
+        </div>
       )}
     </div>
   );
