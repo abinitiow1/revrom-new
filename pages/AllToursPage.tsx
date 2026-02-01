@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { Trip } from '../types';
 import TripCard from '../components/TripCard';
 import SearchAndFilter from '../components/SearchAndFilter';
+import { destinationsMatch } from '../services/destinationNormalizer';
 import SEOHead from '../components/SEOHead';
 
 interface AllToursPageProps {
@@ -30,7 +31,7 @@ const AllToursPage: React.FC<AllToursPageProps> = ({ trips, onSelectTrip, onBook
     return trips.filter(trip => {
       const matchSearch = trip.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           trip.destination.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchDest = destFilter === 'all' || trip.destination === destFilter;
+      const matchDest = destFilter === 'all' || destinationsMatch(trip.destination, destFilter);
       const matchDiff = diffFilter === 'all' || trip.difficulty === diffFilter;
       let matchDur = true;
       if (durationFilter === '1-7') matchDur = trip.duration <= 7;

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { Trip, SiteContent } from '../../../types';
 import TripCard from '../../../components/TripCard';
 import SearchAndFilter from '../../../components/SearchAndFilter';
+import { destinationsMatch } from '../../../services/destinationNormalizer';
 import { getActiveBgStyle } from '../activeBgStyle';
 
 type Props = {
@@ -40,7 +41,7 @@ const AdventuresSection: React.FC<Props> = ({
       const matchSearch =
         trip.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         trip.destination.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchDest = destFilter === 'all' || trip.destination === destFilter;
+      const matchDest = destFilter === 'all' || destinationsMatch(trip.destination, destFilter);
       const matchDiff = diffFilter === 'all' || trip.difficulty === diffFilter;
       let matchDur = true;
       if (durationFilter === '1-7') matchDur = trip.duration <= 7;

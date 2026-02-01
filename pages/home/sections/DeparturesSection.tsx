@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import type { Departure, ItineraryQuery, SiteContent, Trip } from '../../../types';
+import { destinationsMatch } from '../../../services/destinationNormalizer';
 import { getActiveBgStyle } from '../activeBgStyle';
 
 type Props = {
@@ -21,7 +22,7 @@ const DeparturesSection: React.FC<Props> = ({ trips, departures, siteContent, se
     return deps.filter((dep) => {
       const trip = trips.find((t) => t.id === dep.tripId);
       if (!trip) return false;
-      const matchDest = depDestFilter === 'all' || trip.destination === depDestFilter;
+      const matchDest = depDestFilter === 'all' || destinationsMatch(trip.destination, depDestFilter);
       const matchMonth =
         depMonthFilter === 'all' || new Date(dep.startDate).getMonth().toString() === depMonthFilter;
       return matchDest && matchMonth;

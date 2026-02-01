@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import type { Trip } from '../types';
 import { buildTripPlan, type InterestTag, type PlannedItinerary } from '../services/tripPlannerService';
+import { destinationsMatch } from '../services/destinationNormalizer';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 const SparklesIcon: React.FC<{className?: string}> = ({ className }) => (
@@ -105,8 +106,8 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         const destination = e.target.value;
         const requestedDays = Number(formData.duration || 0);
         const nextTripId =
-            (trips || []).find(t => (t.destination || '').trim() === destination && (t.duration || 0) <= requestedDays)?.id ||
-            (trips || []).find(t => (t.destination || '').trim() === destination)?.id ||
+            (trips || []).find(t => destinationsMatch(t.destination || '', destination) && (t.duration || 0) <= requestedDays)?.id ||
+            (trips || []).find(t => destinationsMatch(t.destination || '', destination))?.id ||
             '';
         setFormData(prev => ({ ...prev, destination, tripId: nextTripId || prev.tripId }));
     };
@@ -195,7 +196,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         ].join('\n');
     };
     
-    const filteredTrips = (trips || []).filter(t => (t.destination || '').trim() === (formData.destination || '').trim());
+    const filteredTrips = (trips || []).filter(t => destinationsMatch(t.destination || '', formData.destination || ''));
     const baseTripOptions = filteredTrips.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0));
 
     const renderPlan = (plan: PlannedItinerary) => {
