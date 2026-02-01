@@ -39,6 +39,8 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
+  const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in');
+  const requiresTurnstile = isProduction && !!turnstileSiteKey;
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -50,7 +52,7 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
       const normalizedPhone = (phone || '').replace(/\\D/g, '');
       const normalizedName = (name || '').trim();
       if (normalizedPhone.length >= 8 && normalizedPhone.length <= 15) {
-        const needsVerification = !isLocalhost && !!turnstileSiteKey;
+        const needsVerification = isProduction && !!turnstileSiteKey;
         if (needsVerification && !turnstileToken) {
           // Do not block WhatsApp; just skip saving the lead if verification is missing.
           setTurnstileError('Please complete the verification to save your inquiry.');
@@ -180,7 +182,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     </div>
                 </section>
 
-                {!isLocalhost && turnstileSiteKey ? (
+                {requiresTurnstile ? (
                   <div className="space-y-2">
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-40">Verification</div>
                     <Turnstile

@@ -71,7 +71,8 @@ const Footer: React.FC<FooterProps> = ({
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-  const needsVerification = !isLocalhost;
+  const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in');
+  const needsVerification = isProduction;
 
   const showNewsletterToast = (text: string) => {
     setNewsletterToast(text);
@@ -254,7 +255,7 @@ const Footer: React.FC<FooterProps> = ({
                 disabled={newsletterSubmitting}
                 className="w-full p-4 text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
-              {!isLocalhost && turnstileSiteKey ? (
+              {needsVerification && turnstileSiteKey ? (
                 <div className="space-y-2">
                   <Turnstile
                     siteKey={turnstileSiteKey}

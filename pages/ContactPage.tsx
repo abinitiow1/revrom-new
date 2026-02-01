@@ -54,7 +54,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
 
     const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
     const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-    const requiresTurnstile = !isLocalhost && !!turnstileSiteKey;
+    const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in');
+    const requiresTurnstile = isProduction && !!turnstileSiteKey;
 
     const validateForm = () => {
         const newErrors: { name?: string; email?: string; message?: string } = {};
