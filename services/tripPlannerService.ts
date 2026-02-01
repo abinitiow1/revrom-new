@@ -170,7 +170,17 @@ export const buildTripPlan = async (args: {
   try {
     center = await geoapifyGeocode(destination);
     // Fetch in multiple radii in parallel with per-call client timeout to reduce tail latency.
-    const radii = [75_000, 150_000, 250_000];
+    // Search in 3 concentric circles to find enough points of interest:
+    // - 75km: Very close attractions (core itinerary, <1 hour drive)
+    // - 150km: Day trip distance (~2 hours drive)
+    // - 250km: Multi-day excursion range
+    const radii = [75_000, 150_000, 250_000]; // in meters
+    
+    // Fetch 12x more candidates than needed because:
+    // 1. Geoapify returns generic POIs (hotels, cafes) that we filter out
+    // 2. Duplicates need to be removed (same place with different names)
+    // 3. Admin itinerary stops need to be excluded
+    // Example: 3 remaining days * 12 = 36 candidates → filter to ~6-9 usable places
     const want = Math.max(30, remaining * 12);
     const combined: GeoapifyPlace[] = [];
     const seen = new Set<string>();

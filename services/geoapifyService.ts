@@ -11,6 +11,39 @@ import { fetchWithTimeout as clientFetchWithTimeout } from './fetchWithTimeout';
 const getClientGeoapifyKeyIfPresent = () =>
   ((import.meta as any).env?.VITE_GEOAPIFY_API_KEY as string | undefined) || undefined;
 
+// Geocoding cache helpers (1 hour TTL to reduce API costs and improve UX)
+const GEOCODE_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+const getGeocodeCache = (text: string): GeoPoint | null => {
+  try {
+    const cacheKey = `geocode_${text.toLowerCase().trim()}`;
+    const cached = localStorage.getItem(cacheKey);
+    if (!cached) return null;
+
+    const { lat, lon, formatted, timestamp } = JSON.parse(cached);
+    
+    // Check if cache expired
+    if (Date.now() - timestamp > GEOCODE_CACHE_TTL) {
+      localStorage.removeItem(cacheKey);
+      return null;
+    }
+    
+    return { lat, lon, formatted };
+  } catch {
+    return null;
+  }
+};
+
+const setGeocodeCache = (text: string, result: GeoPoint): void => {
+  try {
+    const cacheKey = `geocode_${text.toLowerCase().trim()}`;
+    const cacheData = { ...result, timestamp: Date.now() };
+    localStorage.setItem(cacheKey, JSON.stringify(cacheData));
+  } catch {
+    // Cache failed (quota exceeded or disabled), continue without caching
+  }
+};
+
 const mapInterestTagsToSafeCategories = (interestTags: string[]) => {
   const tags = (interestTags || []).map((t) => String(t || '').toLowerCase().trim()).filter(Boolean);
   const set = new Set<string>([
@@ -36,6 +69,12 @@ export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: st
   const q = (text || '').trim();
   if (!q) throw new Error('Destination is required.');
 
+  // Try cache first to avoid unnecessary API calls
+  const cached = getGeocodeCache(q);
+  if (cached) {
+    return cached;
+  }
+
   const clientKey = getClientGeoapifyKeyIfPresent();
   // If a client key is present, prefer direct calls to avoid noisy /api 404s on Vite dev.
   if (clientKey) {
@@ -56,7 +95,9 @@ export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: st
     if (!coords) throw new Error('Could not geocode the selected destination.');
 
     const [lon, lat] = coords;
-    return { lat, lon, formatted: feature?.properties?.formatted };
+    const result = { lat, lon, formatted: feature?.properties?.formatted };
+    setGeocodeCache(q, result);
+    return result;
   }
 
   // Otherwise, use server-side proxy (Vercel /api/*).
@@ -68,7 +109,9 @@ export const geoapifyGeocode = async (text: string, opts?: { turnstileToken?: st
   }, 4000, 1);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || `Geoapify geocode failed (${res.status}).`);
-  return { lat: data.lat, lon: data.lon, formatted: data.formatted };
+  const result = { lat: data.lat, lon: data.lon, formatted: data.formatted };
+  setGeocodeCache(q, result);
+  return result;
 };
 
 export type GeoapifyPlace = {
