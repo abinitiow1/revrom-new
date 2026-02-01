@@ -120,10 +120,9 @@ export const getGeoapifyApiKey = () => {
 export const verifyTurnstileOrThrow = async (req: any, token: string | undefined) => {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   const vercelEnv = (process.env.VERCEL_ENV || process.env.NODE_ENV || '').toLowerCase();
-  const shouldEnforce = vercelEnv === 'production' || vercelEnv === 'preview';
+  const shouldEnforce = vercelEnv === 'production'; // Only enforce on production (revrom.in)
 
-  // Allow local/dev to function without Turnstile configured, but fail fast in preview/prod
-  // so misconfiguration doesn't silently disable bot protection.
+  // Allow local/dev/preview to function without Turnstile configured
   if (!secret) {
     if (shouldEnforce) {
       console.error('Turnstile secret missing: process.env.TURNSTILE_SECRET_KEY is not set');
