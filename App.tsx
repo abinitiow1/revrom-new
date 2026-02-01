@@ -147,11 +147,11 @@ const App: React.FC = () => {
     [trips, departures, blogPosts, galleryPhotos, instagramPosts, googleReviews, siteContent, customPages],
   );
 
-  // Initial Loading Simulator
+  // Initial Loading Simulator - reduced from 2500ms to 800ms for faster load
   useEffect(() => {
     const timer = setTimeout(() => {
       setIsInitialLoading(false);
-    }, 2500); 
+    }, 800); 
     return () => clearTimeout(timer);
   }, []);
 
