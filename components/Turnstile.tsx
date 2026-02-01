@@ -106,15 +106,17 @@ export default function Turnstile({
           },
           'expired-callback': () => {
             onTokenRef.current('');
-            // Expired tokens are common; reset so the user can re-verify.
-            setTimeout(() => reset(), 50);
+            setHasError(true);
+            onErrorRef.current?.('Verification expired. Please click retry.');
+            // Disabled auto-reset to prevent infinite loops
+            // setTimeout(() => reset(), 50);
           },
           'error-callback': () => {
             onTokenRef.current('');
             setHasError(true);
-            onErrorRef.current?.('Turnstile verification failed. Please try again.');
-            // If Cloudflare fails (common on some devices/browsers), reset so user can retry.
-            setTimeout(() => reset(), 200);
+            onErrorRef.current?.('Turnstile verification failed. Please click retry.');
+            // Disabled auto-retry to prevent infinite loops
+            // setTimeout(() => reset(), 200);
           },
         });
       } catch (e: any) {
