@@ -122,19 +122,36 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   const vercelEnv = (process.env.VERCEL_ENV || process.env.NODE_ENV || '').toLowerCase();
   const shouldEnforce = vercelEnv === 'production'; // Only enforce on production (revrom.in)
 
+  // Debug logging for troubleshooting
+  console.log('[Turnstile Server] Environment:', vercelEnv);
+  console.log('[Turnstile Server] Secret key configured:', secret ? `YES (starts with ${secret.substring(0, 6)}...)` : 'NO - MISSING!');
+  console.log('[Turnstile Server] Should enforce:', shouldEnforce);
+
   // Allow local/dev/preview to function without Turnstile configured
   if (!secret) {
     if (shouldEnforce) {
-      console.error('Turnstile secret missing: process.env.TURNSTILE_SECRET_KEY is not set');
-      const err: any = new Error('Turnstile is not configured on the server (missing TURNSTILE_SECRET_KEY).');
+      console.error('[Turnstile Server] CRITICAL: TURNSTILE_SECRET_KEY is not set in Vercel environment variables!');
+      console.error('[Turnstile Server] Go to Vercel Dashboard → Settings → Environment Variables → Add TURNSTILE_SECRET_KEY');
+      const err: any = new Error('Turnstile is not configured on the server (missing TURNSTILE_SECRET_KEY). Add it to Vercel Environment Variables.');
       err.statusCode = 500;
       throw err;
     }
+    console.log('[Turnstile Server] Skipping verification (non-production environment)');
     return;
+  }
+
+  // Validate secret key format (should start with 0x, not be the site key)
+  if (!secret.startsWith('0x')) {
+    console.error('[Turnstile Server] CRITICAL: TURNSTILE_SECRET_KEY has invalid format! It should start with "0x"');
+    console.error('[Turnstile Server] You may have set the SITE KEY instead of the SECRET KEY');
+    const err: any = new Error('Invalid TURNSTILE_SECRET_KEY format. Ensure you are using the SECRET key (starts with 0x), not the SITE key.');
+    err.statusCode = 500;
+    throw err;
   }
 
   const response = (token || '').trim();
   if (!response) {
+    console.log('[Turnstile Server] No token provided by client');
     const err: any = new Error('Missing Turnstile token.');
     err.statusCode = 400;
     throw err;
@@ -144,13 +161,18 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   const cacheKey = `${response}:${ip || 'unknown'}`;
   const now = Date.now();
   const cachedOkUntil = verifiedTurnstileCache.get(cacheKey);
-  if (cachedOkUntil && now < cachedOkUntil) return;
+  if (cachedOkUntil && now < cachedOkUntil) {
+    console.log('[Turnstile Server] Using cached verification (token already verified)');
+    return;
+  }
   if (cachedOkUntil && now >= cachedOkUntil) verifiedTurnstileCache.delete(cacheKey);
 
   const params = new URLSearchParams();
   params.set('secret', secret);
   params.set('response', response);
   if (ip && ip !== 'unknown') params.set('remoteip', ip);
+
+  console.log('[Turnstile Server] Verifying token with Cloudflare...');
 
   let r: any;
   try {
@@ -160,7 +182,7 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
       body: params.toString(),
     }, 4000, 1);
   } catch (fetchErr: any) {
-    console.error('Turnstile verification fetch error:', fetchErr?.message || fetchErr);
+    console.error('[Turnstile Server] Network error contacting Cloudflare:', fetchErr?.message || fetchErr);
     const err: any = new Error('Failed to verify Turnstile token (network error or timeout).');
     err.statusCode = fetchErr?.statusCode || 502;
     throw err;
@@ -170,17 +192,23 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   const data: any = await r.json().catch(() => null);
 
   // Log the verification response for diagnostics (do not log secrets or tokens)
-  console.error('Turnstile verify result', { status, body: data, remoteip: ip });
+  console.log('[Turnstile Server] Cloudflare response:', { status, success: data?.success, errorCodes: data?.['error-codes'], hostname: data?.hostname });
 
   // Cloudflare returns 401 when the secret is invalid/unauthorized.
   if (status === 401) {
-    console.error('Turnstile verification returned 401. The TURNSTILE_SECRET_KEY may be missing, invalid, or belongs to a different account.');
-    const err: any = new Error('Turnstile verification returned 401 (invalid TURNSTILE_SECRET_KEY). Ensure you set the **server** environment variable TURNSTILE_SECRET_KEY to the *secret key* (not the site key) in your deployment (Vercel / server env).');
+    console.error('[Turnstile Server] ❌ 401 ERROR - Your TURNSTILE_SECRET_KEY is INVALID or WRONG!');
+    console.error('[Turnstile Server] Common causes:');
+    console.error('[Turnstile Server]   1. You set the SITE KEY instead of the SECRET KEY');
+    console.error('[Turnstile Server]   2. The secret key belongs to a different Cloudflare account');
+    console.error('[Turnstile Server]   3. The secret key was regenerated and the old one is deployed');
+    console.error('[Turnstile Server] Fix: Go to https://dash.cloudflare.com/ → Turnstile → Copy the SECRET key (not site key)');
+    const err: any = new Error('Turnstile 401 error: Invalid TURNSTILE_SECRET_KEY. Make sure you copied the SECRET key (not site key) from Cloudflare Turnstile dashboard.');
     err.statusCode = 401;
     throw err;
   }
 
   if (!r.ok) {
+    console.error('[Turnstile Server] Cloudflare returned error status:', status);
     const err: any = new Error(`Turnstile verification request failed (${status}).`);
     err.statusCode = status || 502;
     throw err;
@@ -188,15 +216,21 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
 
   if (!data?.success) {
     const codes = Array.isArray(data?.['error-codes']) ? data['error-codes'].join(', ') : '';
+    console.error('[Turnstile Server] Verification failed:', codes || 'unknown error');
 
     // If we already verified this token recently for this IP, treat it as OK.
     // This specifically avoids spurious "timeout-or-duplicate" failures from repeated calls.
-    if (cachedOkUntil && codes.includes('timeout-or-duplicate')) return;
+    if (cachedOkUntil && codes.includes('timeout-or-duplicate')) {
+      console.log('[Turnstile Server] Accepting cached result for duplicate token');
+      return;
+    }
 
     const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);
     err.statusCode = 403;
     throw err;
   }
+
+  console.log('[Turnstile Server] ✓ Token verified successfully');
 
   // Cache successful verification briefly to tolerate duplicate requests.
   verifiedTurnstileCache.set(cacheKey, now + 2 * 60 * 1000); // 2 minutes

@@ -17,14 +17,20 @@ export default async function handler(req: any, res: any) {
       ok: true,
       env: {
         TURNSTILE_SECRET_KEY: !!process.env.TURNSTILE_SECRET_KEY,
-        TURNSTILE_EXPECTED_HOSTNAMES: !!process.env.TURNSTILE_EXPECTED_HOSTNAMES,
+        TURNSTILE_SECRET_KEY_FORMAT: process.env.TURNSTILE_SECRET_KEY ? (process.env.TURNSTILE_SECRET_KEY.startsWith('0x') ? 'VALID (starts with 0x)' : 'INVALID (should start with 0x - you may have used SITE KEY instead of SECRET KEY)') : 'NOT SET',
+        TURNSTILE_EXPECTED_HOSTNAMES: process.env.TURNSTILE_EXPECTED_HOSTNAMES || 'NOT SET',
         GEOAPIFY_API_KEY: !!process.env.GEOAPIFY_API_KEY,
         SUPABASE_URL: !!process.env.SUPABASE_URL,
         SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        VERCEL_ENV: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
       },
       checks: {},
       note: allowLiveTests ? 'Running live upstream checks (authorized)' : (runTests ? 'Live tests requested but not authorized (missing/invalid HEALTH_CHECK_SECRET header).' : 'Live tests not requested.'),
       clientIp: getClientIp(req),
+      troubleshooting: {
+        turnstile401: 'If you get 401 error, your TURNSTILE_SECRET_KEY is WRONG. Go to Cloudflare Dashboard → Turnstile → Copy the SECRET key (NOT the site key). The secret key starts with 0x.',
+        vercelEnvVars: 'Make sure TURNSTILE_SECRET_KEY is set in Vercel Dashboard → Project Settings → Environment Variables for Production environment.',
+      },
     };
 
     if (allowLiveTests) {
