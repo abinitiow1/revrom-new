@@ -14,10 +14,10 @@ export default async function handler(req: any, res: any) {
     await verifyTurnstileOrThrow(req, turnstileToken);
 
     const email = String(body?.email || '')
-      .replace(/[\\s\\u200B-\\u200D\\uFEFF]/g, '')
+      .replace(/[\s\u200B-\u200D\uFEFF]/g, '')
       .trim()
       .toLowerCase();
-    if (!email || !/\\S+@\\S+\\.\\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' });
+    if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' });
 
     const supabase = getSupabaseAdmin() as any;
     const { error } = await supabase.from('newsletter_subscribers').insert({ email } as any);

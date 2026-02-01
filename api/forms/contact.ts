@@ -19,7 +19,7 @@ export default async function handler(req: any, res: any) {
     const message = String(body?.message || '').trim();
 
     if (!name) return sendJson(res, 400, { error: 'Name is required.' });
-    if (!email || !/\\S+@\\S+\\.\\S+/.test(email)) return sendJson(res, 400, { error: 'Valid email is required.' });
+    if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Valid email is required.' });
     if (!message || message.length < 10) return sendJson(res, 400, { error: 'Message must be at least 10 characters.' });
 
     const supabase = getSupabaseAdmin() as any;
