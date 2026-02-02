@@ -97,12 +97,20 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             }
           },
           'expired-callback': () => {
-            console.log('[Turnstile] Token expired');
-            if (mountedRef.current) {
+            console.log('[Turnstile] Token expired, auto-refreshing...');
+            if (mountedRef.current && widgetIdRef.current && window.turnstile?.reset) {
+              try {
+                window.turnstile.reset(widgetIdRef.current);
+                setState('ready');
+              } catch {
+                setState('error');
+                setErrorMsg('Verification expired - click retry');
+              }
+            } else {
               setState('error');
               setErrorMsg('Verification expired - click retry');
-              onTokenRef.current?.('');
             }
+            onTokenRef.current?.('');
           },
           'error-callback': (code: string) => {
             console.error('[Turnstile] ✗ ERROR:', code, ERROR_MAP[code] || 'Unknown error');
