@@ -117,6 +117,9 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
           },
           'error-callback': (code: string) => {
             console.error('[Turnstile] ✗ ERROR:', code, ERROR_MAP[code] || 'Unknown error');
+            console.error('[Turnstile] Current hostname:', window.location.hostname);
+            console.error('[Turnstile] Site key in use:', siteKey.substring(0, 20) + '...');
+            
             if (mountedRef.current) {
               const msg = ERROR_MAP[code] || `Verification failed (error ${code})`;
               setState('error');
