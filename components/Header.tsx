@@ -90,6 +90,8 @@ const Header: React.FC<HeaderProps> = ({
             {siteContent.logoUrl ? (
               <img 
                 src={siteContent.logoUrl} 
+                srcSet={siteContent.logoUrl ? `${siteContent.logoUrl} 1x, ${siteContent.logoUrl} 2x` : undefined}
+                sizes="(max-width: 640px) 140px, 200px"
                 alt="Revrom Logo" 
                 loading="eager"
                 decoding="async"
@@ -136,6 +138,7 @@ const Header: React.FC<HeaderProps> = ({
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
             <button 
                 onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open navigation menu"
                 className="p-3 text-foreground bg-slate-100 dark:bg-neutral-900 rounded-xl active:scale-90 transition-transform"
             >
               <MenuIcon className="w-6 h-6" />
@@ -152,6 +155,7 @@ const Header: React.FC<HeaderProps> = ({
             <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Menu</h2>
             <button 
               onClick={() => setIsMobileMenuOpen(false)}
+              aria-label="Close navigation menu"
               className="w-12 h-12 flex items-center justify-center rounded-full bg-white/10 text-white transition-transform hover:rotate-90 active:scale-90"
             >
               <XIcon className="w-6 h-6" />

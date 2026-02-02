@@ -22,22 +22,23 @@ const TripCard: React.FC<TripCardProps> = ({ trip, onSelectTrip, onBookNow }) =>
     };
 
   return (
-    <div 
-      role="button"
-      tabIndex={0}
-      aria-label={`View details for ${trip.title}`}
-      className="bg-card dark:bg-dark-card rounded-2xl shadow-adventure-dark overflow-hidden transform transition-all duration-500 cursor-pointer group flex flex-col border border-border/50 dark:border-dark-border hover:border-brand-primary active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
-      onClick={() => onSelectTrip(trip)}
-      onKeyDown={(e) => {
-        // Only treat Enter/Space as "open" when the card itself is focused (not nested controls).
-        if (e.target !== e.currentTarget) return;
-        if (e.key !== 'Enter' && e.key !== ' ') return;
-        e.preventDefault();
-        onSelectTrip(trip);
-      }}
-    >
+    <div className="bg-card dark:bg-dark-card rounded-2xl shadow-adventure-dark overflow-hidden transform transition-all duration-500 group flex flex-col border border-border/50 dark:border-dark-border hover:border-brand-primary">
+      <button
+        type="button"
+        aria-label={`View details for ${trip.title}`}
+        onClick={() => onSelectTrip(trip)}
+        className="text-left cursor-pointer active:scale-[0.98] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
+      >
       <div className="relative overflow-hidden h-64">
-        <img src={trip.imageUrl} alt={trip.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
+        <img
+          src={trip.imageUrl}
+          srcSet={trip.imageUrl ? `${trip.imageUrl} 1x, ${trip.imageUrl} 2x` : undefined}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          alt={trip.title}
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          loading="lazy"
+          decoding="async"
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
         <div className="absolute top-4 left-4 flex flex-col gap-2">
@@ -64,15 +65,17 @@ const TripCard: React.FC<TripCardProps> = ({ trip, onSelectTrip, onBookNow }) =>
         <p className="text-muted-foreground dark:text-dark-muted-foreground text-xs font-medium leading-relaxed mb-6 line-clamp-2">
             {trip.shortDescription}
         </p>
-        <button 
-            onClick={(e) => {
-                e.stopPropagation();
-                onBookNow(trip);
-            }}
-            className="mt-auto group/btn flex items-center justify-center gap-2 w-full adventure-gradient text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl transition-all shadow-lg hover:shadow-adventure active:scale-95"
+      </div>
+      </button>
+
+      <div className="px-6 pb-6 bg-white dark:bg-dark-card">
+        <button
+          type="button"
+          onClick={() => onBookNow(trip)}
+          className="group/btn flex items-center justify-center gap-2 w-full adventure-gradient text-white text-[10px] font-black uppercase tracking-widest py-3.5 rounded-xl transition-all shadow-lg hover:shadow-adventure active:scale-95"
         >
-            INQUIRE NOW
-            <svg className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
+          INQUIRE NOW
+          <svg className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
         </button>
       </div>
     </div>

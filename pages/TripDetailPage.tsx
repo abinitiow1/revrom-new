@@ -68,7 +68,7 @@ const ItineraryDayAccordion: React.FC<{
             {isOpen ? <MinusIcon className="w-5 h-5 text-brand-primary" /> : <PlusIcon className="w-5 h-5 text-muted-foreground opacity-30" />}
         </button>
         <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
-            <div className="px-6 md:px-8 pb-8 pt-0 pl-16 sm:pl-[4.5rem] md:pl-[5.5rem] text-[13px] sm:text-sm md:text-base text-muted-foreground dark:text-dark-muted-foreground leading-relaxed border-t border-brand-primary/5 pt-4 italic">
+            <div className="px-6 md:px-8 pb-8 pt-4 pl-16 sm:pl-[4.5rem] md:pl-[5.5rem] text-[13px] sm:text-sm md:text-base text-muted-foreground dark:text-dark-muted-foreground leading-relaxed border-t border-brand-primary/5 italic">
                 {item.description}
             </div>
         </div>
@@ -121,15 +121,15 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
         
-        <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-white/20 transition-all">
+        <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-black/60 transition-all shadow-lg">
           &larr; Back
         </button>
 
-        <div className="absolute inset-y-0 left-2 flex items-center z-30 opacity-60 hover:opacity-100">
-          <button onClick={goToPrevious} className="p-2 md:p-4 rounded-full text-white transition-all"><ChevronLeftIcon className="w-8 h-8"/></button>
+        <div className="absolute inset-y-0 left-2 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
+          <button onClick={goToPrevious} aria-label="Previous image" title="Previous image" className="p-2 md:p-4 rounded-full text-white transition-all bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"><ChevronLeftIcon className="w-6 h-6 md:w-8 md:h-8"/></button>
         </div>
-        <div className="absolute inset-y-0 right-2 flex items-center z-30 opacity-60 hover:opacity-100">
-          <button onClick={goToNext} className="p-2 md:p-4 rounded-full text-white transition-all"><ChevronRightIcon className="w-8 h-8"/></button>
+        <div className="absolute inset-y-0 right-2 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
+          <button onClick={goToNext} aria-label="Next image" title="Next image" className="p-2 md:p-4 rounded-full text-white transition-all bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"><ChevronRightIcon className="w-6 h-6 md:w-8 md:h-8"/></button>
         </div>
 
         <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 z-20 px-4 sm:px-6">

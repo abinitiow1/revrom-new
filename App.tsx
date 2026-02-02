@@ -10,6 +10,7 @@ import TripDetailPage from './pages/TripDetailPage';
 import BookingPage from './pages/BookingPage';
 import Preloader from './components/Preloader';
 import FloatingWhatsApp from './components/FloatingWhatsApp';
+import ErrorBoundary from './components/ErrorBoundary';
 import { createDebouncedStateSaver, loadAppState, saveAppState, type AppStateSnapshot } from './services/appStateService';
 import { getSupabase } from './services/supabaseClient';
 import { listItineraryQueries, submitItineraryQuery, updateItineraryQueryStatus } from './services/itineraryQueryService';
@@ -117,12 +118,12 @@ const App: React.FC = () => {
 
   // Persistent States
   // In Supabase mode, the DB is the source of truth (do not hydrate/sync from localStorage).
-  const [trips, setTrips] = useState<Trip[]>(() => (isSupabaseMode ? initialTrips : getStored('trips', initialTrips)));
-  const [departures, setDepartures] = useState<Departure[]>(() => (isSupabaseMode ? initialDepartures : getStored('departures', initialDepartures)));
-  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => (isSupabaseMode ? initialBlogPosts : getStored('blogPosts', initialBlogPosts)));
-  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>(() => (isSupabaseMode ? initialGalleryPhotos : getStored('galleryPhotos', initialGalleryPhotos)));
-  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => (isSupabaseMode ? initialInstagramPosts : getStored('instagramPosts', initialInstagramPosts)));
-  const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => (isSupabaseMode ? initialGoogleReviews : getStored('googleReviews', initialGoogleReviews)));
+  const [trips, setTrips] = useState<Trip[]>(() => (isSupabaseMode ? [] : getStored('trips', initialTrips)));
+  const [departures, setDepartures] = useState<Departure[]>(() => (isSupabaseMode ? [] : getStored('departures', initialDepartures)));
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(() => (isSupabaseMode ? [] : getStored('blogPosts', initialBlogPosts)));
+  const [galleryPhotos, setGalleryPhotos] = useState<GalleryPhoto[]>(() => (isSupabaseMode ? [] : getStored('galleryPhotos', initialGalleryPhotos)));
+  const [instagramPosts, setInstagramPosts] = useState<InstagramPost[]>(() => (isSupabaseMode ? [] : getStored('instagramPosts', initialInstagramPosts)));
+  const [googleReviews, setGoogleReviews] = useState<GoogleReview[]>(() => (isSupabaseMode ? [] : getStored('googleReviews', initialGoogleReviews)));
   const [siteContent, setSiteContent] = useState<SiteContent>(() => {
     if (isSupabaseMode) return initialSiteContent;
     const stored = getStored('siteContent', initialSiteContent) as any;
@@ -131,7 +132,7 @@ const App: React.FC = () => {
   const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => []);
   const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>(() => []);
-  const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? initialCustomPages : getStored('customPages', initialCustomPages)));
+  const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? [] : getStored('customPages', initialCustomPages)));
 
   const buildSnapshot = useCallback(
     (): AppStateSnapshot => ({
@@ -254,8 +255,7 @@ const App: React.FC = () => {
           setCustomPages(loaded.snapshot.customPages || []);
         }
       } catch (err) {
-        // Fallback to local mock/localStorage if Supabase isn't configured yet.
-        console.error('Failed to load from Supabase (falling back to local):', err);
+        console.error('Failed to load from Supabase:', err);
       } finally {
         if (!canceled) setIsRemoteReady(true);
       }
@@ -664,6 +664,12 @@ const App: React.FC = () => {
                     onAddGalleryPhoto={p => setGalleryPhotos(prev => [{...p, id: makeId()}, ...prev])}
                     onUpdateGalleryPhoto={p => setGalleryPhotos(prev => prev.map(x => x.id === p.id ? p : x))}
                     onDeleteGalleryPhoto={id => setGalleryPhotos(prev => prev.filter(x => x.id !== id))}
+                    onAddInstagramPost={p => setInstagramPosts(prev => [{...p, id: makeId()}, ...prev])}
+                    onUpdateInstagramPost={p => setInstagramPosts(prev => prev.map(x => x.id === p.id ? p : x))}
+                    onDeleteInstagramPost={id => setInstagramPosts(prev => prev.filter(x => x.id !== id))}
+                    onAddGoogleReview={r => setGoogleReviews(prev => [{...r, id: makeId()}, ...prev])}
+                    onUpdateGoogleReview={r => setGoogleReviews(prev => prev.map(x => x.id === r.id ? r : x))}
+                    onDeleteGoogleReview={id => setGoogleReviews(prev => prev.filter(x => x.id !== id))}
                     onUpdateSiteContent={c => setSiteContent(p => ({...p, ...c}))}
                     onAddCustomPage={page => setCustomPages(prev => [{...page, id: makeId()}, ...prev])}
                     onUpdateCustomPage={page => setCustomPages(prev => prev.map(x => x.id === page.id ? page : x))}
@@ -705,6 +711,7 @@ const App: React.FC = () => {
   const hideSiteChrome = view === 'admin';
 
   return (
+    <ErrorBoundary>
     <div className="bg-background text-foreground min-h-screen flex flex-col">
       {!hideSiteChrome && (
         <Header 
@@ -775,6 +782,7 @@ const App: React.FC = () => {
         }
       `}</style>
     </div>
+    </ErrorBoundary>
   );
 };
 

@@ -25,7 +25,15 @@ const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, onSelectPost }) => {
       onClick={() => onSelectPost(post)}
     >
       <div className="relative">
-        <img src={post.imageUrl} alt={post.title} className="w-full h-56 object-cover" loading="lazy" decoding="async" />
+        <img
+          src={post.imageUrl}
+          srcSet={post.imageUrl ? `${post.imageUrl} 1x, ${post.imageUrl} 2x` : undefined}
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          alt={post.title}
+          className="w-full h-56 object-cover"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div className="p-6 flex flex-col flex-grow">
         <div className="flex items-center text-xs text-muted-foreground dark:text-dark-muted-foreground mb-3">

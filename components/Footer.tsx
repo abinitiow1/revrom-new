@@ -95,6 +95,8 @@ const Footer: React.FC<FooterProps> = ({
               {siteContent.logoUrl ? (
                 <img 
                   src={siteContent.logoUrl} 
+                  srcSet={siteContent.logoUrl ? `${siteContent.logoUrl} 1x, ${siteContent.logoUrl} 2x` : undefined}
+                  sizes="(max-width: 640px) 160px, 220px"
                   alt="Revrom Logo" 
                   loading="lazy"
                   decoding="async"
@@ -110,17 +112,17 @@ const Footer: React.FC<FooterProps> = ({
             </p>
             <div className="flex items-center space-x-4">
               {!!siteContent.facebookUrl && (
-                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="Facebook">
+                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Facebook" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <FacebookIcon className="w-6 h-6" />
                 </a>
               )}
               {!!siteContent.instagramUrl && (
-                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="Instagram">
+                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Instagram" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <InstagramIcon className="w-6 h-6" />
                 </a>
               )}
               {!!siteContent.youtubeUrl && (
-                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-brand-primary transition-colors" title="YouTube">
+                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit YouTube" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <YoutubeIcon className="w-6 h-6" />
                 </a>
               )}

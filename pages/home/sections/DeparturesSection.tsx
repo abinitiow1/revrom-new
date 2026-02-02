@@ -136,7 +136,8 @@ I'm interested in this tour. Please share pricing and details.`;
         </div>
 
         <div className="bg-white dark:bg-neutral-900 rounded-[2rem] shadow-2xl border border-border/50 dark:border-dark-border/50 overflow-hidden">
-          <div className="overflow-x-auto no-scrollbar">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto no-scrollbar">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50/50 dark:bg-white/[0.01] border-b border-border/50">
@@ -224,6 +225,95 @@ I'm interested in this tour. Please share pricing and details.`;
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden divide-y divide-border/30 dark:divide-dark-border/30">
+            {filteredDepartures.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground italic">
+                No departures found for the selected filters.
+              </div>
+            ) : (
+              filteredDepartures.map((departure) => {
+                const dTrip = trips.find((t) => t.id === departure.tripId);
+                if (!dTrip) return null;
+                const slotColor =
+                  departure.slots === 0
+                    ? 'text-red-500'
+                    : departure.slots <= 4
+                      ? 'text-orange-500'
+                      : 'text-green-600';
+                const statusColors = {
+                  Available: 'bg-green-50 text-green-700 border-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800',
+                  Limited: 'bg-orange-50 text-orange-700 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800',
+                  'Sold Out': 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800',
+                };
+                const statusDotColors = {
+                  Available: 'bg-green-500',
+                  Limited: 'bg-orange-500',
+                  'Sold Out': 'bg-red-500',
+                };
+                return (
+                  <div key={departure.id} className="p-5 space-y-4">
+                    {/* Tour Name & Status Badge */}
+                    <div className="flex items-start justify-between gap-3">
+                      <h4 className="font-black text-[#112340] dark:text-foreground text-base tracking-tight italic leading-tight flex-1">
+                        {dTrip.title}
+                      </h4>
+                      <div
+                        className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusColors[departure.status as keyof typeof statusColors]}`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${statusDotColors[departure.status as keyof typeof statusDotColors]}`}
+                        ></span>
+                        <span className="text-[9px] font-black uppercase tracking-widest">{departure.status}</span>
+                      </div>
+                    </div>
+
+                    {/* Date & Slots Row */}
+                    <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-white/[0.02] rounded-xl p-3">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p className="text-[12px] font-bold text-muted-foreground uppercase tracking-wide">
+                          {new Date(departure.startDate).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}{' '}
+                          -{' '}
+                          {new Date(departure.endDate).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span className={`text-sm font-black ${slotColor}`}>{departure.slots} slots</span>
+                      </div>
+                    </div>
+
+                    {/* CTA Button */}
+                    <button
+                      type="button"
+                      onClick={() => handleInquiry(dTrip, departure)}
+                      disabled={departure.status === 'Sold Out'}
+                      className={`w-full py-3.5 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all ${
+                        departure.status === 'Sold Out'
+                          ? 'bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
+                          : 'adventure-gradient text-white shadow-lg hover:shadow-xl active:scale-[0.98]'
+                      }`}
+                    >
+                      {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire Now →'}
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -231,4 +321,3 @@ I'm interested in this tour. Please share pricing and details.`;
 };
 
 export default DeparturesSection;
-
