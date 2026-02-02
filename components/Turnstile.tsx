@@ -31,6 +31,9 @@ const ERROR_MAP: Record<string, string> = {
   '110110': 'Invalid sitekey format',
   '110500': 'Challenge timed out',
   '110600': 'Challenge failed',
+  '600000': 'Internal error - try again',
+  '600010': 'Configuration error - check that www.revrom.in is added to allowed domains in Cloudflare Turnstile dashboard',
+  '600020': 'Execution error - refresh and try again',
 };
 
 export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal' }: Props) {
