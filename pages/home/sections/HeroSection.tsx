@@ -1,5 +1,6 @@
 import React from 'react';
 import type { SiteContent } from '../../../types';
+import Button from '../../../components/Button';
 
 type Props = {
   siteContent: SiteContent;
@@ -34,22 +35,23 @@ const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
             {siteContent.heroSubtitle}
           </p>
           <div className="flex flex-wrap gap-4">
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="lg"
               onClick={() =>
                 document.getElementById('adventures')?.scrollIntoView({ behavior: 'smooth' })
               }
-              className="adventure-gradient text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl shadow-adventure"
             >
               {siteContent.heroPrimaryCtaLabel || 'Browse Tours'}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant="secondary"
+              size="lg"
               onClick={onNavigateCustomize}
-              className="bg-white/10 backdrop-blur-md border border-white/30 text-white font-black uppercase text-xs tracking-widest px-8 sm:px-10 py-4 sm:py-5 rounded-2xl"
+              className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 dark:bg-white/10 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
             >
               {siteContent.heroSecondaryCtaLabel || 'Plan Your Trip'}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
