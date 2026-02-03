@@ -1,12 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { getHostname } from '../utils/env';
+import { logError, logWarn, logInfo, logDebug } from '../utils/logger';
+
+/**
+ * Turnstile widget render options type
+ * Defines all supported options for Cloudflare Turnstile widget
+ */
+interface TurnstileRenderOptions {
+  sitekey: string;
+  theme: 'auto' | 'light' | 'dark';
+  size: 'normal' | 'compact';
+  callback?: (token: string) => void;
+  'expired-callback'?: () => void;
+  'error-callback'?: (code: string) => void;
+  'timeout-callback'?: () => void;
+  'before-interactive-callback'?: () => void;
+  'after-interactive-callback'?: () => void;
+  'unsupported-callback'?: () => void;
+}
+
+/**
+ * Turnstile API interface
+ * Defines the global window.turnstile API shape
+ */
+interface TurnstileAPI {
+  render: (container: HTMLElement, options: TurnstileRenderOptions) => string;
+  reset: (widgetId: string) => void;
+  remove: (widgetId: string) => void;
+  getResponse: (widgetId: string) => string | undefined;
+  isReady: () => boolean;
+}
 
 declare global {
   interface Window {
-    turnstile?: {
-      render: (container: HTMLElement, options: Record<string, any>) => string;
-      reset: (widgetId: string) => void;
-      remove: (widgetId: string) => void;
-    };
+    turnstile?: TurnstileAPI;
     onTurnstileLoad?: () => void;
   }
 }
@@ -53,15 +80,15 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
 
   // Debug logging on mount
   useEffect(() => {
-    console.log('[Turnstile] ===== DEBUG INFO =====');
-    console.log('[Turnstile] Hostname:', window.location.hostname);
-    console.log('[Turnstile] Site key provided:', siteKey ? 'YES (' + siteKey.substring(0, 20) + '...)' : 'NO - MISSING!');
-    console.log('[Turnstile] ========================');
+    const hostname = getHostname();
+    logInfo('Turnstile', 'Initializing', { hostname });
+    logDebug('Turnstile', 'Site key status', siteKey ? 'provided' : 'missing');
     
     if (!siteKey) {
       setState('error');
       setErrorMsg('Site key missing - VITE_TURNSTILE_SITE_KEY not set in Vercel');
       onError?.('Missing site key');
+      logError('Turnstile', 'Site key missing - verification will fail');
       return;
     }
     
@@ -69,6 +96,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       setState('error');
       setErrorMsg('Invalid site key format');
       onError?.('Invalid key format');
+      logError('Turnstile', 'Site key format invalid - must start with "0x"');
       return;
     }
   }, [siteKey, onError]);
@@ -84,7 +112,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       if (widgetIdRef.current || renderAttemptedRef.current) return;
       
       renderAttemptedRef.current = true;
-      console.log('[Turnstile] Rendering widget...');
+      logInfo('Turnstile', 'Rendering widget');
 
       try {
         widgetIdRef.current = window.turnstile.render(containerRef.current, {
@@ -92,7 +120,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
           theme,
           size,
           callback: (token: string) => {
-            console.log('[Turnstile] ✓ SUCCESS - Token received');
+            logInfo('Turnstile', 'Token verified successfully');
             if (mountedRef.current) {
               setState('verified');
               setErrorMsg('');
@@ -100,45 +128,55 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             }
           },
           'expired-callback': () => {
-            console.log('[Turnstile] Token expired, auto-refreshing...');
+            logWarn('Turnstile', 'Token expired, clearing and attempting auto-refresh');
+            // Clear expired token immediately
+            onTokenRef.current?.('');
+            
             if (mountedRef.current && widgetIdRef.current && window.turnstile?.reset) {
               try {
                 window.turnstile.reset(widgetIdRef.current);
                 setState('ready');
-              } catch {
+                logInfo('Turnstile', 'Widget reset after expiry');
+              } catch (resetError: unknown) {
+                const errorMsg = resetError instanceof Error ? resetError.message : 'Unknown error during reset';
+                logError('Turnstile', 'Reset failed after token expiry', errorMsg);
                 setState('error');
                 setErrorMsg('Verification expired - click retry');
               }
             } else {
+              logWarn('Turnstile', 'Cannot reset widget - missing API or mounted state');
               setState('error');
               setErrorMsg('Verification expired - click retry');
             }
-            onTokenRef.current?.('');
           },
           'error-callback': (code: string) => {
-            console.error('[Turnstile] ✗ ERROR:', code, ERROR_MAP[code] || 'Unknown error');
-            console.error('[Turnstile] Current hostname:', window.location.hostname);
-            console.error('[Turnstile] Site key in use:', siteKey.substring(0, 20) + '...');
+            const hostname = getHostname();
+            const errorDescription = ERROR_MAP[code] || 'Unknown error';
+            logError('Turnstile', `Verification error (${code})`, `Hostname: ${hostname}, Error: ${errorDescription}`);
             
             if (mountedRef.current) {
-              const msg = ERROR_MAP[code] || `Verification failed (error ${code})`;
+              const msg = `Verification failed (error ${code})`;
               setState('error');
               setErrorMsg(msg);
+              // Clear token on error
               onTokenRef.current?.('');
               onErrorRef.current?.(msg);
             }
           },
         });
         
-        console.log('[Turnstile] Widget rendered, ID:', widgetIdRef.current);
+        logInfo('Turnstile', 'Widget rendered', `ID: ${widgetIdRef.current}`);
         if (mountedRef.current) {
           setState('ready');
         }
-      } catch (err: any) {
-        console.error('[Turnstile] Render exception:', err);
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+        logError('Turnstile', 'Widget render failed', errorMsg);
         if (mountedRef.current) {
           setState('error');
-          setErrorMsg(err?.message || 'Failed to render widget');
+          setErrorMsg('Failed to render widget: ' + errorMsg);
+          // Clear token on error
+          onTokenRef.current?.('');
         }
       }
     };
@@ -146,34 +184,35 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     // Load script and render
     const init = () => {
       if (window.turnstile) {
-        console.log('[Turnstile] Script already loaded, rendering...');
+        logInfo('Turnstile', 'Script already loaded, rendering');
         renderWidget();
         return;
       }
 
       const existing = document.getElementById(SCRIPT_ID);
       if (existing) {
-        console.log('[Turnstile] Script tag exists, waiting for load...');
+        logInfo('Turnstile', 'Script tag exists, waiting for load event');
         window.onTurnstileLoad = renderWidget;
         return;
       }
 
-      console.log('[Turnstile] Loading Cloudflare script...');
+      logInfo('Turnstile', 'Loading Cloudflare Turnstile script');
       const script = document.createElement('script');
       script.id = SCRIPT_ID;
       script.src = SCRIPT_URL;
       script.async = true;
       
       window.onTurnstileLoad = () => {
-        console.log('[Turnstile] Script loaded successfully');
+        logInfo('Turnstile', 'Script loaded successfully');
         renderWidget();
       };
       
       script.onerror = () => {
-        console.error('[Turnstile] Failed to load script');
+        logError('Turnstile', 'Failed to load script from CDN');
         if (mountedRef.current) {
           setState('error');
-          setErrorMsg('Failed to load Turnstile - check CSP headers');
+          setErrorMsg('Failed to load Turnstile - check CSP headers and internet connection');
+          onErrorRef.current?.('Failed to load Turnstile script');
         }
       };
       
@@ -184,27 +223,38 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
 
     return () => {
       mountedRef.current = false;
+      // Cleanup: Remove widget and clear token
       if (widgetIdRef.current && window.turnstile?.remove) {
         try { 
-          window.turnstile.remove(widgetIdRef.current); 
-        } catch {}
+          window.turnstile.remove(widgetIdRef.current);
+          logInfo('Turnstile', 'Widget removed on component unmount');
+        } catch (cleanupError: unknown) {
+          const errorMsg = cleanupError instanceof Error ? cleanupError.message : 'Unknown error';
+          logWarn('Turnstile', 'Failed to remove widget on unmount', errorMsg);
+        }
         widgetIdRef.current = null;
       }
+      // Clear token on unmount
+      onTokenRef.current?.('');
     };
   }, [siteKey, theme, size]);
 
   const handleRetry = () => {
-    console.log('[Turnstile] Retry clicked');
+    logInfo('Turnstile', 'User clicked retry button');
     if (widgetIdRef.current && window.turnstile?.reset) {
       try {
         setState('loading');
         setErrorMsg('');
         window.turnstile.reset(widgetIdRef.current);
         setState('ready');
-      } catch {
+        logInfo('Turnstile', 'Widget reset successfully');
+      } catch (resetError: unknown) {
+        const errorMsg = resetError instanceof Error ? resetError.message : 'Unknown error';
+        logError('Turnstile', 'Reset failed on retry, reloading page', errorMsg);
         window.location.reload();
       }
     } else {
+      logWarn('Turnstile', 'Cannot reset widget, reloading page');
       window.location.reload();
     }
   };
