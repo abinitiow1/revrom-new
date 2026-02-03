@@ -34,6 +34,7 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [formNotice, setFormNotice] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileError, setTurnstileError] = useState('');
 
@@ -45,6 +46,12 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setTurnstileError('');
+
+    // Do not block WhatsApp on missing fields (keep conversion flow).
+    // We only use these fields to improve the message + optionally save a lead.
+    if (!name.trim() || !email.trim() || !phone.trim()) {
+      setFormNotice('Tip: add your name, email, and WhatsApp number for faster follow-up.');
+    }
 
     // Save a lead for admin visibility when we have usable details.
     // (Supabase schema enforces 8-15 digits for whatsapp_number.)
@@ -83,14 +90,17 @@ Room Type: ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}
 
 I'm interested in joining this trip. Please send me more details. Thank you!`;
     
-    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    try {
+      if (w) (w as any).opener = null;
+    } catch {}
   };
 
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-24 lg:pb-0">
       <div className="container mx-auto px-6 py-12 md:py-20 max-w-7xl">
-          <button onClick={onBack} className="text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-brand-primary mb-12 flex items-center gap-2 transition-all group">
-            <span className="group-hover:-translate-x-1 transition-transform">&larr;</span> BACK TO TRIP INFO
+          <button onClick={onBack} className="text-xs sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-brand-primary active:text-brand-primary-dark px-4 py-2 sm:py-1 mb-12 flex items-center gap-2 transition-all group bg-slate-50 dark:bg-neutral-900/50 rounded-lg active:scale-95">
+            <span className="group-hover:-translate-x-1 active:-translate-x-1 transition-transform">&larr;</span> BACK
           </button>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
@@ -103,7 +113,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary mb-8">Traveler Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-card dark:bg-dark-card p-6 sm:p-8 rounded-3xl border border-border dark:border-dark-border shadow-sm group hover:border-brand-primary/30 transition-all">
-                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-6">Number of Travelers</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-60 sm:opacity-40 block mb-6">Number of Travelers</label>
                             <div className="flex items-center gap-6">
                                 <button type="button" onClick={() => setTravelers(Math.max(1, travelers - 1))} className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-neutral-800 flex items-center justify-center font-black hover:bg-slate-200 transition-colors shadow-sm active:scale-90">-</button>
                                 <span className="text-2xl font-black min-w-[20px] text-center">{travelers}</span>
@@ -113,7 +123,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                         </div>
 
                         <div className="bg-card dark:bg-dark-card p-6 sm:p-8 rounded-3xl border border-border dark:border-dark-border shadow-sm flex flex-col justify-between group hover:border-brand-primary/30 transition-all">
-                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-6">Accommodation Preference</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-60 sm:opacity-40 block mb-6">Accommodation Preference</label>
                             <div className="flex gap-4">
                                 <button 
                                     type="button" 
@@ -138,48 +148,56 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary mb-8">Your Contact Info</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">Full Name</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-60 sm:opacity-40 block mb-3 pl-1">Full Name</label>
                             <input 
                                 id="bookingName"
                                 name="name"
                                 autoComplete="name"
+                                autoCapitalize="words"
                                 required 
                                 value={name} 
-                                onChange={e => setName(e.target.value)} 
+                                onChange={e => { setName(e.target.value); if (formNotice) setFormNotice(''); }} 
                                 placeholder="Your full name" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary outline-none transition-all text-sm font-bold shadow-sm"
+                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">Email Address</label>
+                            <label className="text-[10px] font-black uppercase tracking-widest opacity-60 sm:opacity-40 block mb-3 pl-1">Email Address</label>
                             <input 
                                 id="bookingEmail"
                                 name="email"
                                 autoComplete="email"
+                                inputMode="email"
+                                autoCapitalize="none"
+                                spellCheck={false}
                                 required 
                                 type="email" 
                                 value={email} 
-                                onChange={e => setEmail(e.target.value)} 
+                                onChange={e => { setEmail(e.target.value); if (formNotice) setFormNotice(''); }} 
                                 placeholder="hello@example.com" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary outline-none transition-all text-sm font-bold shadow-sm"
+                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
                             />
                         </div>
                         <div className="md:col-span-2">
-                             <label className="text-[10px] font-black uppercase tracking-widest opacity-40 block mb-3 pl-1">WhatsApp Number</label>
+                             <label className="text-[10px] font-black uppercase tracking-widest opacity-60 sm:opacity-40 block mb-3 pl-1">WhatsApp Number</label>
                              <input 
                                 id="bookingWhatsapp"
                                 name="tel"
                                 autoComplete="tel"
                                 inputMode="tel"
+                                autoCapitalize="none"
                                 required 
                                 type="tel" 
                                 value={phone} 
-                                onChange={e => setPhone(e.target.value)} 
+                                onChange={e => { setPhone(e.target.value); if (formNotice) setFormNotice(''); }} 
                                 placeholder="+91 00000 00000" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary outline-none transition-all text-sm font-bold shadow-sm"
+                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
                             />
                         </div>
                     </div>
+                    {formNotice ? (
+                      <div className="text-[12px] font-bold text-amber-700 dark:text-amber-200">{formNotice}</div>
+                    ) : null}
                 </section>
 
                 {requiresTurnstile ? (
@@ -203,7 +221,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
 
                 <button 
                     type="submit" 
-                    className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 transition-all items-center justify-center gap-3"
+                    className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all items-center justify-center gap-3"
                 >
                     <WhatsAppIcon className="w-5 h-5" />
                     INQUIRE VIA WHATSAPP
@@ -254,8 +272,10 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                 <span className="text-xl font-black italic tracking-tighter">REQ. PRICING</span>
             </div>
             <button 
+                type="button"
                 onClick={() => handleSubmit()}
-                className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all flex items-center gap-2"
+                className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center gap-2"
+                aria-label="Send inquiry via WhatsApp"
             >
                 <WhatsAppIcon className="w-4 h-4" />
                 INQUIRE

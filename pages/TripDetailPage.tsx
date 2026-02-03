@@ -57,15 +57,15 @@ const ItineraryDayAccordion: React.FC<{
     <div className={`border border-border dark:border-dark-border rounded-2xl overflow-hidden transition-all duration-300 ${isOpen ? 'ring-2 ring-brand-primary/20 bg-brand-primary/[0.02]' : 'hover:bg-slate-50 dark:hover:bg-white/[0.02]'}`}>
         <button 
             onClick={onToggle}
-            className="w-full flex items-center justify-between p-4 sm:p-6 md:p-8 text-left outline-none"
+            className="w-full flex items-center justify-between p-5 sm:p-8 md:p-10 text-left outline-none transition-colors hover:bg-slate-100/50 dark:hover:bg-white/5 active:bg-slate-200/50 dark:active:bg-white/10"
         >
-            <div className="flex items-center gap-4 sm:gap-5">
-                <span className={`flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center text-[9px] sm:text-[10px] font-black transition-colors ${isOpen ? 'bg-brand-primary text-white shadow-lg' : 'bg-slate-100 dark:bg-neutral-800 text-muted-foreground'}`}>
+            <div className="flex items-center gap-4 sm:gap-6 flex-1 min-w-0">
+                <span className={`flex-shrink-0 w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl flex items-center justify-center text-[9px] sm:text-[11px] md:text-sm font-black transition-all ${isOpen ? 'bg-brand-primary text-white shadow-lg scale-105' : 'bg-slate-100 dark:bg-neutral-800 text-muted-foreground'}`}>
                     DAY {item.day}
                 </span>
-                <h3 className="text-xs sm:text-sm md:text-lg font-black uppercase tracking-tight italic leading-tight">{item.title}</h3>
+                <h3 className="text-sm sm:text-base md:text-lg font-black uppercase tracking-tight italic leading-snug flex-1">{item.title}</h3>
             </div>
-            {isOpen ? <MinusIcon className="w-5 h-5 text-brand-primary" /> : <PlusIcon className="w-5 h-5 text-muted-foreground opacity-30" />}
+            {isOpen ? <MinusIcon className="w-6 h-6 sm:w-7 sm:h-7 text-brand-primary flex-shrink-0" /> : <PlusIcon className="w-6 h-6 sm:w-7 sm:h-7 text-muted-foreground opacity-40 flex-shrink-0" />}
         </button>
         <div className={`overflow-hidden transition-all duration-500 ease-in-out ${isOpen ? 'max-h-[500px]' : 'max-h-0'}`}>
             <div className="px-6 md:px-8 pb-8 pt-4 pl-16 sm:pl-[4.5rem] md:pl-[5.5rem] text-[13px] sm:text-sm md:text-base text-muted-foreground dark:text-dark-muted-foreground leading-relaxed border-t border-brand-primary/5 italic">
@@ -108,7 +108,7 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
         image={seoImage}
       />
 
-      <section className="relative h-[45vh] sm:h-[55vh] md:h-[65vh] lg:h-[75vh] w-full overflow-hidden bg-black">
+      <section className="relative h-45vh-dvh sm:h-55vh-dvh md:h-65vh-dvh lg:h-75vh-dvh w-full overflow-hidden bg-black">
         {trip.gallery.map((photo, index) => (
           <img
             key={index}
@@ -121,15 +121,15 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
         ))}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
         
-        <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-white text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-black/60 transition-all shadow-lg">
-          &larr; Back
+        <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-black/40 backdrop-blur-md px-5 py-3 sm:px-6 sm:py-3 rounded-lg text-white text-xs sm:text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-black/60 transition-all shadow-lg active:scale-95">
+          ← BACK
         </button>
 
-        <div className="absolute inset-y-0 left-2 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
-          <button onClick={goToPrevious} aria-label="Previous image" title="Previous image" className="p-2 md:p-4 rounded-full text-white transition-all bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"><ChevronLeftIcon className="w-6 h-6 md:w-8 md:h-8"/></button>
+        <div className="absolute inset-y-0 left-2 sm:left-4 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
+          <button onClick={goToPrevious} aria-label="Previous image" title="Previous image" className="p-4 sm:p-5 md:p-6 rounded-full text-white transition-all bg-black/30 sm:bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none hover:bg-black/50 md:hover:bg-white/10 active:scale-90"><ChevronLeftIcon className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"/></button>
         </div>
-        <div className="absolute inset-y-0 right-2 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
-          <button onClick={goToNext} aria-label="Next image" title="Next image" className="p-2 md:p-4 rounded-full text-white transition-all bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none"><ChevronRightIcon className="w-6 h-6 md:w-8 md:h-8"/></button>
+        <div className="absolute inset-y-0 right-2 sm:right-4 flex items-center z-30 opacity-100 md:opacity-60 md:hover:opacity-100">
+          <button onClick={goToNext} aria-label="Next image" title="Next image" className="p-4 sm:p-5 md:p-6 rounded-full text-white transition-all bg-black/30 sm:bg-black/20 md:bg-transparent backdrop-blur-sm md:backdrop-blur-none hover:bg-black/50 md:hover:bg-white/10 active:scale-90"><ChevronRightIcon className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10"/></button>
         </div>
 
         <div className="absolute bottom-6 sm:bottom-12 left-0 right-0 z-20 px-4 sm:px-6">
@@ -177,23 +177,23 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
             )}
 
             <section className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
-              <div className="bg-green-500/[0.03] p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-green-500/10">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-green-600 mb-6 italic">What's Included</h3>
-                <ul className="space-y-4">
+              <div className="bg-green-500/[0.03] p-7 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-green-500/10">
+                <h3 className="text-xs sm:text-[11px] font-black uppercase tracking-widest text-green-600 mb-7 sm:mb-8 italic">What's Included</h3>
+                <ul className="space-y-4 sm:space-y-5">
                     {trip.inclusions.map(item => (
-                        <li key={item} className="flex items-start gap-4 text-xs font-bold text-muted-foreground dark:text-dark-muted-foreground">
-                            <CheckCircleIcon className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                        <li key={item} className="flex items-start gap-4 sm:gap-5 text-sm sm:text-base font-semibold text-muted-foreground dark:text-dark-muted-foreground leading-relaxed">
+                            <CheckCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-500 flex-shrink-0 mt-1" />
                             <span>{item}</span>
                         </li>
                     ))}
                 </ul>
               </div>
-              <div className="bg-red-500/[0.03] p-6 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] border border-red-500/10">
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-red-600 mb-6 italic">What's Not Included</h3>
-                <ul className="space-y-4">
+              <div className="bg-red-500/[0.03] p-7 sm:p-10 rounded-[2rem] sm:rounded-[2.5rem] border border-red-500/10">
+                <h3 className="text-xs sm:text-[11px] font-black uppercase tracking-widest text-red-600 mb-7 sm:mb-8 italic">What's Not Included</h3>
+                <ul className="space-y-4 sm:space-y-5">
                     {trip.exclusions.map(item => (
-                        <li key={item} className="flex items-start gap-4 text-xs font-bold text-muted-foreground dark:text-dark-muted-foreground">
-                            <XCircleIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                        <li key={item} className="flex items-start gap-4 sm:gap-5 text-sm sm:text-base font-semibold text-muted-foreground dark:text-dark-muted-foreground leading-relaxed">
+                            <XCircleIcon className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 flex-shrink-0 mt-1" />
                             <span>{item}</span>
                         </li>
                     ))}
@@ -231,7 +231,7 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-[100] lg:hidden animate-fade-up">
-        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 py-4 flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
             <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-primary mb-0.5">Booking Info</p>
                 <h4 className="text-xl font-black italic text-foreground dark:text-dark-foreground">BOOK / INQUIRE</h4>

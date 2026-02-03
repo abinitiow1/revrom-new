@@ -37,7 +37,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     };
 
     return (
-        <div className="flex items-center justify-center min-h-[60vh] bg-background dark:bg-dark-background py-12 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-center min-h-60vh-dvh bg-background dark:bg-dark-background py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md w-full space-y-8 bg-card dark:bg-dark-card p-10 rounded-xl shadow-lg border border-border dark:border-dark-border">
                 <div>
                     <h2 className="mt-6 text-center text-3xl font-extrabold font-display text-foreground dark:text-dark-foreground">

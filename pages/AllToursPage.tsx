@@ -82,7 +82,7 @@ const AllToursPage: React.FC<AllToursPageProps> = ({ trips, onSelectTrip, onBook
       <section className="py-20">
         <div className="container mx-auto px-6">
             {filteredTrips.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 md:gap-10">
                     {filteredTrips.map(trip => (
                         <TripCard 
                             key={trip.id} 

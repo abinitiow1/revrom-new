@@ -48,19 +48,19 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search by name, destination..."
-                        className="w-full pl-12 pr-4 py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
+                        className="w-full pl-12 pr-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-base sm:text-sm font-medium outline-none transition-all shadow-inner"
                     />
                     <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground opacity-50" />
                 </div>
 
-                {/* Filters Grid */}
-                <div className="grid grid-cols-1 gap-4">
+                {/* Filters - Horizontal scroll on mobile, grid on desktop */}
+                <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 scrollbar-hide">
                     <select
                         id="destination"
                         name="destination"
                         value={destinationFilter}
                         onChange={(e) => setDestinationFilter(e.target.value)}
-                        className={inputClass}
+                        className="min-w-[160px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Destinations</option>
                         {destinations.map(dest => (
@@ -73,7 +73,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         name="duration"
                         value={durationFilter}
                         onChange={(e) => setDurationFilter(e.target.value)}
-                        className={inputClass}
+                        className="min-w-[140px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Durations</option>
                         <option value="1-7">Up to 7 Days</option>
@@ -86,7 +86,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         name="difficulty"
                         value={difficultyFilter}
                         onChange={(e) => setDifficultyFilter(e.target.value)}
-                        className={inputClass}
+                        className="min-w-[150px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Difficulties</option>
                         <option value="Intermediate">Intermediate</option>
@@ -96,12 +96,13 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                 </div>
             </div>
             
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-center sm:justify-end pt-2">
                 <button
+                    type="button"
                     onClick={onClearFilters}
-                    className="text-xs font-black uppercase tracking-widest text-brand-primary hover:text-brand-primary-dark transition-colors"
+                    className="text-xs font-black uppercase tracking-widest px-4 py-2 sm:px-0 sm:py-0 border border-brand-primary/30 sm:border-0 rounded-lg sm:rounded-none bg-brand-primary/5 sm:bg-transparent text-brand-primary hover:bg-brand-primary/10 sm:hover:bg-transparent active:scale-95 sm:active:scale-100 transition-all"
                 >
-                    Clear Filters
+                    Clear All Filters
                 </button>
             </div>
         </div>

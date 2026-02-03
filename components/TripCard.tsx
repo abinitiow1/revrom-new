@@ -29,7 +29,7 @@ const TripCard: React.FC<TripCardProps> = ({ trip, onSelectTrip, onBookNow }) =>
         onClick={() => onSelectTrip(trip)}
         className="text-left cursor-pointer active:scale-[0.98] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
       >
-      <div className="relative overflow-hidden h-64">
+      <div className="relative overflow-hidden h-48 sm:h-56 md:h-64">
         <img
           src={trip.imageUrl}
           srcSet={trip.imageUrl ? `${trip.imageUrl} 1x, ${trip.imageUrl} 2x` : undefined}

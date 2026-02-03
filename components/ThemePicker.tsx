@@ -94,7 +94,7 @@ const ThemePicker: React.FC<ThemePickerProps> = ({ themes, siteContent, onClose,
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-card dark:bg-dark-card rounded-lg shadow-xl max-w-5xl w-full mx-4 h-[90vh] flex flex-col border border-border dark:border-dark-border" onClick={e => e.stopPropagation()}>
+            <div className="bg-card dark:bg-dark-card rounded-lg shadow-xl max-w-5xl w-full mx-4 h-90vh-dvh flex flex-col border border-border dark:border-dark-border" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center p-6 border-b border-border dark:border-dark-border">
                     <div>
                         <h2 className="text-2xl font-bold font-display text-foreground dark:text-dark-foreground">Theme Editor</h2>

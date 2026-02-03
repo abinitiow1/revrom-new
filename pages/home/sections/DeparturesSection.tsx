@@ -52,7 +52,10 @@ Departure Date: ${new Date(departure.startDate).toLocaleDateString('en-IN', {
 Status: ${departure.status.toUpperCase()}
 
 I'm interested in this tour. Please share pricing and details.`;
-    window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank');
+    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    try {
+      if (w) (w as any).opener = null;
+    } catch {}
   };
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -253,29 +256,29 @@ I'm interested in this tour. Please share pricing and details.`;
                   'Sold Out': 'bg-red-500',
                 };
                 return (
-                  <div key={departure.id} className="p-5 space-y-4">
+                  <div key={departure.id} className="p-6 sm:p-8 space-y-5 sm:space-y-6">
                     {/* Tour Name & Status Badge */}
-                    <div className="flex items-start justify-between gap-3">
-                      <h4 className="font-black text-[#112340] dark:text-foreground text-base tracking-tight italic leading-tight flex-1">
+                    <div className="flex items-start justify-between gap-4">
+                      <h4 className="font-black text-[#112340] dark:text-foreground text-base sm:text-lg tracking-tight italic leading-tight flex-1">
                         {dTrip.title}
                       </h4>
                       <div
-                        className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${statusColors[departure.status as keyof typeof statusColors]}`}
+                        className={`flex-shrink-0 inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-[10px] font-black uppercase tracking-widest ${statusColors[departure.status as keyof typeof statusColors]}`}
                       >
                         <span
-                          className={`w-1.5 h-1.5 rounded-full ${statusDotColors[departure.status as keyof typeof statusDotColors]}`}
+                          className={`w-2 h-2 rounded-full ${statusDotColors[departure.status as keyof typeof statusDotColors]}`}
                         ></span>
-                        <span className="text-[9px] font-black uppercase tracking-widest">{departure.status}</span>
+                        <span>{departure.status}</span>
                       </div>
                     </div>
 
                     {/* Date & Slots Row */}
-                    <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-white/[0.02] rounded-xl p-3">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:justify-between bg-slate-50 dark:bg-white/[0.02] rounded-xl p-4 sm:p-5">
+                      <div className="flex items-center gap-3">
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <p className="text-[12px] font-bold text-muted-foreground uppercase tracking-wide">
+                        <p className="text-sm sm:text-[13px] font-bold text-muted-foreground uppercase tracking-wide">
                           {new Date(departure.startDate).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
@@ -288,11 +291,11 @@ I'm interested in this tour. Please share pricing and details.`;
                           })}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center gap-3">
+                        <svg className="w-5 h-5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
-                        <span className={`text-sm font-black ${slotColor}`}>{departure.slots} slots</span>
+                        <span className={`text-base sm:text-sm font-black ${slotColor}`}>{departure.slots} <span className="hidden sm:inline">slots</span></span>
                       </div>
                     </div>
 
@@ -301,10 +304,10 @@ I'm interested in this tour. Please share pricing and details.`;
                       type="button"
                       onClick={() => handleInquiry(dTrip, departure)}
                       disabled={departure.status === 'Sold Out'}
-                      className={`w-full py-3.5 rounded-xl font-black uppercase text-[11px] tracking-widest transition-all ${
+                      className={`w-full py-4 sm:py-3.5 rounded-lg font-black uppercase text-sm sm:text-[11px] tracking-widest transition-all ${
                         departure.status === 'Sold Out'
                           ? 'bg-slate-100 dark:bg-neutral-800 text-slate-400 dark:text-neutral-500 cursor-not-allowed'
-                          : 'adventure-gradient text-white shadow-lg hover:shadow-xl active:scale-[0.98]'
+                          : 'adventure-gradient text-white shadow-lg hover:shadow-xl active:scale-95'
                       }`}
                     >
                       {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire Now →'}

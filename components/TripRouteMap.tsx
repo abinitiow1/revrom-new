@@ -77,7 +77,7 @@ const TripRouteMap: React.FC<TripRouteMapProps> = ({ coordinates, theme }) => {
     }
   }, [coordinates, theme]); // Re-run effect if coordinates or theme change
 
-  return <div ref={mapContainer} style={{ height: '450px', width: '100%', borderRadius: '8px', zIndex: 0 }} />;
+  return <div ref={mapContainer} style={{ height: '100%', minHeight: '350px', width: '100%', borderRadius: '8px', zIndex: 0 }} />;
 };
 
 export default TripRouteMap;

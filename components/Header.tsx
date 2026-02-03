@@ -149,7 +149,7 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* High-Priority Full Screen Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex flex-col p-6 animate-fade-in">
+        <div className="lg:hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex flex-col px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] animate-fade-in">
           {/* Overlay Header */}
           <div className="flex items-center justify-between mb-12 pt-4">
             <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Menu</h2>

@@ -35,4 +35,72 @@
   .contact-hero-bg {
     background-image: url('https://picsum.photos/seed/ladakh-contact/1920/1080');
   }
+
+  /* Hide scrollbar for horizontal scrolling filters on mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
+  }
+
+  /* iOS Safari: prefer dvh (dynamic viewport height) when supported to avoid address-bar jumps.
+     Fallback stays on vh for older browsers. */
+  .admin-modal-shell {
+    height: 90vh;
+  }
+
+  @media (min-width: 640px) {
+    .admin-modal-shell {
+      height: 85vh;
+    }
+  }
+
+  @supports (height: 100dvh) {
+    .admin-modal-shell {
+      height: 90dvh;
+    }
+
+    @media (min-width: 640px) {
+      .admin-modal-shell {
+        height: 85dvh;
+      }
+    }
+  }
+
+  /* Viewport-height helpers (vh fallback + dvh when supported) */
+  .h-70vh-dvh { height: 70vh; }
+  .h-80vh-dvh { height: 80vh; }
+  .h-85vh-dvh { height: 85vh; }
+  .h-90vh-dvh { height: 90vh; }
+  .h-45vh-dvh { height: 45vh; }
+  .h-55vh-dvh { height: 55vh; }
+  .h-65vh-dvh { height: 65vh; }
+  .h-75vh-dvh { height: 75vh; }
+  .h-32vh-dvh { height: 32vh; }
+  .h-38vh-dvh { height: 38vh; }
+  .h-48vh-dvh { height: 48vh; }
+  .h-56vh-dvh { height: 56vh; }
+  .min-h-60vh-dvh { min-height: 60vh; }
+
+  @supports (height: 100dvh) {
+    .h-screen { height: 100dvh; }
+    .min-h-screen { min-height: 100dvh; }
+    .max-h-screen { max-height: 100dvh; }
+
+    .h-70vh-dvh { height: 70dvh; }
+    .h-80vh-dvh { height: 80dvh; }
+    .h-85vh-dvh { height: 85dvh; }
+    .h-90vh-dvh { height: 90dvh; }
+    .h-45vh-dvh { height: 45dvh; }
+    .h-55vh-dvh { height: 55dvh; }
+    .h-65vh-dvh { height: 65dvh; }
+    .h-75vh-dvh { height: 75dvh; }
+    .h-32vh-dvh { height: 32dvh; }
+    .h-38vh-dvh { height: 38dvh; }
+    .h-48vh-dvh { height: 48dvh; }
+    .h-56vh-dvh { height: 56dvh; }
+    .min-h-60vh-dvh { min-height: 60dvh; }
+  }
 }

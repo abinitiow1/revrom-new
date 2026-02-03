@@ -9,7 +9,7 @@ type Props = {
 
 const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
   return (
-    <section className="relative h-[70vh] sm:h-[80vh] lg:h-[85vh] flex items-center overflow-hidden">
+    <section className="relative h-70vh-dvh sm:h-80vh-dvh lg:h-85vh-dvh flex items-center overflow-hidden">
       <div className="absolute inset-0">
         <img
           src={
@@ -34,13 +34,14 @@ const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
           <p className="text-base sm:text-lg md:text-xl text-white/85 font-medium mb-7 sm:mb-10 max-w-xl leading-relaxed">
             {siteContent.heroSubtitle}
           </p>
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 max-w-xl">
             <Button
               variant="primary"
               size="lg"
               onClick={() =>
                 document.getElementById('adventures')?.scrollIntoView({ behavior: 'smooth' })
               }
+              className="w-full sm:w-auto text-base sm:text-xs px-6 sm:px-8 py-5 sm:py-4"
             >
               {siteContent.heroPrimaryCtaLabel || 'Browse Tours'}
             </Button>
@@ -48,7 +49,7 @@ const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
               variant="secondary"
               size="lg"
               onClick={onNavigateCustomize}
-              className="bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 dark:bg-white/10 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
+              className="w-full sm:w-auto text-base sm:text-xs px-6 sm:px-8 py-5 sm:py-4 bg-white/10 backdrop-blur-md border-white/30 text-white hover:bg-white/20 dark:bg-white/10 dark:border-white/30 dark:text-white dark:hover:bg-white/20"
             >
               {siteContent.heroSecondaryCtaLabel || 'Plan Your Trip'}
             </Button>
@@ -60,4 +61,3 @@ const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
 };
 
 export default HeroSection;
-

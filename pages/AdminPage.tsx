@@ -88,6 +88,23 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const uploadProgressTimerRef = React.useRef<number | null>(null);
   const noticeTimerRef = React.useRef<number | null>(null);
 
+  // Mobile UX: prevent background scroll when overlays are open.
+  useEffect(() => {
+    const shouldLock =
+      isMobileMenuOpen ||
+      !!editingItem ||
+      !!isGalleryPickerOpen?.isOpen ||
+      !!captionModal?.isOpen;
+    if (!shouldLock) return;
+    if (typeof document === 'undefined') return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen, editingItem, isGalleryPickerOpen?.isOpen, captionModal?.isOpen]);
+
   const showNotice = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
     setAdminNotice({ text, type });
     if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
@@ -1896,12 +1913,12 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
       {adminNotice && (
-        <div className={`fixed top-20 sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[90vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
+        <div className={`fixed top-[calc(5rem+env(safe-area-inset-top))] sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[90vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
           {adminNotice.text}
         </div>
       )}
       {uploadUi && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[999] w-[92vw] sm:w-[420px] rounded-2xl border border-border dark:border-dark-border bg-card dark:bg-dark-card shadow-2xl p-4">
+        <div className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[999] w-[92vw] sm:w-[420px] rounded-2xl border border-border dark:border-dark-border bg-card dark:bg-dark-card shadow-2xl p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Uploading</div>
@@ -1919,8 +1936,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       )}
       {/* Gallery Picker Modal - Higher Z-Index */}
       {isGalleryPickerOpen.isOpen && (
-        <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex items-start sm:items-center justify-center p-4 sm:p-6 animate-fade-in overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl h-[90vh] sm:h-[85vh] rounded-[2rem] sm:rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 animate-fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl admin-modal-shell rounded-[2rem] sm:rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl">
             <div className="p-5 sm:p-8 border-b flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
               <div>
                 <h3 className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
@@ -1952,7 +1969,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
       {/* Caption Edit Modal */}
       {captionModal.isOpen && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-start sm:items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <div className="fixed inset-0 z-[9999] bg-black/60 flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto">
           <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-black">Edit caption for this photo</h3>
@@ -2022,7 +2039,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       </div>
 
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[310] bg-black/95 backdrop-blur-2xl pt-24 p-4 sm:p-6 animate-fade-in overflow-y-auto">
+        <div className="lg:hidden fixed inset-0 z-[310] bg-black/95 backdrop-blur-2xl px-4 pt-[calc(6rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 animate-fade-in overflow-y-auto">
            <div className="space-y-3">
               {menuItems.map(tab => (
                 <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); setIsMobileMenuOpen(false); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
@@ -2154,9 +2171,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
       {/* Editing Dialog - Maximum Z-Index */}
       {editingItem && (
-        <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center p-4 overflow-y-auto">
-           <div className="bg-white dark:bg-neutral-900 w-full h-[100dvh] p-6 sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-none flex flex-col">
-            <button aria-label="Close editor" onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-4 right-4 sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">X</button>
+        <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto">
+           <div className="bg-white dark:bg-neutral-900 w-full min-h-[100dvh] px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-none flex flex-col">
+            <button aria-label="Close editor" onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-[calc(1rem+env(safe-area-inset-right))] sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">X</button>
               <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
                 {activeTab === 'TOURS'
                   ? 'Edit tour'
@@ -3064,4 +3081,3 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 };
 
 export default AdminPage;
-

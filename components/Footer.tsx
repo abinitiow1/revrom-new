@@ -84,7 +84,7 @@ const Footer: React.FC<FooterProps> = ({
     <footer className="bg-card dark:bg-dark-card border-t border-border dark:border-dark-border pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6">
         {newsletterToast && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest max-w-[90vw] text-center">
+          <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest max-w-[90vw] text-center">
             {newsletterToast}
           </div>
         )}
@@ -249,6 +249,9 @@ const Footer: React.FC<FooterProps> = ({
                 id="newsletterEmail"
                 name="email"
                 autoComplete="email"
+                inputMode="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 placeholder="EMAIL ADDRESS" 
                 value={newsletterEmail}
                 onChange={(e) => {

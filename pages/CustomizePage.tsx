@@ -305,7 +305,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         <header className="relative overflow-hidden">
                             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-yellow-400/10 via-transparent to-transparent pointer-events-none"></div>
                             <div className="relative">
-                                <div className="h-[32vh] sm:h-[38vh] md:h-[48vh] lg:h-[56vh] bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=2000')" }}>
+                                <div className="h-32vh-dvh sm:h-38vh-dvh md:h-48vh-dvh lg:h-56vh-dvh bg-cover bg-center" style={{ backgroundImage: "url('https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=2000')" }}>
                                     <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/60"></div>
                                     <div className="container mx-auto px-4 sm:px-6 h-full flex items-center">
                                         <div className="max-w-4xl text-white relative z-10">
@@ -342,11 +342,11 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label htmlFor="travelers" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Number of Riders</label>
-                                <input type="number" name="travelers" id="travelers" value={formData.travelers} onChange={handleInputChange} min="1" required className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                                <input type="number" name="travelers" id="travelers" value={formData.travelers} onChange={handleInputChange} min="1" required className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
                             </div>
                              <div>
                                 <label htmlFor="duration" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Desired Trip Duration (days)</label>
-                                <input type="number" name="duration" id="duration" value={formData.duration} onChange={handleInputChange} min="3" max="30" required className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
+                                <input type="number" name="duration" id="duration" value={formData.duration} onChange={handleInputChange} min="3" max="30" required className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"/>
                             </div>
                         </div>
                         <div>
@@ -357,7 +357,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                 value={formData.destination}
                                 onChange={handleDestinationChange}
                                 required
-                                className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
                             >
                                 {destinationOptions.length === 0 ? (
                                     <option value="">No destinations yet (create a trip in Admin)</option>
@@ -377,7 +377,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                 id="tripId"
                                 value={formData.tripId}
                                 onChange={handleInputChange}
-                                className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
                             >
                                 {(baseTripOptions.length ? baseTripOptions : trips).map(t => (
                                     <option key={t.id} value={t.id}>
@@ -401,15 +401,15 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                     value={formData.startDate}
                                     min={todayLocal}
                                     onChange={handleInputChange}
-                                    className="date-input block w-full pr-10 px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                    className="date-input block w-full pr-12 pl-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
                                   />
                                   <button
                                     type="button"
                                     onClick={() => openDatePicker(startDateRef)}
-                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground"
+                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground pointer-events-none"
                                     aria-label="Open start date picker"
                                   >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <path d="M8 2v2M16 2v2" />
                                       <path d="M3 10h18" />
                                       <path d="M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
@@ -428,15 +428,15 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                     value={formData.endDate}
                                     min={formData.startDate && formData.startDate > todayLocal ? formData.startDate : todayLocal}
                                     onChange={handleInputChange}
-                                    className="date-input block w-full pr-10 px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+                                    className="date-input block w-full pr-12 pl-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
                                   />
                                   <button
                                     type="button"
                                     onClick={() => openDatePicker(endDateRef)}
-                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground"
+                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground pointer-events-none"
                                     aria-label="Open end date picker"
                                   >
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <path d="M8 2v2M16 2v2" />
                                       <path d="M3 10h18" />
                                       <path d="M5 6h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z" />
@@ -447,7 +447,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         </div>
                         <div>
                             <label htmlFor="style" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Preferred Travel Style</label>
-                            <select name="style" id="style" value={formData.style} onChange={handleInputChange} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground">
+                            <select name="style" id="style" value={formData.style} onChange={handleInputChange} className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground">
                                 <option>Adventure Focused</option>
                                 <option>Leisure & Sightseeing</option>
                                 <option>Cultural Immersion</option>
@@ -456,30 +456,38 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                             </select>
                         </div>
                         <div>
-                            <div className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Interests</div>
-                            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            <label className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Interests</label>
+                            <div className="mt-3 flex flex-wrap gap-3">
                                 {(['mountain','valley','river','lakes','monasteries','culture','adventure','photography'] as InterestTag[]).map((tag) => {
                                     const checked = (formData.interestTags || []).includes(tag);
                                     return (
-                                        <label key={tag} className="flex items-center gap-2 text-sm text-foreground dark:text-dark-foreground">
-                                            <input type="checkbox" checked={checked} onChange={() => handleInterestToggle(tag)} />
+                                        <button
+                                            key={tag}
+                                            type="button"
+                                            onClick={() => handleInterestToggle(tag)}
+                                            className={`px-4 py-2.5 sm:py-2 rounded-full font-semibold text-sm border-2 transition-all active:scale-95 ${
+                                                checked
+                                                    ? 'bg-brand-primary border-brand-primary text-white shadow-lg'
+                                                    : 'bg-white dark:bg-neutral-800 border-border dark:border-dark-border text-foreground dark:text-dark-foreground hover:border-brand-primary'
+                                            }`}
+                                        >
                                             <span className="capitalize">{tag}</span>
-                                        </label>
+                                        </button>
                                     );
                                 })}
                             </div>
-                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                            <p className="mt-3 text-xs text-muted-foreground dark:text-dark-muted-foreground">
                                 Used to extend your itinerary when the base plan is shorter than your requested duration.
                             </p>
                         </div>
                         <div>
                             <label htmlFor="notes" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Notes (optional)</label>
-                            <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any must-see places or special requests (optional)." rows={4} className="mt-1 block w-full px-3 py-2 border border-border dark:border-dark-border rounded-md shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"></textarea>
+                            <textarea name="notes" id="notes" value={formData.notes} onChange={handleInputChange} placeholder="Any must-see places or special requests (optional)." rows={4} className="mt-1 block w-full px-4 py-3 border border-border dark:border-dark-border rounded-lg text-base shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"></textarea>
                         </div>
                                                 <div>
-                                                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3 px-8 rounded-full transition-colors duration-300 text-lg disabled:bg-brand-primary/50 shadow-xl">
+                                                        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 text-base sm:text-lg disabled:bg-brand-primary/50 shadow-xl active:scale-95">
                                                                 <SparklesIcon className="w-6 h-6"/>
-                                                                {isLoading ? 'Building Your Itinerary...' : 'Build My Itinerary'}
+                                                                {isLoading ? 'Building...' : 'Build My Itinerary'}
                                                         </button>
                                                 </div>
                                             </form>
@@ -489,24 +497,26 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                             <div className="mt-6 bg-card dark:bg-dark-card p-6 md:p-8 rounded-3xl shadow-2xl border border-border">
                                                 {renderPlan(generatedPlan)}
 
-                                                <div className="mt-8 pt-8 border-t border-border dark:border-dark-border text-center">
-                                                        <h3 className="text-2xl font-bold font-display text-foreground dark:text-dark-foreground">Ready for the Next Step?</h3>
-                                                        <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground max-w-2xl mx-auto">Like what you see? Contact our experts to get a detailed quote, make adjustments, and book your unforgettable Himalayan adventure.</p>
-                                                        <div className="mt-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+                                                <div className="mt-10 pt-10 border-t border-border dark:border-dark-border text-center">
+                                                        <h3 className="text-2xl sm:text-3xl font-bold font-display text-foreground dark:text-dark-foreground">Ready for the Next Step?</h3>
+                                                        <p className="mt-4 text-base sm:text-lg text-muted-foreground dark:text-dark-muted-foreground max-w-2xl mx-auto leading-relaxed">Like what you see? Contact our experts to get a detailed quote, make adjustments, and book your unforgettable Himalayan adventure.</p>
+                                                        <div className="mt-8 flex flex-col sm:flex-row justify-center items-stretch sm:items-center gap-4">
                                                                     <button 
+                                                                        type="button"
                                                                         onClick={() => {
                                                                             try {
                                                                             localStorage.setItem('lastItinerary', buildQuotePrefillMessage());
                                                                             } catch (e) {}
                                                                             onNavigateContact();
                                                                         }}
-                                                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full transition-transform duration-300 transform hover:scale-105 shadow-lg"
+                                                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 active:scale-95 shadow-lg text-base sm:text-base"
                                                                     >
                                                                         Request a Quote
                                                                     </button>
                                                                  <button 
+                                                                        type="button"
                                                                         onClick={handleStartOver}
-                                                                        className="bg-slate-500 hover:bg-slate-600 dark:bg-slate-700 dark:hover:bg-slate-800 text-white font-bold py-3 px-8 rounded-full transition-transform duration-300 transform hover:scale-105 shadow-lg"
+                                                                        className="bg-slate-500 hover:bg-slate-600 dark:bg-slate-700 dark:hover:bg-slate-800 text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 active:scale-95 shadow-lg text-base sm:text-base"
                                                                 >
                                                                         Start Over
                                                                 </button>
@@ -516,13 +526,13 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                         )}
                                 </div>
                 
-                <div id="results-section" className="mt-6">
+                <div id="results-section" className="mt-8 sm:mt-6">
                     {isLoading && <LoadingSpinner />}
                     {error && (
-                         <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-md text-center">
-                            <h3 className="text-lg font-medium text-red-800 dark:text-red-200">Something went wrong</h3>
-                            <p className="mt-2 text-sm text-red-700 dark:text-red-300">{error}</p>
-                            <button onClick={handleStartOver} className="mt-4 text-sm font-semibold text-red-800 dark:text-red-200 hover:underline">Try Again</button>
+                         <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 p-5 sm:p-4 rounded-lg text-center space-y-3">
+                            <h3 className="text-lg font-bold text-red-800 dark:text-red-200">Something went wrong</h3>
+                            <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                            <button type="button" onClick={handleStartOver} className="text-sm font-semibold text-red-800 dark:text-red-200 hover:underline active:opacity-50">Try Again</button>
                          </div>
                     )}
                 </div>
