@@ -24,7 +24,11 @@ export const subscribeNewsletter = async (
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || 'Could not subscribe.');
+  if (!res.ok) {
+    const err: any = new Error(data?.error || 'Could not subscribe.');
+    err.status = res.status;
+    throw err;
+  }
   return { duplicate: !!data?.duplicate };
 };
 

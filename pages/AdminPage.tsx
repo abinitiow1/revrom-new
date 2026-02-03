@@ -54,6 +54,29 @@ type AdminTab = 'TOURS' | 'DATES' | 'INBOX' | 'SUBSCRIBERS' | 'BLOG' | 'PAGES' |
 
 type DepartureDraft = Omit<Departure, 'id'> & { id?: string };
 
+type AdminNotice = {
+  type: 'success' | 'info' | 'error';
+  text: string;
+  action?: { label: string; onClick: () => void };
+  durationMs?: number;
+};
+
+type UndoDeleteEntry = {
+  key: string;
+  label: string;
+  hide: {
+    trips?: string[];
+    departures?: string[];
+    blogPosts?: string[];
+    customPages?: string[];
+    galleryPhotos?: string[];
+    instagramPosts?: string[];
+    googleReviews?: string[];
+  };
+  commit: () => void | Promise<void>;
+  timeoutId: number;
+};
+
 const AdminPage: React.FC<AdminPageProps> = (props) => {
   const { trips, departures, blogPosts, galleryPhotos, instagramPosts, googleReviews, siteContent, itineraryQueries, customPages, onUpdateSiteContent, contactMessages, newsletterSubscribers } = props;
   const [activeTab, setActiveTab] = useState<AdminTab>('TOURS');
@@ -70,7 +93,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isGalleryPickerOpen, setIsGalleryPickerOpen] = useState<{ isOpen: boolean; onSelect: (url: string) => void }>({ isOpen: false, onSelect: () => {} });
   const [galleryUrlInput, setGalleryUrlInput] = useState('');
-  const [adminNotice, setAdminNotice] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
+  const [adminNotice, setAdminNotice] = useState<AdminNotice | null>(null);
   const [captionModal, setCaptionModal] = useState<{ isOpen: boolean; photo: GalleryPhoto | null }>({ isOpen: false, photo: null });
   const [captionInput, setCaptionInput] = useState('');
   const [tourSearch, setTourSearch] = useState('');
@@ -87,6 +110,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [uploadUi, setUploadUi] = useState<{ fileName: string; progress: number } | null>(null);
   const uploadProgressTimerRef = React.useRef<number | null>(null);
   const noticeTimerRef = React.useRef<number | null>(null);
+  const galleryPickerDialogRef = React.useRef<HTMLDivElement | null>(null);
+  const galleryPickerCloseButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const captionDialogRef = React.useRef<HTMLDivElement | null>(null);
+  const captionCloseButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const editorDialogRef = React.useRef<HTMLDivElement | null>(null);
+  const editorCloseButtonRef = React.useRef<HTMLButtonElement | null>(null);
+  const previousActiveElementRef = React.useRef<HTMLElement | null>(null);
+
+  // Undoable delete (client-side delayed commit): hide item immediately, actually delete after ~10s unless undone.
+  const [hiddenTripIds, setHiddenTripIds] = useState<Set<string>>(() => new Set());
+  const [hiddenDepartureIds, setHiddenDepartureIds] = useState<Set<string>>(() => new Set());
+  const [hiddenBlogPostIds, setHiddenBlogPostIds] = useState<Set<string>>(() => new Set());
+  const [hiddenCustomPageIds, setHiddenCustomPageIds] = useState<Set<string>>(() => new Set());
+  const [hiddenGalleryPhotoIds, setHiddenGalleryPhotoIds] = useState<Set<string>>(() => new Set());
+  const [hiddenInstagramPostIds, setHiddenInstagramPostIds] = useState<Set<string>>(() => new Set());
+  const [hiddenGoogleReviewIds, setHiddenGoogleReviewIds] = useState<Set<string>>(() => new Set());
+
+  const pendingUndoRef = React.useRef<UndoDeleteEntry | null>(null);
 
   // Mobile UX: prevent background scroll when overlays are open.
   useEffect(() => {
@@ -105,12 +146,166 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     };
   }, [isMobileMenuOpen, editingItem, isGalleryPickerOpen?.isOpen, captionModal?.isOpen]);
 
-  const showNotice = (text: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setAdminNotice({ text, type });
-    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
-    // auto-clear after 2500ms
-    noticeTimerRef.current = window.setTimeout(() => setAdminNotice(null), 2500);
+  const setIdsHidden = (kind: keyof UndoDeleteEntry['hide'], ids: string[], hidden: boolean) => {
+    const apply = (setter: React.Dispatch<React.SetStateAction<Set<string>>>) => {
+      setter((prev) => {
+        const next = new Set(prev);
+        for (const id of ids) {
+          if (hidden) next.add(id);
+          else next.delete(id);
+        }
+        return next;
+      });
+    };
+
+    switch (kind) {
+      case 'trips':
+        apply(setHiddenTripIds);
+        break;
+      case 'departures':
+        apply(setHiddenDepartureIds);
+        break;
+      case 'blogPosts':
+        apply(setHiddenBlogPostIds);
+        break;
+      case 'customPages':
+        apply(setHiddenCustomPageIds);
+        break;
+      case 'galleryPhotos':
+        apply(setHiddenGalleryPhotoIds);
+        break;
+      case 'instagramPosts':
+        apply(setHiddenInstagramPostIds);
+        break;
+      case 'googleReviews':
+        apply(setHiddenGoogleReviewIds);
+        break;
+      default:
+        break;
+    }
   };
+
+  const hideUndoEntry = (entry: Pick<UndoDeleteEntry, 'hide'>, hidden: boolean) => {
+    const hide = entry.hide || {};
+    if (hide.trips?.length) setIdsHidden('trips', hide.trips, hidden);
+    if (hide.departures?.length) setIdsHidden('departures', hide.departures, hidden);
+    if (hide.blogPosts?.length) setIdsHidden('blogPosts', hide.blogPosts, hidden);
+    if (hide.customPages?.length) setIdsHidden('customPages', hide.customPages, hidden);
+    if (hide.galleryPhotos?.length) setIdsHidden('galleryPhotos', hide.galleryPhotos, hidden);
+    if (hide.instagramPosts?.length) setIdsHidden('instagramPosts', hide.instagramPosts, hidden);
+    if (hide.googleReviews?.length) setIdsHidden('googleReviews', hide.googleReviews, hidden);
+  };
+
+  const showNotice = (
+    text: string,
+    type: 'success' | 'info' | 'error' = 'success',
+    options?: { action?: AdminNotice['action']; durationMs?: number }
+  ) => {
+    const durationMs = options?.durationMs ?? 2500;
+    setAdminNotice({ text, type, action: options?.action, durationMs });
+    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current);
+    noticeTimerRef.current = window.setTimeout(() => setAdminNotice(null), durationMs);
+  };
+
+  const confirmDestructive = (message: string) => {
+    if (typeof window === 'undefined') return true;
+    return window.confirm(message);
+  };
+
+  const scheduleUndoableDelete = (entry: Omit<UndoDeleteEntry, 'key' | 'timeoutId'>) => {
+    if (typeof window === 'undefined') {
+      void Promise.resolve(entry.commit());
+      return;
+    }
+
+    // Only one undoable action at a time: finalize any previous pending delete immediately.
+    if (pendingUndoRef.current) {
+      window.clearTimeout(pendingUndoRef.current.timeoutId);
+      const previous = pendingUndoRef.current;
+      pendingUndoRef.current = null;
+      void (async () => {
+        try {
+          await previous.commit();
+        } catch (e: any) {
+          hideUndoEntry(previous, false);
+          showNotice(e?.message || 'Failed to delete item', 'error');
+        }
+      })();
+    }
+
+    const key = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
+    const placeholder: UndoDeleteEntry = {
+      key,
+      label: entry.label,
+      hide: entry.hide,
+      commit: entry.commit,
+      timeoutId: 0,
+    };
+
+    hideUndoEntry(placeholder, true);
+
+    const timeoutId = window.setTimeout(async () => {
+      if (!pendingUndoRef.current || pendingUndoRef.current.key !== key) return;
+      const current = pendingUndoRef.current;
+      pendingUndoRef.current = null;
+      try {
+        await entry.commit();
+        showNotice(`${entry.label} deleted`, 'info');
+      } catch (e: any) {
+        hideUndoEntry(current, false);
+        showNotice(e?.message || 'Failed to delete item', 'error');
+      }
+    }, 10_000);
+
+    pendingUndoRef.current = { ...placeholder, timeoutId };
+
+    showNotice(entry.label, 'info', {
+      durationMs: 10_000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          const current = pendingUndoRef.current;
+          if (!current || current.key !== key) return;
+          window.clearTimeout(current.timeoutId);
+          pendingUndoRef.current = null;
+          hideUndoEntry(current, false);
+          showNotice('Undo: delete canceled', 'success');
+        },
+      },
+    });
+  };
+
+  // Best-effort cleanup: if an item is actually gone from props, also drop it from the hidden sets.
+  useEffect(() => {
+    const tripIds = new Set((trips || []).map((t) => t.id));
+    const departureIds = new Set((departures || []).map((d) => d.id));
+    const blogIds = new Set((blogPosts || []).map((p) => p.id));
+    const pageIds = new Set((customPages || []).map((p) => p.id));
+    const photoIds = new Set((galleryPhotos || []).map((p) => p.id));
+    const igIds = new Set((instagramPosts || []).map((p) => p.id));
+    const reviewIds = new Set((googleReviews || []).map((r) => r.id));
+
+    const prune = (setter: React.Dispatch<React.SetStateAction<Set<string>>>, exists: Set<string>) => {
+      setter((prev) => {
+        if (prev.size === 0) return prev;
+        let changed = false;
+        const next = new Set<string>();
+        for (const id of prev) {
+          if (exists.has(id)) next.add(id);
+          else changed = true;
+        }
+        return changed ? next : prev;
+      });
+    };
+
+    prune(setHiddenTripIds, tripIds);
+    prune(setHiddenDepartureIds, departureIds);
+    prune(setHiddenBlogPostIds, blogIds);
+    prune(setHiddenCustomPageIds, pageIds);
+    prune(setHiddenGalleryPhotoIds, photoIds);
+    prune(setHiddenInstagramPostIds, igIds);
+    prune(setHiddenGoogleReviewIds, reviewIds);
+  }, [trips, departures, blogPosts, customPages, galleryPhotos, instagramPosts, googleReviews]);
 
   const parseDayFromToken = (s: string): number => {
     const m = String(s || '').match(/(\d{1,3})/);
@@ -599,6 +794,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       case 'TOURS': {
         const filteredTrips = trips
           .filter(t => {
+            if (hiddenTripIds.has(t.id)) return false;
             const q = tourSearch.trim().toLowerCase();
             const destOk = tourDestinationFilter === 'all' || t.destination === tourDestinationFilter;
             if (!destOk) return false;
@@ -671,11 +867,18 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   onClick={() => {
                     const ids = selectedTripIds.slice();
                     if (ids.length === 0) return;
-                    const ok = window.confirm(`Delete ${ids.length} selected tour(s)? This cannot be undone.`);
+                    const ok = confirmDestructive(`Delete ${ids.length} selected tour(s)? This cannot be undone.`);
                     if (!ok) return;
-                    for (const id of ids) props.onDeleteTrip(id);
+
+                    const relatedDepartureIds = (departures || []).filter((d) => ids.includes(d.tripId)).map((d) => d.id);
+                    scheduleUndoableDelete({
+                      label: `Deleted ${ids.length} selected tour(s)`,
+                      hide: { trips: ids, departures: relatedDepartureIds },
+                      commit: async () => {
+                        for (const id of ids) props.onDeleteTrip(id);
+                      },
+                    });
                     clearTripSelection();
-                    showNotice('Selected tours deleted', 'info');
                   }}
                   className={`px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-all ${
                     selectedTripIds.length === 0
@@ -718,7 +921,26 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
                     <button onClick={() => setEditingItem(trip)} className="flex-1 sm:flex-none text-brand-primary font-black text-[10px] uppercase px-4 py-2 bg-brand-primary/5 hover:bg-brand-primary/10 rounded-lg">EDIT</button>
-                    <button onClick={() => props.onDeleteTrip(trip.id)} className="flex-1 sm:flex-none text-red-500 font-black text-[10px] uppercase px-4 py-2 bg-red-500/5 hover:bg-red-50 rounded-lg">DELETE</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const title = String(trip.title || 'this tour');
+                        const ok = confirmDestructive(`Delete "${title}"? This cannot be undone.`);
+                        if (!ok) return;
+                        const relatedDepartureIds = (departures || []).filter((d) => d.tripId === trip.id).map((d) => d.id);
+                        scheduleUndoableDelete({
+                          label: `Deleted "${title}"`,
+                          hide: { trips: [trip.id], departures: relatedDepartureIds },
+                          commit: async () => {
+                            props.onDeleteTrip(trip.id);
+                          },
+                        });
+                        setSelectedTripIds((prev) => prev.filter((id) => id !== trip.id));
+                      }}
+                      className="flex-1 sm:flex-none text-red-500 font-black text-[10px] uppercase px-4 py-2 bg-red-500/5 hover:bg-red-50 rounded-lg"
+                    >
+                      DELETE
+                    </button>
                   </div>
                 </div>
               ))}
@@ -751,7 +973,10 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {departures.map(dep => {
+                    {departures
+                      .filter((dep) => !hiddenDepartureIds.has(dep.id))
+                      .filter((dep) => !hiddenTripIds.has(dep.tripId))
+                      .map(dep => {
                       const trip = trips.find(t => t.id === dep.tripId);
                       return (
                         <tr key={dep.id}>
@@ -761,7 +986,23 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           <td className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-brand-primary">{dep.status}</td>
                           <td className="px-6 py-6 text-right space-x-4">
                              <button onClick={() => setEditingItem(dep)} className="text-brand-primary text-[10px] font-black">EDIT</button>
-                             <button onClick={() => props.onDeleteDeparture(dep.id)} className="text-red-500 text-[10px] font-black">DELETE</button>
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 const ok = confirmDestructive('Delete this date? This cannot be undone.');
+                                 if (!ok) return;
+                                 scheduleUndoableDelete({
+                                   label: 'Deleted departure date',
+                                   hide: { departures: [dep.id] },
+                                   commit: async () => {
+                                     props.onDeleteDeparture(dep.id);
+                                   },
+                                 });
+                               }}
+                               className="text-red-500 text-[10px] font-black"
+                             >
+                               DELETE
+                             </button>
                           </td>
                         </tr>
                       );
@@ -1126,6 +1367,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {blogPosts
                 .filter(p => {
+                  if (hiddenBlogPostIds.has(p.id)) return false;
                   const q = blogSearch.trim().toLowerCase();
                   if (!q) return true;
                   return (
@@ -1136,12 +1378,29 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 })
                 .map(post => (
                 <div key={post.id} className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden border border-border dark:border-dark-border group">
-                  <img src={post.imageUrl} alt={post.title || 'Blog post image'} className="w-full h-40 object-cover" />
-                  <div className="p-6">
-                    <h4 className="font-black uppercase text-sm mb-4 leading-tight">{post.title}</h4>
-                    <div className="flex justify-between border-t pt-4">
-                      <button onClick={() => setEditingItem(post)} className="text-[10px] font-black text-brand-primary">EDIT</button>
-                      <button onClick={() => props.onDeleteBlogPost(post.id)} className="text-[10px] font-black text-red-500">DELETE</button>
+                      <img src={post.imageUrl} alt={post.title || 'Blog post image'} className="w-full h-40 object-cover" />
+                      <div className="p-6">
+                        <h4 className="font-black uppercase text-sm mb-4 leading-tight">{post.title}</h4>
+                        <div className="flex justify-between border-t pt-4">
+                          <button onClick={() => setEditingItem(post)} className="text-[10px] font-black text-brand-primary">EDIT</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const title = String(post.title || 'this post');
+                          const ok = confirmDestructive(`Delete "${title}"? This cannot be undone.`);
+                          if (!ok) return;
+                          scheduleUndoableDelete({
+                            label: `Deleted "${title}"`,
+                            hide: { blogPosts: [post.id] },
+                            commit: async () => {
+                              props.onDeleteBlogPost(post.id);
+                            },
+                          });
+                        }}
+                        className="text-[10px] font-black text-red-500"
+                      >
+                        DELETE
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1158,7 +1417,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               <button onClick={() => setEditingItem({ title: '', slug: '', content: '', isVisible: true })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">NEW PAGE</button>
             </div>
             <div className="grid grid-cols-1 gap-4">
-              {customPages.map(page => (
+              {customPages.filter((p) => !hiddenCustomPageIds.has(p.id)).map(page => (
                 <div key={page.id} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border flex justify-between items-center shadow-sm">
                   <div>
                     <h4 className="text-lg font-black italic uppercase">{page.title}</h4>
@@ -1166,7 +1425,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   </div>
                   <div className="flex gap-4">
                     <button onClick={() => setEditingItem(page)} className="text-brand-primary text-[10px] font-black uppercase">EDIT</button>
-                    <button onClick={() => props.onDeleteCustomPage(page.id)} className="text-red-500 text-[10px] font-black uppercase">DELETE</button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const title = String(page.title || `/${page.slug}` || 'this page');
+                        const ok = confirmDestructive(`Delete "${title}"? This cannot be undone.`);
+                        if (!ok) return;
+                        scheduleUndoableDelete({
+                          label: `Deleted "${title}"`,
+                          hide: { customPages: [page.id] },
+                          commit: async () => {
+                            props.onDeleteCustomPage(page.id);
+                          },
+                        });
+                      }}
+                      className="text-red-500 text-[10px] font-black uppercase"
+                    >
+                      DELETE
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1258,7 +1534,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                  {galleryPhotos.map(photo => (
+                  {galleryPhotos.filter((p) => !hiddenGalleryPhotoIds.has(p.id)).map(photo => (
                     <div key={photo.id} className="relative group rounded-3xl overflow-hidden aspect-square border border-border dark:border-dark-border shadow-md">
                       <img src={photo.imageUrl} alt={photo.caption || 'Gallery photo'} className="w-full h-full object-cover transition-transform group-hover:scale-110" onError={(e) => (e.currentTarget.src = 'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=200')} />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
@@ -1268,7 +1544,23 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         }} className="bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground p-3 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90">
                             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z"/></svg>
                         </button>
-                        <button aria-label="Delete photo" onClick={() => props.onDeleteGalleryPhoto(photo.id)} className="bg-red-500 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90">
+                        <button
+                          type="button"
+                          aria-label="Delete photo"
+                          onClick={() => {
+                            const label = photo.caption ? `"${photo.caption}"` : 'this photo';
+                            const ok = confirmDestructive(`Delete ${label}? This cannot be undone.`);
+                            if (!ok) return;
+                            scheduleUndoableDelete({
+                              label: `Deleted ${label}`,
+                              hide: { galleryPhotos: [photo.id] },
+                              commit: async () => {
+                                props.onDeleteGalleryPhoto(photo.id);
+                              },
+                            });
+                          }}
+                          className="bg-red-500 text-white p-4 rounded-full shadow-lg hover:scale-110 transition-transform active:scale-90"
+                        >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                         </button>
                       </div>
@@ -1305,7 +1597,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 <div className="py-16 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No Instagram posts yet.</div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {instagramPosts.map((post) => (
+                  {instagramPosts.filter((p) => !hiddenInstagramPostIds.has(p.id)).map((post) => (
                     <div key={post.id} className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden border border-border dark:border-dark-border">
                       <img src={post.imageUrl} alt={`Instagram ${post.type} post`} className="w-full h-40 object-cover" />
                       <div className="p-4 space-y-2">
@@ -1313,7 +1605,23 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <div className="text-xs text-muted-foreground">❤ {post.likes} · 💬 {post.comments}</div>
                         <div className="flex justify-between border-t pt-3">
                           <button onClick={() => setEditingItem({ __type: 'instagram', ...post })} className="text-[10px] font-black text-brand-primary">EDIT</button>
-                          <button onClick={() => props.onDeleteInstagramPost(post.id)} className="text-[10px] font-black text-red-500">DELETE</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ok = confirmDestructive('Delete this Instagram post? This cannot be undone.');
+                              if (!ok) return;
+                              scheduleUndoableDelete({
+                                label: 'Deleted Instagram post',
+                                hide: { instagramPosts: [post.id] },
+                                commit: async () => {
+                                  props.onDeleteInstagramPost(post.id);
+                                },
+                              });
+                            }}
+                            className="text-[10px] font-black text-red-500"
+                          >
+                            DELETE
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1339,7 +1647,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 <div className="py-16 text-center text-muted-foreground italic border-2 border-dashed rounded-[2rem]">No reviews yet.</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {googleReviews.map((review) => (
+                  {googleReviews.filter((r) => !hiddenGoogleReviewIds.has(r.id)).map((review) => (
                     <div key={review.id} className="bg-white dark:bg-neutral-900 p-6 rounded-3xl border border-border dark:border-dark-border">
                       <div className="flex items-center gap-3">
                         <img src={review.profilePhotoUrl} alt={`${review.authorName}'s profile photo`} className="w-10 h-10 rounded-full object-cover" />
@@ -1351,7 +1659,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <p className="mt-3 text-xs text-muted-foreground dark:text-dark-muted-foreground line-clamp-3">{review.text}</p>
                       <div className="mt-4 flex justify-between border-t pt-3">
                         <button onClick={() => setEditingItem({ __type: 'review', ...review })} className="text-[10px] font-black text-brand-primary">EDIT</button>
-                        <button onClick={() => props.onDeleteGoogleReview(review.id)} className="text-[10px] font-black text-red-500">DELETE</button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const who = String(review.authorName || 'this review');
+                            const ok = confirmDestructive(`Delete review by "${who}"? This cannot be undone.`);
+                            if (!ok) return;
+                            scheduleUndoableDelete({
+                              label: `Deleted review by "${who}"`,
+                              hide: { googleReviews: [review.id] },
+                              commit: async () => {
+                                props.onDeleteGoogleReview(review.id);
+                              },
+                            });
+                          }}
+                          className="text-[10px] font-black text-red-500"
+                        >
+                          DELETE
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -1846,6 +2171,120 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     return true;
   };
 
+  const activeModal: 'caption' | 'editor' | 'gallery' | null = captionModal.isOpen
+    ? 'caption'
+    : editingItem
+      ? 'editor'
+      : isGalleryPickerOpen.isOpen
+        ? 'gallery'
+        : null;
+
+  // Accessibility: trap focus inside open dialogs and allow Esc to close (without breaking "unsaved changes" confirms).
+  useEffect(() => {
+    if (!activeModal) return;
+    if (typeof document === 'undefined') return;
+
+    const container =
+      activeModal === 'caption'
+        ? captionDialogRef.current
+        : activeModal === 'editor'
+          ? editorDialogRef.current
+          : galleryPickerDialogRef.current;
+
+    if (!container) return;
+
+    const closeButton =
+      activeModal === 'caption'
+        ? captionCloseButtonRef.current
+        : activeModal === 'editor'
+          ? editorCloseButtonRef.current
+          : galleryPickerCloseButtonRef.current;
+
+    const getFocusable = (root: HTMLElement): HTMLElement[] => {
+      const selector =
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.from(root.querySelectorAll<HTMLElement>(selector)).filter((el) => {
+        if (el.getAttribute('aria-hidden') === 'true') return false;
+        // `offsetParent` is null for fixed-position elements; `getClientRects` works reliably here.
+        return el.getClientRects().length > 0;
+      });
+    };
+
+    const focusFirst = () => {
+      if (closeButton) {
+        closeButton.focus();
+        return;
+      }
+      const focusables = getFocusable(container);
+      (focusables[0] ?? container).focus();
+    };
+
+    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (activeModal === 'caption') setCaptionModal({ isOpen: false, photo: null });
+        if (activeModal === 'gallery') setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} });
+        if (activeModal === 'editor') {
+          if (requestCloseModal()) setEditingItem(null);
+        }
+        e.stopPropagation();
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      const focusables = getFocusable(container);
+      if (focusables.length === 0) {
+        e.preventDefault();
+        container.focus();
+        return;
+      }
+
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const activeEl = document.activeElement as HTMLElement | null;
+
+      if (!activeEl || !container.contains(activeEl)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
+      if (e.shiftKey) {
+        if (activeEl === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (activeEl === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    const onFocusIn = () => {
+      const activeEl = document.activeElement as HTMLElement | null;
+      if (!activeEl) return;
+      if (!container.contains(activeEl)) focusFirst();
+    };
+
+    document.addEventListener('keydown', onKeyDown, true);
+    document.addEventListener('focusin', onFocusIn, true);
+    const raf = typeof window !== 'undefined' ? window.requestAnimationFrame(focusFirst) : null;
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      document.removeEventListener('focusin', onFocusIn, true);
+      if (raf != null && typeof window !== 'undefined') window.cancelAnimationFrame(raf);
+
+      const previous = previousActiveElementRef.current;
+      previousActiveElementRef.current = null;
+      if (previous && typeof previous.focus === 'function') previous.focus();
+    };
+  }, [activeModal, captionModal.isOpen, isGalleryPickerOpen.isOpen, !!editingItem, isSupabaseMode, isDirty]);
+
   const validateEditingItem = (): string | null => {
     if (!editingItem) return null;
 
@@ -1913,8 +2352,19 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
       {adminNotice && (
-        <div className={`fixed top-[calc(5rem+env(safe-area-inset-top))] sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[90vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
-          {adminNotice.text}
+        <div className={`fixed top-[calc(5rem+env(safe-area-inset-top))] sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[92vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
+          <div className="flex items-center gap-3 justify-center flex-wrap">
+            <div className="text-[12px] font-bold">{adminNotice.text}</div>
+            {adminNotice.action && (
+              <button
+                type="button"
+                onClick={adminNotice.action.onClick}
+                className="px-3 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-black uppercase tracking-widest"
+              >
+                {adminNotice.action.label}
+              </button>
+            )}
+          </div>
         </div>
       )}
       {uploadUi && (
@@ -1937,13 +2387,28 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {/* Gallery Picker Modal - Higher Z-Index */}
       {isGalleryPickerOpen.isOpen && (
         <div className="fixed inset-0 z-[1000] bg-black/95 backdrop-blur-2xl flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 animate-fade-in overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-5xl admin-modal-shell rounded-[2rem] sm:rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl">
+          <div
+            ref={galleryPickerDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gallery-picker-title"
+            tabIndex={-1}
+            className="bg-white dark:bg-neutral-900 w-full max-w-5xl admin-modal-shell rounded-[2rem] sm:rounded-[3rem] border border-border dark:border-dark-border flex flex-col overflow-hidden shadow-2xl"
+          >
             <div className="p-5 sm:p-8 border-b flex justify-between items-center bg-slate-50/50 dark:bg-white/[0.02]">
               <div>
-                <h3 className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
+                <h3 id="gallery-picker-title" className="text-2xl font-black italic uppercase tracking-tighter">Choose from Gallery</h3>
                 <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Select an existing photo for your content</p>
               </div>
-              <button onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })} className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90">X</button>
+              <button
+                ref={galleryPickerCloseButtonRef}
+                type="button"
+                aria-label="Close gallery picker"
+                onClick={() => setIsGalleryPickerOpen({ isOpen: false, onSelect: () => {} })}
+                className="w-12 h-12 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800 text-2xl font-black transition-transform hover:rotate-90"
+              >
+                X
+              </button>
             </div>
             <div className="flex-grow overflow-y-auto p-5 sm:p-8 no-scrollbar">
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
@@ -1970,10 +2435,25 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {/* Caption Edit Modal */}
       {captionModal.isOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[9999] bg-black/60 flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto">
-          <div className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto">
+          <div
+            ref={captionDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="caption-modal-title"
+            tabIndex={-1}
+            className="bg-white dark:bg-neutral-900 w-full max-w-xl rounded-2xl p-4 sm:p-6 shadow-2xl border border-border pointer-events-auto"
+          >
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-black">Edit caption for this photo</h3>
-              <button onClick={() => setCaptionModal({ isOpen: false, photo: null })} className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800">X</button>
+              <h3 id="caption-modal-title" className="text-lg font-black">Edit caption for this photo</h3>
+              <button
+                ref={captionCloseButtonRef}
+                type="button"
+                aria-label="Close caption editor"
+                onClick={() => setCaptionModal({ isOpen: false, photo: null })}
+                className="text-2xl w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 dark:bg-neutral-800"
+              >
+                X
+              </button>
             </div>
             {captionModal.photo && (
               <div className="space-y-4">
@@ -2172,9 +2652,24 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       {/* Editing Dialog - Maximum Z-Index */}
       {editingItem && (
         <div className="fixed inset-0 z-[5000] bg-black/80 backdrop-blur-xl flex items-start sm:items-center justify-center px-4 pt-[calc(1rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto">
-           <div className="bg-white dark:bg-neutral-900 w-full min-h-[100dvh] px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-none flex flex-col">
-            <button aria-label="Close editor" onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-[calc(1rem+env(safe-area-inset-right))] sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90">X</button>
-              <h3 className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
+           <div
+             ref={editorDialogRef}
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="admin-editor-title"
+             tabIndex={-1}
+             className="bg-white dark:bg-neutral-900 w-full min-h-[100dvh] px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-none flex flex-col"
+           >
+            <button
+              ref={editorCloseButtonRef}
+              type="button"
+              aria-label="Close editor"
+              onClick={() => { if (requestCloseModal()) setEditingItem(null); }}
+              className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-[calc(1rem+env(safe-area-inset-right))] sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90"
+            >
+              X
+            </button>
+              <h3 id="admin-editor-title" className="text-3xl sm:text-5xl font-black tracking-tight mb-10 leading-none">
                 {activeTab === 'TOURS'
                   ? 'Edit tour'
                   : activeTab === 'DATES'
@@ -2566,7 +3061,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                             {!!editingItem?.id && (
                               <div className="space-y-3">
                                 {departures
-                                  .filter(d => d.tripId === editingItem.id)
+                                  .filter(d => d.tripId === editingItem.id && !hiddenDepartureIds.has(d.id))
                                   .sort((a, b) => a.startDate.localeCompare(b.startDate))
                                   .map(dep => (
                                     <div key={dep.id} className="flex items-center justify-between gap-4 p-4 rounded-2xl border border-border dark:border-dark-border bg-background/40 dark:bg-dark-background/40">
@@ -2592,10 +3087,15 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            const ok = window.confirm('Delete this date?');
+                                            const ok = confirmDestructive('Delete this date? This cannot be undone.');
                                             if (!ok) return;
-                                            props.onDeleteDeparture(dep.id);
-                                            showNotice('Date deleted', 'info');
+                                            scheduleUndoableDelete({
+                                              label: 'Deleted departure date',
+                                              hide: { departures: [dep.id] },
+                                              commit: async () => {
+                                                props.onDeleteDeparture(dep.id);
+                                              },
+                                            });
                                           }}
                                           className="px-3 py-2 rounded-xl bg-red-500/10 text-red-600 dark:text-red-300 hover:bg-red-500/20 transition-all text-[10px] font-black uppercase tracking-widest"
                                         >
@@ -2605,7 +3105,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                     </div>
                                   ))}
 
-                                {departures.filter(d => d.tripId === editingItem.id).length === 0 && (
+                                {departures.filter(d => d.tripId === editingItem.id && !hiddenDepartureIds.has(d.id)).length === 0 && (
                                   <div className="text-xs text-muted-foreground">No dates yet.</div>
                                 )}
                               </div>

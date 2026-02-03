@@ -19,14 +19,13 @@ const PREFIX = '[App]';
  * @param details - Optional additional error details
  */
 export function logError(context: string, message: string, details?: unknown): void {
-  const prefix = `${PREFIX}[${context}] ✗`;
-  
+  const prefix = `${PREFIX}[${context}] ✖`;
+
   if (details instanceof Error) {
     console.error(`${prefix} ${message}:`, details.message);
   } else if (typeof details === 'string') {
     console.error(`${prefix} ${message}: ${details}`);
   } else if (details && typeof details === 'object') {
-    // Only log non-sensitive details
     const safeDetails = sanitizeObjectForLogging(details);
     console.error(`${prefix} ${message}:`, safeDetails);
   } else {
@@ -43,7 +42,7 @@ export function logError(context: string, message: string, details?: unknown): v
  */
 export function logWarn(context: string, message: string, details?: unknown): void {
   const prefix = `${PREFIX}[${context}] ⚠`;
-  
+
   if (typeof details === 'string') {
     console.warn(`${prefix} ${message}: ${details}`);
   } else if (details && typeof details === 'object') {
@@ -62,13 +61,10 @@ export function logWarn(context: string, message: string, details?: unknown): vo
  * @param details - Optional additional details
  */
 export function logInfo(context: string, message: string, details?: unknown): void {
-  // Only log in development - production gets no logs
-  if (!isDevelopment()) {
-    return;
-  }
+  if (!isDevelopment()) return;
 
   const prefix = `${PREFIX}[${context}]`;
-  
+
   if (typeof details === 'string') {
     console.log(`${prefix} ${message}: ${details}`);
   } else if (details && typeof details === 'object') {
@@ -87,13 +83,10 @@ export function logInfo(context: string, message: string, details?: unknown): vo
  * @param details - Optional additional details
  */
 export function logDebug(context: string, message: string, details?: unknown): void {
-  // Only log in development
-  if (!isDevelopment()) {
-    return;
-  }
+  if (!isDevelopment()) return;
 
   const prefix = `${PREFIX}[${context}]`;
-  
+
   if (typeof details === 'string') {
     console.log(`${prefix} DEBUG: ${message}: ${details}`);
   } else if (details && typeof details === 'object') {
@@ -110,11 +103,8 @@ export function logDebug(context: string, message: string, details?: unknown): v
  * @returns Safe object for logging
  */
 function sanitizeObjectForLogging(obj: unknown): unknown {
-  if (!obj || typeof obj !== 'object') {
-    return obj;
-  }
+  if (!obj || typeof obj !== 'object') return obj;
 
-  // List of keys to exclude from logging
   const sensitiveKeys = [
     'token',
     'secret',
@@ -128,26 +118,20 @@ function sanitizeObjectForLogging(obj: unknown): unknown {
     'captcha',
   ];
 
-  if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObjectForLogging(item));
-  }
+  if (Array.isArray(obj)) return obj.map((item) => sanitizeObjectForLogging(item));
 
   const result: Record<string, unknown> = {};
-  
   for (const [key, value] of Object.entries(obj)) {
-    // Exclude sensitive keys
-    if (sensitiveKeys.some(sensitiveKey => key.toLowerCase().includes(sensitiveKey.toLowerCase()))) {
+    if (sensitiveKeys.some((s) => key.toLowerCase().includes(s.toLowerCase()))) {
       result[key] = '[REDACTED]';
     } else if (value && typeof value === 'object') {
       result[key] = sanitizeObjectForLogging(value);
     } else if (typeof value === 'string' && value.length > 100) {
-      // Truncate very long strings
       result[key] = value.substring(0, 97) + '...';
     } else {
       result[key] = value;
     }
   }
-
   return result;
 }
 
@@ -159,5 +143,7 @@ function sanitizeObjectForLogging(obj: unknown): unknown {
  * @returns Formatted message safe for user display
  */
 export function formatErrorMessage(code: string, description: string): string {
+  void description;
   return `Verification failed (error ${code})`;
 }
+

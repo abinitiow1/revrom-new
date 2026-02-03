@@ -27,7 +27,11 @@ export const submitContactMessage = async (input: ContactMessageInput): Promise<
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || 'Failed to send message.');
+  if (!res.ok) {
+    const err: any = new Error(data?.error || 'Failed to send message.');
+    err.status = res.status;
+    throw err;
+  }
 };
 
 type ContactMessageRow = {

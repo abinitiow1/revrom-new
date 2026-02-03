@@ -447,7 +447,7 @@ const App: React.FC = () => {
         status: 'new',
       };
 
-      // Always submit to Supabase in Supabase mode (public insert); keep local fallback otherwise.
+      // In Supabase mode, submit the lead via server API (Service Role insert). Keep local fallback otherwise.
       if (isSupabaseMode) {
         submitItineraryQuery(lead).catch((err) => {
           console.error('Failed to submit lead to Supabase:', err);

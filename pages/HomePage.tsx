@@ -191,10 +191,14 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             animation-duration: 90s;
           }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .animate-marquee-left-infinite, .animate-marquee-right-infinite {
+            animation: none !important;
+          }
+        }
       `}</style>
     </div>
   );
 };
 
 export default HomePage;
-

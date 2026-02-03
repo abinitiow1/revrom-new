@@ -62,7 +62,7 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
         const needsVerification = isProduction && !!turnstileSiteKey;
         if (needsVerification && !turnstileToken) {
           // Do not block WhatsApp; just skip saving the lead if verification is missing.
-          setTurnstileError('Please complete the verification to save your inquiry.');
+          setTurnstileError('Please complete verification.');
         } else {
           onAddInquiry({
             tripId: trip.id,

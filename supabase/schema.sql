@@ -31,7 +31,9 @@ create table if not exists public.app_state (
   updated_at timestamptz not null default now()
 );
 
--- Customer inquiries (leads). Public can insert; only admins can read.
+-- Customer inquiries (leads).
+-- SECURITY MODEL (recommended): inserts happen via server/API using the Supabase Service Role key.
+-- Public (anon) cannot insert directly; only admins can read/update via RLS.
 create table if not exists public.itinerary_queries (
   id uuid primary key default gen_random_uuid(),
   trip_id text not null,
@@ -43,7 +45,9 @@ create table if not exists public.itinerary_queries (
   date timestamptz not null default now()
 );
 
--- Contact form messages. Public can insert; only admins can read.
+-- Contact form messages.
+-- SECURITY MODEL (recommended): inserts happen via server/API using the Supabase Service Role key.
+-- Public (anon) cannot insert directly; only admins can read via RLS.
 create table if not exists public.contact_messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -52,11 +56,18 @@ create table if not exists public.contact_messages (
   created_at timestamptz not null default now()
 );
 
--- Newsletter subscribers. Public can subscribe; only admins can read.
+-- Newsletter subscribers.
+-- SECURITY MODEL (recommended): inserts happen via server/API using the Supabase Service Role key.
+-- Public (anon) cannot insert directly; only admins can read via RLS.
 create table if not exists public.newsletter_subscribers (
   email text primary key,
   created_at timestamptz not null default now()
 );
+
+-- Prevent duplicate subscriptions that differ only by email casing (e.g. User@X.com vs user@x.com).
+-- Note: if you already have such duplicates, creating this index will fail until you delete/merge them.
+create unique index if not exists newsletter_subscribers_email_lower_uniq
+on public.newsletter_subscribers ((lower(email)));
 
 -- --- Migrations / hardening (safe to re-run) ---
 do $$
@@ -205,6 +216,20 @@ declare
   v_now timestamptz := now();
   v_count int;
 begin
+  -- Cleanup (Free plan friendly):
+  -- `public.rate_limits` can grow unbounded over time because old buckets/keys stick around.
+  -- On Supabase Free, scheduled DB jobs (pg_cron) may not be available, so we do a tiny
+  -- probabilistic cleanup here to keep the table bounded without adding noticeable latency.
+  if random() < 0.01 then
+    delete from public.rate_limits
+    where ctid in (
+      select ctid
+      from public.rate_limits
+      where reset_at < v_now - interval '15 days'
+      limit 500
+    );
+  end if;
+
   if p_key is null or length(trim(p_key)) = 0 then
     return;
   end if;
@@ -336,7 +361,8 @@ for select
 to authenticated
 using (public.is_admin());
 
--- Public can submit leads (inquiries). Only admins can read them.
+-- Lead/message/newsletter inserts:
+-- We intentionally block direct inserts from anon/authenticated and accept inserts via server/API (Service Role).
 drop policy if exists "public insert itinerary_queries" on public.itinerary_queries;
 create policy "no public insert itinerary_queries"
 on public.itinerary_queries
@@ -365,7 +391,6 @@ with check (
   public.is_admin()
 );
 
--- Public can submit contact messages. Only admins can read them.
 drop policy if exists "public insert contact_messages" on public.contact_messages;
 create policy "no public insert contact_messages"
 on public.contact_messages
@@ -382,7 +407,6 @@ using (
   public.is_admin()
 );
 
--- Newsletter policies
 drop policy if exists "public insert newsletter_subscribers" on public.newsletter_subscribers;
 create policy "no public insert newsletter_subscribers"
 on public.newsletter_subscribers

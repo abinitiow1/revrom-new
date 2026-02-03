@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { SiteContent } from '../types';
 import { subscribeNewsletter } from '../services/newsletterService';
 import Turnstile from './Turnstile';
+import { safeExternalUrl, safeMailtoHref } from '../utils/sanitizeUrl';
 
 interface FooterProps {
   onNavigateHome: () => void;
@@ -65,9 +66,14 @@ const Footer: React.FC<FooterProps> = ({
   const [newsletterEmail, setNewsletterEmail] = useState('');
   const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
   const [newsletterToast, setNewsletterToast] = useState<string | null>(null);
+  const [newsletterFormError, setNewsletterFormError] = useState<string>('');
   const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileError, setTurnstileError] = useState('');
+  const facebookUrl = safeExternalUrl(siteContent.facebookUrl);
+  const instagramUrl = safeExternalUrl(siteContent.instagramUrl);
+  const youtubeUrl = safeExternalUrl(siteContent.youtubeUrl);
+  const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
   const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
@@ -111,18 +117,18 @@ const Footer: React.FC<FooterProps> = ({
               "{siteContent.footerTagline}"
             </p>
             <div className="flex items-center space-x-4">
-              {!!siteContent.facebookUrl && (
-                <a href={siteContent.facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Facebook" className="text-muted-foreground hover:text-brand-primary transition-colors">
+              {!!facebookUrl && (
+                <a href={facebookUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Facebook" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <FacebookIcon className="w-6 h-6" />
                 </a>
               )}
-              {!!siteContent.instagramUrl && (
-                <a href={siteContent.instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Instagram" className="text-muted-foreground hover:text-brand-primary transition-colors">
+              {!!instagramUrl && (
+                <a href={instagramUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Instagram" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <InstagramIcon className="w-6 h-6" />
                 </a>
               )}
-              {!!siteContent.youtubeUrl && (
-                <a href={siteContent.youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit YouTube" className="text-muted-foreground hover:text-brand-primary transition-colors">
+              {!!youtubeUrl && (
+                <a href={youtubeUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit YouTube" className="text-muted-foreground hover:text-brand-primary transition-colors">
                   <YoutubeIcon className="w-6 h-6" />
                 </a>
               )}
@@ -155,9 +161,13 @@ const Footer: React.FC<FooterProps> = ({
               </li>
               <li className="flex items-center">
                 <FooterMailIcon className="w-5 h-5 text-brand-primary mr-3 shrink-0" />
-                <a href={`mailto:${siteContent.contactEmail}`} className="text-xs font-bold hover:text-brand-primary transition-colors break-all">
-                  {siteContent.contactEmail}
-                </a>
+                {contactEmailHref ? (
+                  <a href={contactEmailHref} className="text-xs font-bold hover:text-brand-primary transition-colors break-all">
+                    {siteContent.contactEmail}
+                  </a>
+                ) : (
+                  <span className="text-xs font-bold break-all">{siteContent.contactEmail}</span>
+                )}
               </li>
             </ul>
           </div>
@@ -171,12 +181,13 @@ const Footer: React.FC<FooterProps> = ({
               onSubmit={async (e) => {
                 e.preventDefault();
                 if (newsletterHoneypot.trim()) return;
+                setNewsletterFormError('');
                 const email = (newsletterEmail || '')
                   .replace(/[\s\u200B-\u200D\uFEFF]/g, '')
                   .trim()
                   .toLowerCase();
                 if (!/\S+@\S+\.\S+/.test(email)) {
-                  showNewsletterToast('Enter a valid email');
+                  setNewsletterFormError('Please enter a valid email.');
                   return;
                 }
 
@@ -200,7 +211,7 @@ const Footer: React.FC<FooterProps> = ({
                       return;
                     }
                     if (!turnstileToken) {
-                      setTurnstileError('Please complete the verification to subscribe.');
+                      setTurnstileError('Please complete verification.');
                       return;
                     }
                   }
@@ -213,8 +224,9 @@ const Footer: React.FC<FooterProps> = ({
                   showNewsletterToast(result?.duplicate ? 'Already subscribed' : 'Thanks for subscribing');
                 } catch (err: any) {
                   const msg = String(err?.message || '');
-                  if (msg.toLowerCase().includes('rate limit')) {
-                    showNewsletterToast('Please wait and try again');
+                  const status = Number(err?.status || 0);
+                  if (status === 429 || msg.toLowerCase().includes('rate limit')) {
+                    showNewsletterToast('Too many attempts, try again later');
                     return;
                   }
 
@@ -225,7 +237,7 @@ const Footer: React.FC<FooterProps> = ({
                     msg.toLowerCase().includes('token')
                   ) {
                     setTurnstileToken('');
-                    setTurnstileError('Verification failed. Please verify again and retry.');
+                    setTurnstileError('Please complete verification.');
                   }
 
                   if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
@@ -256,11 +268,15 @@ const Footer: React.FC<FooterProps> = ({
                 value={newsletterEmail}
                 onChange={(e) => {
                   setNewsletterEmail(e.target.value);
+                  if (newsletterFormError) setNewsletterFormError('');
                   if (turnstileError) setTurnstileError('');
                 }}
                 disabled={newsletterSubmitting}
                 className="w-full p-4 text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
+              {newsletterFormError ? (
+                <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{newsletterFormError}</div>
+              ) : null}
               {needsVerification && turnstileSiteKey ? (
                 <div className="space-y-2">
                   <Turnstile

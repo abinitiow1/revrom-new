@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { BlogPost, SiteContent } from '../../../types';
 import BlogPostCard from '../../../components/BlogPostCard';
 import { getActiveBgStyle } from '../activeBgStyle';
+import { useDisableMarqueeMotion } from '../../../utils/useDisableMarqueeMotion';
 
 type Props = {
   siteContent: SiteContent;
@@ -11,7 +12,8 @@ type Props = {
 };
 
 const BlogSection: React.FC<Props> = ({ siteContent, blogPosts, sectionConfig, onSelectBlogPost }) => {
-  const marqueePosts = useMemo(() => blogPosts.concat(blogPosts), [blogPosts]);
+  const disableMarqueeMotion = useDisableMarqueeMotion();
+  const marqueePosts = useMemo(() => (disableMarqueeMotion ? blogPosts : blogPosts.concat(blogPosts)), [blogPosts, disableMarqueeMotion]);
 
   return (
     <section
@@ -26,7 +28,7 @@ const BlogSection: React.FC<Props> = ({ siteContent, blogPosts, sectionConfig, o
       </div>
       <div className="w-full">
         <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-8">
-          <div className="flex animate-marquee-left-infinite whitespace-nowrap gap-8 hover:[animation-play-state:paused]">
+          <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-left-infinite whitespace-nowrap gap-8 hover:[animation-play-state:paused]'}>
             {marqueePosts.map((post, idx) => (
               <div key={`${post.id}-${idx}`} className="w-[300px] md:w-[400px] flex-shrink-0 snap-center">
                 <BlogPostCard post={post} onSelectPost={onSelectBlogPost} />
@@ -40,4 +42,3 @@ const BlogSection: React.FC<Props> = ({ siteContent, blogPosts, sectionConfig, o
 };
 
 export default BlogSection;
-

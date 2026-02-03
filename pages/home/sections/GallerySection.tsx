@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { GalleryPhoto, SiteContent } from '../../../types';
 import { getActiveBgStyle } from '../activeBgStyle';
+import { useDisableMarqueeMotion } from '../../../utils/useDisableMarqueeMotion';
 
 type Props = {
   siteContent: SiteContent;
@@ -10,7 +11,8 @@ type Props = {
 };
 
 const GallerySection: React.FC<Props> = ({ siteContent, galleryPhotos, sectionConfig, onNavigateGallery }) => {
-  const marqueePhotos = useMemo(() => galleryPhotos.concat(galleryPhotos), [galleryPhotos]);
+  const disableMarqueeMotion = useDisableMarqueeMotion();
+  const marqueePhotos = useMemo(() => (disableMarqueeMotion ? galleryPhotos : galleryPhotos.concat(galleryPhotos)), [galleryPhotos, disableMarqueeMotion]);
 
   return (
     <section
@@ -35,7 +37,7 @@ const GallerySection: React.FC<Props> = ({ siteContent, galleryPhotos, sectionCo
         </div>
       </div>
       <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-4 px-6 pb-4">
-        <div className="flex animate-marquee-right-infinite whitespace-nowrap gap-4 hover:[animation-play-state:paused]">
+        <div className={disableMarqueeMotion ? 'flex gap-4' : 'flex animate-marquee-right-infinite whitespace-nowrap gap-4 hover:[animation-play-state:paused]'}>
           {marqueePhotos.map((photo, idx) => (
             <div
               key={`${photo.id}-${idx}`}

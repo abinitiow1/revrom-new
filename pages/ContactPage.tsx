@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import type { SiteContent } from '../types';
 import { submitContactMessage } from '../services/contactMessageService';
 import Turnstile from '../components/Turnstile';
+import { safeMailtoHref } from '../utils/sanitizeUrl';
 
 interface ContactPageProps {
     siteContent: SiteContent;
@@ -51,6 +52,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const [notice, setNotice] = useState<string>('');
     const [turnstileToken, setTurnstileToken] = useState('');
     const [turnstileError, setTurnstileError] = useState('');
+    const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
 
     const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
     const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
@@ -125,10 +127,10 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         try {
             // Save to DB unless the user is rate-limited (prevents spam). WhatsApp send still works.
             if (isRateLimited()) {
-                setNotice('Opening WhatsApp… (saving is temporarily limited)');
+                setNotice('Too many attempts, try again later. Opening WhatsApp… (saving is temporarily limited)');
             } else {
                 if (!isLocalhost && !turnstileToken) {
-                    setNotice('Opening WhatsApp… (verification is required to save your message)');
+                    setNotice('Please complete verification. Opening WhatsApp… (message will still send)');
                 } else {
                     await submitContactMessage({ name, email, message, turnstileToken: turnstileToken || undefined });
                     setTurnstileToken('');
@@ -152,8 +154,18 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             console.error(err);
             // Even if DB save fails, still open WhatsApp for the customer.
             const msg = String(err?.message || '');
-            if (msg.toLowerCase().includes('rate limit')) {
-                setNotice('Opening WhatsApp… (saving is temporarily limited)');
+            const status = Number(err?.status || 0);
+            if (status === 429 || msg.toLowerCase().includes('rate limit')) {
+                setNotice('Too many attempts, try again later. Opening WhatsApp… (saving is temporarily limited)');
+            } else if (
+                status === 400 ||
+                status === 401 ||
+                status === 403 ||
+                msg.toLowerCase().includes('turnstile') ||
+                msg.toLowerCase().includes('token') ||
+                msg.toLowerCase().includes('verification')
+            ) {
+                setNotice('Please complete verification. Opening WhatsApp… (message will still send)');
             } else {
                 setNotice('Opening WhatsApp…');
             }
@@ -255,7 +267,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     <MailIcon className="w-6 h-6 text-brand-primary mr-3 mt-1 shrink-0" />
                                     <div>
                                         <h4 className="font-semibold text-foreground dark:text-dark-foreground">Email</h4>
-                                        <a href={`mailto:${siteContent.contactEmail}`} className="hover:text-brand-primary-dark break-all">{siteContent.contactEmail}</a>
+                                        {contactEmailHref ? (
+                                          <a href={contactEmailHref} className="hover:text-brand-primary-dark break-all">{siteContent.contactEmail}</a>
+                                        ) : (
+                                          <span className="break-all">{siteContent.contactEmail}</span>
+                                        )}
                                     </div>
                                 </li>
                                  <li className="flex items-start">

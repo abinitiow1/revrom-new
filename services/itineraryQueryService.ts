@@ -59,7 +59,11 @@ export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> 
   }
 
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.error || 'Failed to submit lead.');
+  if (!res.ok) {
+    const err: any = new Error(data?.error || 'Failed to submit lead.');
+    err.status = res.status;
+    throw err;
+  }
 };
 
 export const listItineraryQueries = async (): Promise<ItineraryQuery[]> => {

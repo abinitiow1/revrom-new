@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import type { SiteContent, CustomPage } from '../types';
 import type { Theme } from '../App';
 import ThemeToggle from './ThemeToggle';
+import { safeImageUrl } from '../utils/sanitizeUrl';
 
 interface HeaderProps {
   onNavigateHome: () => void;
@@ -56,6 +57,7 @@ const Header: React.FC<HeaderProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const safeLogoUrl = safeImageUrl(siteContent.logoUrl);
 
   const handleMobileNavClick = (navFunction: (arg?: any) => void, arg?: any) => {
     navFunction(arg);
@@ -87,10 +89,10 @@ const Header: React.FC<HeaderProps> = ({
       <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-border dark:border-dark-border">
         <div className="container mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <button onClick={onNavigateHome} className="flex items-center space-x-3 group">
-            {siteContent.logoUrl ? (
+            {safeLogoUrl ? (
               <img 
-                src={siteContent.logoUrl} 
-                srcSet={siteContent.logoUrl ? `${siteContent.logoUrl} 1x, ${siteContent.logoUrl} 2x` : undefined}
+                src={safeLogoUrl} 
+                srcSet={safeLogoUrl ? `${safeLogoUrl} 1x, ${safeLogoUrl} 2x` : undefined}
                 sizes="(max-width: 640px) 140px, 200px"
                 alt="Revrom Logo" 
                 loading="eager"

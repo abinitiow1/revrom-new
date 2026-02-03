@@ -4,6 +4,7 @@ import TripCard from '../../../components/TripCard';
 import SearchAndFilter from '../../../components/SearchAndFilter';
 import { destinationsMatch } from '../../../services/destinationNormalizer';
 import { getActiveBgStyle } from '../activeBgStyle';
+import { useDisableMarqueeMotion } from '../../../utils/useDisableMarqueeMotion';
 
 type Props = {
   trips: Trip[];
@@ -30,6 +31,7 @@ const AdventuresSection: React.FC<Props> = ({
   const [destFilter, setDestFilter] = useState('all');
   const [durationFilter, setDurationFilter] = useState('all');
   const [diffFilter, setDifficultyFilter] = useState('all');
+  const disableMarqueeMotion = useDisableMarqueeMotion();
 
   useEffect(() => {
     if (!initialDestinationFilter) return;
@@ -54,9 +56,9 @@ const AdventuresSection: React.FC<Props> = ({
   const row1Trips = useMemo(() => filteredTrips.filter((_, i) => i % 2 === 0), [filteredTrips]);
   const row2Trips = useMemo(() => filteredTrips.filter((_, i) => i % 2 !== 0), [filteredTrips]);
 
-  // Keep marquee infinite by duplicating once (2x). Avoid 3x cloning which balloons DOM nodes.
-  const marqueeRow1 = useMemo(() => row1Trips.concat(row1Trips), [row1Trips]);
-  const marqueeRow2 = useMemo(() => row2Trips.concat(row2Trips), [row2Trips]);
+  // Keep marquee infinite by duplicating once (2x). On mobile / reduced motion, keep it static & scrollable.
+  const marqueeRow1 = useMemo(() => (disableMarqueeMotion ? row1Trips : row1Trips.concat(row1Trips)), [row1Trips, disableMarqueeMotion]);
+  const marqueeRow2 = useMemo(() => (disableMarqueeMotion ? row2Trips : row2Trips.concat(row2Trips)), [row2Trips, disableMarqueeMotion]);
 
   const adventuresHasBg = !!siteContent.adventuresBgImage;
   const bgStyle = getActiveBgStyle(siteContent.adventuresBgImage, sectionConfig.backgroundOpacity);
@@ -142,7 +144,7 @@ const AdventuresSection: React.FC<Props> = ({
       <div className="space-y-12">
         <div className="relative w-full group/row1">
           <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-4">
-            <div className="flex animate-marquee-left-infinite whitespace-nowrap gap-8 group-hover/row1:[animation-play-state:paused]">
+            <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-left-infinite whitespace-nowrap gap-8 group-hover/row1:[animation-play-state:paused]'}>
               {marqueeRow1.map((trip, idx) => (
                 <div key={`${trip.id}-${idx}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
                   <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
@@ -154,7 +156,7 @@ const AdventuresSection: React.FC<Props> = ({
 
         <div className="relative w-full group/row2">
           <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-4">
-            <div className="flex animate-marquee-right-infinite whitespace-nowrap gap-8 group-hover/row2:[animation-play-state:paused]">
+            <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-right-infinite whitespace-nowrap gap-8 group-hover/row2:[animation-play-state:paused]'}>
               {marqueeRow2.map((trip, idx) => (
                 <div key={`${trip.id}-${idx}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
                   <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
@@ -188,4 +190,3 @@ const AdventuresSection: React.FC<Props> = ({
 };
 
 export default AdventuresSection;
-
