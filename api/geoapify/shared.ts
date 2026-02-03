@@ -76,8 +76,21 @@ export const rateLimitOrThrow = (req: any, limit: number, windowMs: number, buck
 export const readJsonBody = async (req: any): Promise<any> => {
   if (req?.body && typeof req.body === 'object') return req.body;
   const chunks: any[] = [];
+  const maxBytes = 128 * 1024; // 128KB hard cap to avoid memory abuse
+  let total = 0;
   await new Promise<void>((resolve, reject) => {
-    req.on('data', (c: any) => chunks.push(c));
+    req.on('data', (c: any) => {
+      total += c?.length || 0;
+      if (total > maxBytes) {
+        const err: any = new Error('Request body too large.');
+        err.statusCode = 413;
+        try {
+          req.destroy(err);
+        } catch {}
+        return;
+      }
+      chunks.push(c);
+    });
     req.on('end', () => resolve());
     req.on('error', (e: any) => reject(e));
   });
@@ -122,11 +135,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   const vercelEnv = (process.env.VERCEL_ENV || process.env.NODE_ENV || '').toLowerCase();
   const shouldEnforce = vercelEnv === 'production'; // Only enforce on production (revrom.in)
 
-  // Debug logging for troubleshooting
-  console.log('[Turnstile Server] Environment:', vercelEnv);
-  console.log('[Turnstile Server] Secret key configured:', secret ? `YES (starts with ${secret.substring(0, 6)}...)` : 'NO - MISSING!');
-  console.log('[Turnstile Server] Should enforce:', shouldEnforce);
-
   // Allow local/dev/preview to function without Turnstile configured
   if (!secret) {
     if (shouldEnforce) {
@@ -136,7 +144,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
       err.statusCode = 500;
       throw err;
     }
-    console.log('[Turnstile Server] Skipping verification (non-production environment)');
     return;
   }
 
@@ -151,7 +158,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
 
   const response = (token || '').trim();
   if (!response) {
-    console.log('[Turnstile Server] No token provided by client');
     const err: any = new Error('Missing Turnstile token.');
     err.statusCode = 400;
     throw err;
@@ -162,7 +168,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   const now = Date.now();
   const cachedOkUntil = verifiedTurnstileCache.get(cacheKey);
   if (cachedOkUntil && now < cachedOkUntil) {
-    console.log('[Turnstile Server] Using cached verification (token already verified)');
     return;
   }
   if (cachedOkUntil && now >= cachedOkUntil) verifiedTurnstileCache.delete(cacheKey);
@@ -171,8 +176,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   params.set('secret', secret);
   params.set('response', response);
   if (ip && ip !== 'unknown') params.set('remoteip', ip);
-
-  console.log('[Turnstile Server] Verifying token with Cloudflare...');
 
   let r: any;
   try {
@@ -190,9 +193,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
 
   const status = r?.status || 0;
   const data: any = await r.json().catch(() => null);
-
-  // Log the verification response for diagnostics (do not log secrets or tokens)
-  console.log('[Turnstile Server] Cloudflare response:', { status, success: data?.success, errorCodes: data?.['error-codes'], hostname: data?.hostname });
 
   // Cloudflare returns 401 when the secret is invalid/unauthorized.
   if (status === 401) {
@@ -221,7 +221,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
     // If we already verified this token recently for this IP, treat it as OK.
     // This specifically avoids spurious "timeout-or-duplicate" failures from repeated calls.
     if (cachedOkUntil && codes.includes('timeout-or-duplicate')) {
-      console.log('[Turnstile Server] Accepting cached result for duplicate token');
       return;
     }
 
@@ -229,8 +228,6 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
     err.statusCode = 403;
     throw err;
   }
-
-  console.log('[Turnstile Server] ✓ Token verified successfully');
 
   // Cache successful verification briefly to tolerate duplicate requests.
   verifiedTurnstileCache.set(cacheKey, now + 2 * 60 * 1000); // 2 minutes

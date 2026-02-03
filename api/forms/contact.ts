@@ -21,6 +21,9 @@ export default async function handler(req: any, res: any) {
     if (!name) return sendJson(res, 400, { error: 'Name is required.' });
     if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Valid email is required.' });
     if (!message || message.length < 10) return sendJson(res, 400, { error: 'Message must be at least 10 characters.' });
+    if (name.length > 120) return sendJson(res, 400, { error: 'Name is too long.' });
+    if (email.length > 254) return sendJson(res, 400, { error: 'Email is too long.' });
+    if (message.length > 8000) return sendJson(res, 400, { error: 'Message is too long.' });
 
     const supabase = getSupabaseAdmin() as any;
     const { error } = await supabase.from('contact_messages').insert({ name, email, message } as any);

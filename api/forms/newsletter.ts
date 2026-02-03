@@ -18,6 +18,7 @@ export default async function handler(req: any, res: any) {
       .trim()
       .toLowerCase();
     if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' });
+    if (email.length > 254) return sendJson(res, 400, { error: 'Email is too long.' });
 
     const supabase = getSupabaseAdmin() as any;
     const { error } = await supabase.from('newsletter_subscribers').insert({ email } as any);

@@ -8,10 +8,23 @@ export default async function handler(req: any, res: any) {
     const q = new URL(req?.url || '/', 'http://local').searchParams;
     const runTests = String(q.get('runTests') || 'false').toLowerCase() === 'true';
 
-    // Authorization for running live upstream tests: set HEALTH_CHECK_SECRET on the server and provide it via X-Health-Check header.
+    // Protect health endpoint: it discloses deployment configuration.
     const healthSecret = String(process.env.HEALTH_CHECK_SECRET || '').trim();
     const headerSecret = String(req?.headers?.['x-health-check'] || '').trim();
-    const allowLiveTests = runTests && healthSecret && headerSecret && healthSecret === headerSecret;
+
+    // If not configured, behave as "not found" to reduce information leakage.
+    if (!healthSecret) {
+      res.statusCode = 404;
+      return res.end('Not found');
+    }
+
+    if (!headerSecret || headerSecret !== healthSecret) {
+      res.statusCode = 401;
+      return res.end(JSON.stringify({ error: 'Unauthorized' }));
+    }
+
+    // Live upstream checks are opt-in via ?runTests=true (requires the same X-Health-Check header above).
+    const allowLiveTests = runTests;
 
     const result: any = {
       ok: true,
@@ -25,7 +38,7 @@ export default async function handler(req: any, res: any) {
         VERCEL_ENV: process.env.VERCEL_ENV || process.env.NODE_ENV || 'unknown',
       },
       checks: {},
-      note: allowLiveTests ? 'Running live upstream checks (authorized)' : (runTests ? 'Live tests requested but not authorized (missing/invalid HEALTH_CHECK_SECRET header).' : 'Live tests not requested.'),
+      note: allowLiveTests ? 'Running live upstream checks (authorized)' : 'Live tests not requested.',
       clientIp: getClientIp(req),
       troubleshooting: {
         turnstile401: 'If you get 401 error, your TURNSTILE_SECRET_KEY is WRONG. Go to Cloudflare Dashboard → Turnstile → Copy the SECRET key (NOT the site key). The secret key starts with 0x.',

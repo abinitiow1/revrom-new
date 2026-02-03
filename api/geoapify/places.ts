@@ -29,6 +29,8 @@ type GeoapifyFeatureCollection = {
 
 export default async function handler(req: any, res: any) {
   try {
+    if (req.method !== 'GET' && req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed.' });
+
     rateLimitOrThrow(req, 60, 5 * 60 * 1000, 'geoapify:places'); // 60 requests / 5 minutes / IP
 
     const q = getQuery(req);

@@ -169,6 +169,8 @@ export const buildTripPlan = async (args: {
   let center: { lat: number; lon: number; formatted?: string } | null = null;
   try {
     center = await geoapifyGeocode(destination);
+    const centerPoint = center;
+    if (!centerPoint) throw new Error('Geocoding failed to return coordinates.');
     // Fetch in multiple radii in parallel with per-call client timeout to reduce tail latency.
     // Search in 3 concentric circles to find enough points of interest:
     // - 75km: Very close attractions (core itinerary, <1 hour drive)
@@ -188,7 +190,7 @@ export const buildTripPlan = async (args: {
     const promises = radii.map((radiusMeters) =>
       (async () => {
         try {
-          const batch = await geoapifyPlacesNearby({ center, radiusMeters, interestTags: args.interestTags || [], limit: want });
+          const batch = await geoapifyPlacesNearby({ center: centerPoint, radiusMeters, interestTags: args.interestTags || [], limit: want });
           return Array.isArray(batch) ? batch : [];
         } catch {
           return [] as GeoapifyPlace[];

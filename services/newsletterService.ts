@@ -13,23 +13,19 @@ export const subscribeNewsletter = async (
     .trim()
     .toLowerCase();
 
-  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-  if (!isLocalhost) {
-    const res = await fetch('/api/forms/newsletter', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: normalized, turnstileToken: opts?.turnstileToken }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || 'Could not subscribe.');
-    return { duplicate: !!data?.duplicate };
+  const res = await fetch('/api/forms/newsletter', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: normalized, turnstileToken: opts?.turnstileToken }),
+  });
+
+  if (res.status === 404 && typeof window !== 'undefined' && window.location?.hostname === 'localhost') {
+    throw new Error('API route not available on localhost. Use `vercel dev` (recommended) or configure a dev proxy for /api/*.');
   }
 
-  // Local dev fallback (no Vercel API routes unless using `vercel dev`).
-  const supabase = getSupabase();
-  const { error } = await supabase.from(TABLE).insert({ email: normalized });
-  if (error) throw error;
-  return { duplicate: false };
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || 'Could not subscribe.');
+  return { duplicate: !!data?.duplicate };
 };
 
 type NewsletterSubscriberRow = {

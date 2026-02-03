@@ -31,4 +31,8 @@
   .animate-spin-slow {
     animation: spin-slow 12s linear infinite;
   }
+
+  .contact-hero-bg {
+    background-image: url('https://picsum.photos/seed/ladakh-contact/1920/1080');
+  }
 }

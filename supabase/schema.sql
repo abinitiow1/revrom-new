@@ -338,11 +338,11 @@ using (public.is_admin());
 
 -- Public can submit leads (inquiries). Only admins can read them.
 drop policy if exists "public insert itinerary_queries" on public.itinerary_queries;
-create policy "public insert itinerary_queries"
+create policy "no public insert itinerary_queries"
 on public.itinerary_queries
 for insert
 to anon, authenticated
-with check (true);
+with check (false);
 
 drop policy if exists "admin read itinerary_queries" on public.itinerary_queries;
 create policy "admin read itinerary_queries"
@@ -367,11 +367,11 @@ with check (
 
 -- Public can submit contact messages. Only admins can read them.
 drop policy if exists "public insert contact_messages" on public.contact_messages;
-create policy "public insert contact_messages"
+create policy "no public insert contact_messages"
 on public.contact_messages
 for insert
 to anon, authenticated
-with check (true);
+with check (false);
 
 drop policy if exists "admin read contact_messages" on public.contact_messages;
 create policy "admin read contact_messages"
@@ -384,11 +384,11 @@ using (
 
 -- Newsletter policies
 drop policy if exists "public insert newsletter_subscribers" on public.newsletter_subscribers;
-create policy "public insert newsletter_subscribers"
+create policy "no public insert newsletter_subscribers"
 on public.newsletter_subscribers
 for insert
 to anon, authenticated
-with check (email is not null and length(trim(email)) > 3);
+with check (false);
 
 drop policy if exists "admin read newsletter_subscribers" on public.newsletter_subscribers;
 create policy "admin read newsletter_subscribers"
@@ -403,12 +403,12 @@ using (
 grant usage on schema public to anon, authenticated;
 grant select on table public.app_state to anon, authenticated;
 grant insert, update on table public.app_state to authenticated;
-grant insert on table public.itinerary_queries to anon, authenticated;
+revoke insert on table public.itinerary_queries from anon, authenticated;
 grant select on table public.itinerary_queries to authenticated;
 grant update on table public.itinerary_queries to authenticated;
-grant insert on table public.contact_messages to anon, authenticated;
+revoke insert on table public.contact_messages from anon, authenticated;
 grant select on table public.contact_messages to authenticated;
-grant insert on table public.newsletter_subscribers to anon, authenticated;
+revoke insert on table public.newsletter_subscribers from anon, authenticated;
 grant select on table public.newsletter_subscribers to authenticated;
 
 -- Allow frontend to call the admin-check RPC without exposing admin_users table.
@@ -423,19 +423,19 @@ begin
     from information_schema.tables
     where table_schema = 'storage' and table_name = 'objects'
   ) then
-    execute 'drop policy if exists "authenticated upload site-assets" on storage.objects';
-    execute 'create policy "authenticated upload site-assets"
+    execute 'drop policy if exists "admin upload site-assets" on storage.objects';
+    execute 'create policy "admin upload site-assets"
       on storage.objects
       for insert
       to authenticated
-      with check (bucket_id = ''site-assets'')';
+      with check (bucket_id = ''site-assets'' and public.is_admin())';
 
-    execute 'drop policy if exists "authenticated update site-assets" on storage.objects';
-    execute 'create policy "authenticated update site-assets"
+    execute 'drop policy if exists "admin update site-assets" on storage.objects';
+    execute 'create policy "admin update site-assets"
       on storage.objects
       for update
       to authenticated
-      using (bucket_id = ''site-assets'')
-      with check (bucket_id = ''site-assets'')';
+      using (bucket_id = ''site-assets'' and public.is_admin())
+      with check (bucket_id = ''site-assets'' and public.is_admin())';
   end if;
 end $$;

@@ -170,7 +170,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
 
     return (
         <div className="bg-background dark:bg-dark-background pb-24">
-            <div className="relative h-48 sm:h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://picsum.photos/seed/ladakh-contact/1920/1080')" }}>
+            <div className="relative h-48 sm:h-64 bg-cover bg-center contact-hero-bg">
                 <div className="absolute inset-0 bg-black/50"></div>
                 <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
                     <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white font-display text-center">Get in Touch</h1>
@@ -205,17 +205,17 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                 </div>
                                 <div>
                                     <label htmlFor="name" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Full Name</label>
-                                    <input type="text" id="name" name="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} required aria-invalid={errors.name ? 'true' : 'false'} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
+                                    <input type="text" id="name" name="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} required className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
                                     {errors.name && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.name}</p>}
                                 </div>
                                 <div>
                                     <label htmlFor="email" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Email Address</label>
-                                    <input type="email" id="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required aria-invalid={errors.email ? 'true' : 'false'} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
+                                    <input type="email" id="email" name="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} required className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
                                     {errors.email && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.email}</p>}
                                 </div>
                                 <div>
                                     <label htmlFor="message" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Message</label>
-                                    <textarea id="message" name="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} aria-invalid={errors.message ? 'true' : 'false'} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
+                                    <textarea id="message" name="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
                                     {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
                                 </div>

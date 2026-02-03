@@ -18,16 +18,19 @@ export default async function handler(req: any, res: any) {
     const name = String(body?.name || '').trim();
     const whatsappNumber = String(body?.whatsappNumber || '').trim();
     const planningTime = String(body?.planningTime || '').trim();
-    const date = String(body?.date || new Date().toISOString()).trim();
-    const status = String(body?.status || 'new').trim();
+    const date = new Date().toISOString();
+    const status = 'new';
 
     if (!tripId || !tripTitle) return sendJson(res, 400, { error: 'Missing trip details.' });
     if (!name) return sendJson(res, 400, { error: 'Name is required.' });
     if (!whatsappNumber) return sendJson(res, 400, { error: 'WhatsApp number is required.' });
+    if (name.length > 120) return sendJson(res, 400, { error: 'Name is too long.' });
+    if (tripTitle.length > 200) return sendJson(res, 400, { error: 'Trip title is too long.' });
+    if (planningTime.length > 200) return sendJson(res, 400, { error: 'Planning time is too long.' });
+    if (whatsappNumber.length > 40) return sendJson(res, 400, { error: 'WhatsApp number is too long.' });
 
     const supabase = getSupabaseAdmin() as any;
     const { error } = await supabase.from('itinerary_queries').insert({
-      id: String(body?.id || '').trim() || undefined,
       trip_id: tripId,
       trip_title: tripTitle,
       name,
