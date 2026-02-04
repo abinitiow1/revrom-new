@@ -517,6 +517,9 @@ const App: React.FC = () => {
   // refs to manage initial load vs user navigation and avoid update loops
   const initializedRef = React.useRef(false);
   const suppressHashUpdateRef = React.useRef(false);
+  const lastTripIdRef = React.useRef<string | null>(null);
+  const lastBlogIdRef = React.useRef<string | null>(null);
+  const lastCustomSlugRef = React.useRef<string | null>(null);
 
   const updateHashFromState = () => {
     if (suppressHashUpdateRef.current) return;
@@ -536,14 +539,17 @@ const App: React.FC = () => {
     if (view === 'tripDetail' || view === 'booking') {
       if (selectedTrip) params.tripId = selectedTrip.id;
       else if (current.get('tripId')) params.tripId = current.get('tripId');
+      else if (lastTripIdRef.current) params.tripId = lastTripIdRef.current;
     }
     if (view === 'blogDetail') {
       if (selectedBlogPost) params.blogId = selectedBlogPost.id;
       else if (current.get('blogId')) params.blogId = current.get('blogId');
+      else if (lastBlogIdRef.current) params.blogId = lastBlogIdRef.current;
     }
     if (view === 'customPage') {
       if (currentCustomPageSlug) params.custom = currentCustomPageSlug;
       else if (current.get('custom')) params.custom = current.get('custom');
+      else if (lastCustomSlugRef.current) params.custom = lastCustomSlugRef.current;
     }
 
     // Destination filter is relevant when browsing tours.
@@ -576,6 +582,10 @@ const App: React.FC = () => {
       const blogId = sp.get('blogId');
       const custom = sp.get('custom');
       const dest = sp.get('dest');
+
+      if (tripId) lastTripIdRef.current = tripId;
+      if (blogId) lastBlogIdRef.current = blogId;
+      if (custom) lastCustomSlugRef.current = custom;
 
       if (dest) setInitialDestinationFilter(dest);
 
@@ -640,11 +650,50 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (view) {
       case 'tripDetail':
-        return selectedTrip && <TripDetailPage trip={selectedTrip} onBookNow={t => { setSelectedTrip(t); setView('booking'); }} onBack={() => setView('home')} theme={theme} />;
+        return selectedTrip ? (
+          <TripDetailPage
+            trip={selectedTrip}
+            onBookNow={(t) => {
+              setSelectedTrip(t);
+              setView('booking');
+            }}
+            onBack={() => setView('home')}
+            theme={theme}
+          />
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            <div className="text-sm font-bold">Loading trip…</div>
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-xl border border-border hover:border-brand-primary/40 transition-colors text-xs font-black uppercase tracking-widest"
+            >
+              Go Home
+            </button>
+          </div>
+        );
       case 'allTours':
         return <AllToursPage trips={trips} onSelectTrip={t => { setSelectedTrip(t); setView('tripDetail'); }} onBookNow={t => { setSelectedTrip(t); setView('booking'); }} onNavigateContact={() => setView('contact')} initialDestinationFilter={initialDestinationFilter} />;
       case 'booking':
-        return selectedTrip && <BookingPage trip={selectedTrip} onBack={() => setView('tripDetail')} siteContent={siteContent} onAddInquiry={addInquiry} />;
+        return selectedTrip ? (
+          <BookingPage
+            trip={selectedTrip}
+            onBack={() => setView('tripDetail')}
+            siteContent={siteContent}
+            onAddInquiry={addInquiry}
+          />
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            <div className="text-sm font-bold">Loading booking…</div>
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-xl border border-border hover:border-brand-primary/40 transition-colors text-xs font-black uppercase tracking-widest"
+            >
+              Go Home
+            </button>
+          </div>
+        );
       case 'contact':
         return <ContactPage siteContent={siteContent} />;
       case 'blog':
