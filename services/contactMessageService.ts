@@ -6,6 +6,7 @@ const TABLE = 'contact_messages';
 export type ContactMessageInput = {
   name: string;
   email: string;
+  whatsappNumber?: string;
   message: string;
   turnstileToken?: string;
 };
@@ -17,6 +18,7 @@ export const submitContactMessage = async (input: ContactMessageInput): Promise<
     body: JSON.stringify({
       name: input.name,
       email: input.email,
+      whatsappNumber: input.whatsappNumber,
       message: input.message,
       turnstileToken: input.turnstileToken,
     }),
@@ -38,24 +40,47 @@ type ContactMessageRow = {
   id: string;
   name: string;
   email: string;
+  whatsapp_number?: string | null;
   message: string;
   created_at: string;
 };
 
 export const listContactMessages = async (): Promise<ContactMessage[]> => {
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  const res = await supabase
     .from(TABLE)
-    .select('id,name,email,message,created_at')
+    .select('id,name,email,whatsapp_number,message,created_at')
     .order('created_at', { ascending: false })
     .limit(200)
     .returns<ContactMessageRow[]>();
 
-  if (error) throw error;
-  return (data || []).map((row) => ({
+  if (res.error) {
+    const msg = String((res.error as any)?.message || '');
+    if (msg.toLowerCase().includes('whatsapp_number') && msg.toLowerCase().includes('does not exist')) {
+      const legacy = await supabase
+        .from(TABLE)
+        .select('id,name,email,message,created_at')
+        .order('created_at', { ascending: false })
+        .limit(200)
+        .returns<Omit<ContactMessageRow, 'whatsapp_number'>[]>();
+      if (legacy.error) throw legacy.error;
+      return (legacy.data || []).map((row: any) => ({
+        id: row.id,
+        name: row.name,
+        email: row.email,
+        whatsappNumber: undefined,
+        message: row.message,
+        createdAt: row.created_at,
+      }));
+    }
+    throw res.error;
+  }
+
+  return (res.data || []).map((row) => ({
     id: row.id,
     name: row.name,
     email: row.email,
+    whatsappNumber: (row as any).whatsapp_number || undefined,
     message: row.message,
     createdAt: row.created_at,
   }));

@@ -127,7 +127,87 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
   const [hiddenInstagramPostIds, setHiddenInstagramPostIds] = useState<Set<string>>(() => new Set());
   const [hiddenGoogleReviewIds, setHiddenGoogleReviewIds] = useState<Set<string>>(() => new Set());
 
-  const pendingUndoRef = React.useRef<UndoDeleteEntry | null>(null);
+  const undoEntriesRef = React.useRef<Map<string, UndoDeleteEntry>>(new Map());
+  const [undoToastKeys, setUndoToastKeys] = useState<string[]>([]);
+
+  const readHashParams = () => {
+    const sp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    return {
+      view: sp.get('view'),
+      tab: sp.get('tab'),
+      modal: sp.get('modal'),
+    };
+  };
+
+  const setAdminHash = (params: { tab?: AdminTab; modal?: boolean | null }, mode: 'push' | 'replace' = 'replace') => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    sp.set('view', 'admin');
+
+    if (params.tab) sp.set('tab', params.tab);
+    else sp.delete('tab');
+
+    if (params.modal === true) sp.set('modal', '1');
+    else if (params.modal === false || params.modal === null) sp.delete('modal');
+
+    const nextHash = `#${sp.toString()}`;
+    if (mode === 'push') window.history.pushState(null, '', nextHash);
+    else window.history.replaceState(null, '', nextHash);
+  };
+
+  const navigateAdminTab = (tab: AdminTab) => {
+    setAdminHash({ tab, modal: null }, 'push');
+    setActiveTab(tab);
+    setEditingItem(null);
+    setIsMobileMenuOpen(false);
+  };
+
+  const openEditor = (item: any) => {
+    // If the modal is already open, don't push duplicate history entries (back button won't appear to "do" anything).
+    const { modal } = readHashParams();
+    setAdminHash({ tab: activeTab, modal: true }, modal === '1' ? 'replace' : 'push');
+    setEditingItem(item);
+  };
+
+  const closeEditor = () => {
+    // Keep the user in admin when closing; avoid "back to home" surprises.
+    setAdminHash({ tab: activeTab, modal: null }, 'replace');
+    setEditingItem(null);
+  };
+
+  // Sync admin tab + editor modal with hash so browser back/forward behaves intuitively.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const apply = () => {
+      const { view, tab, modal } = readHashParams();
+      if (view !== 'admin') return;
+
+      const nextTab = (tab as AdminTab | null) || null;
+      if (nextTab && nextTab !== activeTab) setActiveTab(nextTab);
+
+      const wantsModal = modal === '1';
+      if (!wantsModal && editingItem) {
+        // If there are unsaved changes, respect the existing confirmation.
+        if (requestCloseModal()) closeEditor();
+        else setAdminHash({ tab: activeTab, modal: true }, 'replace');
+      }
+    };
+
+    apply();
+    window.addEventListener('hashchange', apply);
+    return () => window.removeEventListener('hashchange', apply);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, editingItem]);
+
+  // Ensure the hash contains the active admin tab while inside admin (without adding history noise).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const { view, tab } = readHashParams();
+    if (view !== 'admin') return;
+    if (!tab || tab !== activeTab) setAdminHash({ tab: activeTab }, 'replace');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Mobile UX: prevent background scroll when overlays are open.
   useEffect(() => {
@@ -218,21 +298,6 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
       return;
     }
 
-    // Only one undoable action at a time: finalize any previous pending delete immediately.
-    if (pendingUndoRef.current) {
-      window.clearTimeout(pendingUndoRef.current.timeoutId);
-      const previous = pendingUndoRef.current;
-      pendingUndoRef.current = null;
-      void (async () => {
-        try {
-          await previous.commit();
-        } catch (e: any) {
-          hideUndoEntry(previous, false);
-          showNotice(e?.message || 'Failed to delete item', 'error');
-        }
-      })();
-    }
-
     const key = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
     const placeholder: UndoDeleteEntry = {
       key,
@@ -245,35 +310,43 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
     hideUndoEntry(placeholder, true);
 
     const timeoutId = window.setTimeout(async () => {
-      if (!pendingUndoRef.current || pendingUndoRef.current.key !== key) return;
-      const current = pendingUndoRef.current;
-      pendingUndoRef.current = null;
+      const current = undoEntriesRef.current.get(key);
+      if (!current) return;
+      undoEntriesRef.current.delete(key);
+      setUndoToastKeys((prev) => prev.filter((k) => k !== key));
       try {
         await entry.commit();
-        showNotice(`${entry.label} deleted`, 'info');
       } catch (e: any) {
         hideUndoEntry(current, false);
         showNotice(e?.message || 'Failed to delete item', 'error');
       }
     }, 10_000);
 
-    pendingUndoRef.current = { ...placeholder, timeoutId };
-
-    showNotice(entry.label, 'info', {
-      durationMs: 10_000,
-      action: {
-        label: 'Undo',
-        onClick: () => {
-          const current = pendingUndoRef.current;
-          if (!current || current.key !== key) return;
-          window.clearTimeout(current.timeoutId);
-          pendingUndoRef.current = null;
-          hideUndoEntry(current, false);
-          showNotice('Undo: delete canceled', 'success');
-        },
-      },
-    });
+    const full: UndoDeleteEntry = { ...placeholder, timeoutId };
+    undoEntriesRef.current.set(key, full);
+    setUndoToastKeys((prev) => [...prev, key]);
   };
+
+  const undoDelete = (key: string) => {
+    if (typeof window === 'undefined') return;
+    const current = undoEntriesRef.current.get(key);
+    if (!current) return;
+    window.clearTimeout(current.timeoutId);
+    undoEntriesRef.current.delete(key);
+    setUndoToastKeys((prev) => prev.filter((k) => k !== key));
+    hideUndoEntry(current, false);
+    showNotice('Undo: delete canceled', 'success');
+  };
+
+  // Clear any pending delete timers on unmount.
+  useEffect(() => {
+    return () => {
+      for (const e of undoEntriesRef.current.values()) {
+        window.clearTimeout(e.timeoutId);
+      }
+      undoEntriesRef.current.clear();
+    };
+  }, []);
 
   // Best-effort cleanup: if an item is actually gone from props, also drop it from the hidden sets.
   useEffect(() => {
@@ -813,7 +886,29 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Manage Tours</h3>
-              <button onClick={() => setEditingItem({ title: '', destination: '', shortDescription: '', longDescription: '', price: 0, duration: 1, difficulty: 'Intermediate', itinerary: [], inclusions: [], exclusions: [], activities: [], imageUrl: '', gallery: [], routeCoordinates: [] })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">ADD NEW TOUR</button>
+              <button
+                onClick={() =>
+                  openEditor({
+                    title: '',
+                    destination: '',
+                    shortDescription: '',
+                    longDescription: '',
+                    price: 0,
+                    duration: 1,
+                    difficulty: 'Intermediate',
+                    itinerary: [],
+                    inclusions: [],
+                    exclusions: [],
+                    activities: [],
+                    imageUrl: '',
+                    gallery: [],
+                    routeCoordinates: [],
+                  })
+                }
+                className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
+              >
+                ADD NEW TOUR
+              </button>
             </div>
             <div className="bg-card dark:bg-dark-card rounded-3xl border border-border dark:border-dark-border p-4 sm:p-6 flex flex-col md:flex-row gap-4 md:items-center md:justify-between">
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
@@ -900,7 +995,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-4">
               {filteredTrips.map(trip => (
                 <div key={trip.id} className="bg-white dark:bg-neutral-900 p-4 sm:p-6 rounded-3xl border border-border dark:border-dark-border flex flex-col sm:flex-row justify-between items-center gap-4 group hover:border-brand-primary transition-all">
                   <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
@@ -920,7 +1015,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     </div>
                   </div>
                   <div className="flex gap-2 w-full sm:w-auto">
-                    <button onClick={() => setEditingItem(trip)} className="flex-1 sm:flex-none text-brand-primary font-black text-[10px] uppercase px-4 py-2 bg-brand-primary/5 hover:bg-brand-primary/10 rounded-lg">EDIT</button>
+                    <button onClick={() => openEditor(trip)} className="flex-1 sm:flex-none text-brand-primary font-black text-[10px] uppercase px-4 py-2 bg-brand-primary/5 hover:bg-brand-primary/10 rounded-lg">EDIT</button>
                     <button
                       type="button"
                       onClick={() => {
@@ -958,7 +1053,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Departure Dates</h3>
-              <button onClick={() => setEditingItem({ tripId: trips[0]?.id || '', startDate: '', endDate: '', slots: 10, status: 'Available' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">ADD NEW DATE</button>
+              <button onClick={() => openEditor({ tripId: trips[0]?.id || '', startDate: '', endDate: '', slots: 10, status: 'Available' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">ADD NEW DATE</button>
             </div>
             <div className="bg-white dark:bg-neutral-900 rounded-3xl overflow-hidden border border-border dark:border-dark-border">
               <div className="overflow-x-auto">
@@ -985,7 +1080,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           <td className="px-6 py-6 text-center font-black">{dep.slots}</td>
                           <td className="px-6 py-6 text-[10px] font-black uppercase tracking-widest text-brand-primary">{dep.status}</td>
                           <td className="px-6 py-6 text-right space-x-4">
-                             <button onClick={() => setEditingItem(dep)} className="text-brand-primary text-[10px] font-black">EDIT</button>
+                             <button onClick={() => openEditor(dep)} className="text-brand-primary text-[10px] font-black">EDIT</button>
                              <button
                                type="button"
                                onClick={() => {
@@ -1038,7 +1133,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
             type: 'lead' as const,
             id: lead.id,
             name: lead.name,
-            contact: lead.whatsappNumber,
+            contact: lead.whatsappNumber || lead.email || '',
             source: lead.tripTitle || 'Trip inquiry',
             date: lead.date,
             status: lead.status || 'new',
@@ -1231,7 +1326,37 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                           {it.type === 'lead' ? 'Lead' : 'Message'}
                         </div>
                         <h4 className="mt-3 text-lg font-black italic uppercase truncate">{it.name}</h4>
-                        <div className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground break-all">{it.contact} - {it.source}</div>
+                        <div className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground break-all">
+                          {it.type === 'lead' ? (
+                            <>
+                              {(it.raw as ItineraryQuery).whatsappNumber ? (
+                                <>
+                                  WhatsApp: {(it.raw as ItineraryQuery).whatsappNumber}
+                                </>
+                              ) : null}
+                              {(it.raw as ItineraryQuery).email ? (
+                                <>
+                                  {(it.raw as ItineraryQuery).whatsappNumber ? ' • ' : ''}
+                                  Email: {(it.raw as ItineraryQuery).email}
+                                </>
+                              ) : null}
+                              {' - '}
+                              {it.source}
+                            </>
+                          ) : (
+                            <>
+                              Email: {(it.raw as ContactMessage).email}
+                              {(it.raw as ContactMessage).whatsappNumber ? (
+                                <>
+                                  {' • '}
+                                  WhatsApp: {(it.raw as ContactMessage).whatsappNumber}
+                                </>
+                              ) : null}
+                              {' - '}
+                              {it.source}
+                            </>
+                          )}
+                        </div>
                         <div className="text-[10px] font-black uppercase tracking-widest opacity-40 mt-2">{new Date(it.date).toLocaleString()}</div>
 
                         <div className="mt-4 text-sm text-muted-foreground dark:text-dark-muted-foreground whitespace-pre-wrap">
@@ -1256,21 +1381,45 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         )}
 
                         {it.type === 'lead' ? (
-                          <a
-                            href={`https://wa.me/${(it.raw as ItineraryQuery).whatsappNumber.replace(/\D/g, '')}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
-                          >
-                            Reply WhatsApp
-                          </a>
+                          <>
+                            {(it.raw as ItineraryQuery).whatsappNumber ? (
+                              <a
+                                href={`https://wa.me/${String((it.raw as ItineraryQuery).whatsappNumber || '').replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                              >
+                                Reply WhatsApp
+                              </a>
+                            ) : null}
+                            {(it.raw as ItineraryQuery).email ? (
+                              <a
+                                href={`mailto:${(it.raw as ItineraryQuery).email}?subject=${encodeURIComponent('Revrom trip inquiry')}`}
+                                className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all text-center"
+                              >
+                                Reply Email
+                              </a>
+                            ) : null}
+                          </>
                         ) : (
-                          <a
-                            href={`mailto:${(it.raw as ContactMessage).email}?subject=${encodeURIComponent('Revrom inquiry')}`}
-                            className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all text-center"
-                          >
-                            Reply Email
-                          </a>
+                          <>
+                            <a
+                              href={`mailto:${(it.raw as ContactMessage).email}?subject=${encodeURIComponent('Revrom inquiry')}`}
+                              className="px-6 py-3 rounded-xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[10px] font-black uppercase tracking-widest hover:border-brand-primary transition-all text-center"
+                            >
+                              Reply Email
+                            </a>
+                            {(it.raw as ContactMessage).whatsappNumber ? (
+                              <a
+                                href={`https://wa.me/${String((it.raw as ContactMessage).whatsappNumber || '').replace(/\D/g, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bg-[#25D366] text-white px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-center"
+                              >
+                                Reply WhatsApp
+                              </a>
+                            ) : null}
+                          </>
                         )}
                       </div>
                     </div>
@@ -1354,7 +1503,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Blog posts</h3>
-              <button onClick={() => setEditingItem({ title: '', author: '', date: new Date().toISOString().split('T')[0], imageUrl: '', excerpt: '', content: '' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">New post</button>
+              <button onClick={() => openEditor({ title: '', author: '', date: new Date().toISOString().split('T')[0], imageUrl: '', excerpt: '', content: '' })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">New post</button>
             </div>
             <div className="bg-card dark:bg-dark-card rounded-3xl border border-border dark:border-dark-border p-4 sm:p-6">
               <input
@@ -1382,7 +1531,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       <div className="p-6">
                         <h4 className="font-black uppercase text-sm mb-4 leading-tight">{post.title}</h4>
                         <div className="flex justify-between border-t pt-4">
-                          <button onClick={() => setEditingItem(post)} className="text-[10px] font-black text-brand-primary">EDIT</button>
+                          <button onClick={() => openEditor(post)} className="text-[10px] font-black text-brand-primary">EDIT</button>
                       <button
                         type="button"
                         onClick={() => {
@@ -1414,7 +1563,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
           <div className="space-y-8 animate-fade-in">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h3 className="text-xl md:text-2xl font-black italic uppercase tracking-tighter">Custom Pages</h3>
-              <button onClick={() => setEditingItem({ title: '', slug: '', content: '', isVisible: true })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">NEW PAGE</button>
+              <button onClick={() => openEditor({ title: '', slug: '', content: '', isVisible: true })} className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg">NEW PAGE</button>
             </div>
             <div className="grid grid-cols-1 gap-4">
               {customPages.filter((p) => !hiddenCustomPageIds.has(p.id)).map(page => (
@@ -1424,7 +1573,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                     <p className="text-[10px] font-bold text-brand-primary uppercase">Slug: /{page.slug}</p>
                   </div>
                   <div className="flex gap-4">
-                    <button onClick={() => setEditingItem(page)} className="text-brand-primary text-[10px] font-black uppercase">EDIT</button>
+                    <button onClick={() => openEditor(page)} className="text-brand-primary text-[10px] font-black uppercase">EDIT</button>
                     <button
                       type="button"
                       onClick={() => {
@@ -1587,7 +1736,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Manage the Instagram strip on the homepage</p>
                 </div>
                 <button
-                  onClick={() => setEditingItem({ __type: 'instagram', imageUrl: '', type: 'photo', likes: 0, comments: 0 })}
+                  onClick={() => openEditor({ __type: 'instagram', imageUrl: '', type: 'photo', likes: 0, comments: 0 })}
                   className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
                 >
                   ADD POST
@@ -1604,7 +1753,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         <div className="text-[10px] font-black uppercase tracking-widest text-brand-primary">{post.type}</div>
                         <div className="text-xs text-muted-foreground">❤ {post.likes} · 💬 {post.comments}</div>
                         <div className="flex justify-between border-t pt-3">
-                          <button onClick={() => setEditingItem({ __type: 'instagram', ...post })} className="text-[10px] font-black text-brand-primary">EDIT</button>
+                          <button onClick={() => openEditor({ __type: 'instagram', ...post })} className="text-[10px] font-black text-brand-primary">EDIT</button>
                           <button
                             type="button"
                             onClick={() => {
@@ -1637,7 +1786,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                   <p className="text-[10px] font-black uppercase tracking-widest opacity-40">Manage reviews displayed on the homepage</p>
                 </div>
                 <button
-                  onClick={() => setEditingItem({ __type: 'review', authorName: '', rating: 5, text: '', profilePhotoUrl: '', isFeatured: false })}
+                  onClick={() => openEditor({ __type: 'review', authorName: '', rating: 5, text: '', profilePhotoUrl: '', isFeatured: false })}
                   className="w-full sm:w-auto adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg"
                 >
                   ADD REVIEW
@@ -1658,7 +1807,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       </div>
                       <p className="mt-3 text-xs text-muted-foreground dark:text-dark-muted-foreground line-clamp-3">{review.text}</p>
                       <div className="mt-4 flex justify-between border-t pt-3">
-                        <button onClick={() => setEditingItem({ __type: 'review', ...review })} className="text-[10px] font-black text-brand-primary">EDIT</button>
+                        <button onClick={() => openEditor({ __type: 'review', ...review })} className="text-[10px] font-black text-brand-primary">EDIT</button>
                         <button
                           type="button"
                           onClick={() => {
@@ -2351,20 +2500,46 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-20 selection:bg-brand-primary selection:text-white relative">
-      {adminNotice && (
-        <div className={`fixed top-[calc(5rem+env(safe-area-inset-top))] sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] px-4 py-2 rounded-md shadow-lg max-w-[92vw] text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
-          <div className="flex items-center gap-3 justify-center flex-wrap">
-            <div className="text-[12px] font-bold">{adminNotice.text}</div>
-            {adminNotice.action && (
-              <button
-                type="button"
-                onClick={adminNotice.action.onClick}
-                className="px-3 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-black uppercase tracking-widest"
-              >
-                {adminNotice.action.label}
-              </button>
-            )}
-          </div>
+      {(adminNotice || undoToastKeys.length > 0) && (
+        <div className="fixed top-[calc(5rem+env(safe-area-inset-top))] sm:top-6 left-1/2 -translate-x-1/2 sm:left-auto sm:translate-x-0 sm:right-6 z-[999] max-w-[92vw] w-[92vw] sm:w-[420px] flex flex-col gap-2 max-h-[60vh] overflow-y-auto">
+          {adminNotice && (
+            <div className={`px-4 py-2 rounded-md shadow-lg text-center ${adminNotice.type === 'success' ? 'bg-emerald-600 text-white' : adminNotice.type === 'info' ? 'bg-slate-700 text-white' : 'bg-red-600 text-white'}`}>
+              <div className="flex items-center gap-3 justify-center flex-wrap">
+                <div className="text-[12px] font-bold">{adminNotice.text}</div>
+                {adminNotice.action && (
+                  <button
+                    type="button"
+                    onClick={adminNotice.action.onClick}
+                    className="px-3 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-black uppercase tracking-widest"
+                  >
+                    {adminNotice.action.label}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {undoToastKeys.map((key) => {
+            const entry = undoEntriesRef.current.get(key);
+            if (!entry) return null;
+            return (
+              <div key={key} className="px-4 py-2 rounded-md shadow-lg bg-slate-900/95 text-white border border-white/10">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Deleting in 10s</div>
+                    <div className="text-[12px] font-bold truncate">{entry.label}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => undoDelete(key)}
+                    className="shrink-0 px-3 py-1 rounded-md bg-white/15 hover:bg-white/25 text-white text-[11px] font-black uppercase tracking-widest"
+                  >
+                    Undo
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
       {uploadUi && (
@@ -2522,7 +2697,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
         <div className="lg:hidden fixed inset-0 z-[310] bg-black/95 backdrop-blur-2xl px-4 pt-[calc(6rem+env(safe-area-inset-top))] pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-6 animate-fade-in overflow-y-auto">
            <div className="space-y-3">
               {menuItems.map(tab => (
-                <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); setIsMobileMenuOpen(false); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
+                <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; navigateAdminTab(tab); }} className={`w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-lg' : 'bg-white/5 text-white/60 hover:bg-white/10'}`}>{tab}</button>
               ))}
               <div className="h-px bg-white/10 my-4"></div>
               <button onClick={props.onLogout} className="w-full text-left px-8 py-6 rounded-2xl text-[12px] font-black uppercase text-red-500 bg-red-500/10 hover:bg-red-500/20 transition-all">Logout</button>
@@ -2553,7 +2728,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
               </div>
               <nav className="p-6 space-y-1.5">
                 {menuItems.map(tab => (
-                  <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; setActiveTab(tab); setEditingItem(null); }} className={`w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-[1.02]' : 'text-muted-foreground hover:bg-background/60 dark:hover:bg-dark-background/60'}`}>{tab}</button>
+                  <button key={tab} onClick={() => { if (editingItem && !requestCloseModal()) return; navigateAdminTab(tab); }} className={`w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${activeTab === tab ? 'bg-brand-primary text-white shadow-xl shadow-brand-primary/20 scale-[1.02]' : 'text-muted-foreground hover:bg-background/60 dark:hover:bg-dark-background/60'}`}>{tab}</button>
                 ))}
                 <div className="h-px bg-border/50 dark:bg-dark-border/50 my-6 mx-4"></div>
                 <button onClick={props.onLogout} className="w-full text-left px-6 py-4 rounded-2xl text-[11px] font-black uppercase text-red-500 hover:bg-red-500/5 transition-all">Logout</button>
@@ -2563,7 +2738,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
 
           <main className="flex-grow w-full bg-card dark:bg-dark-card rounded-[3rem] lg:rounded-[4rem] p-5 sm:p-8 lg:p-16 border border-border dark:border-dark-border shadow-adventure-dark min-h-[700px]">
             {isSupabaseMode && (
-              <div className="mb-8 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-4 sm:p-6 flex flex-col md:flex-row gap-4 sm:gap-6 md:items-center md:justify-between shadow-lg">
+              <div className="sticky top-[calc(1rem+env(safe-area-inset-top))] z-[50] mb-8 rounded-[2rem] border border-border dark:border-dark-border bg-card/90 dark:bg-dark-card/80 backdrop-blur-md p-4 sm:p-6 flex flex-col md:flex-row gap-4 sm:gap-6 md:items-center md:justify-between shadow-lg">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 w-full">
                   <div className="space-y-1">
                     <div className="text-[10px] font-black uppercase tracking-widest opacity-60">Save changes</div>
@@ -2655,16 +2830,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
            <div
              ref={editorDialogRef}
              role="dialog"
-             aria-modal="true"
+           aria-modal="true"
              aria-labelledby="admin-editor-title"
              tabIndex={-1}
-             className="bg-white dark:bg-neutral-900 w-full min-h-[100dvh] px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl max-h-none flex flex-col"
+             className="bg-white dark:bg-neutral-900 w-full sm:max-w-6xl min-h-[100dvh] sm:min-h-0 sm:max-h-[92dvh] px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:p-10 lg:p-16 rounded-none sm:rounded-[2.5rem] border border-border dark:border-dark-border relative animate-fade-up shadow-2xl overflow-hidden flex flex-col"
            >
             <button
               ref={editorCloseButtonRef}
               type="button"
               aria-label="Close editor"
-              onClick={() => { if (requestCloseModal()) setEditingItem(null); }}
+              onClick={() => { if (requestCloseModal()) closeEditor(); }}
               className="absolute top-[calc(1rem+env(safe-area-inset-top))] right-[calc(1rem+env(safe-area-inset-right))] sm:top-10 sm:right-10 w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-background dark:bg-dark-background hover:bg-red-500 hover:text-white transition-all text-2xl sm:text-3xl font-black z-[10] active:scale-90"
             >
               X
@@ -2681,7 +2856,7 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         : 'Edit'}
               </h3>
               
-              <div className="flex-grow overflow-y-auto pr-0 sm:pr-8 no-scrollbar pb-10">
+              <div className="flex-grow min-h-0 overflow-y-auto pr-0 sm:pr-8 no-scrollbar pb-10">
                  {activeTab === 'TOURS' && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
                        <div className="space-y-10">
@@ -3556,9 +3731,9 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         editingItem.id ? props.onUpdateGoogleReview(editingItem) : props.onAddGoogleReview(editingItem);
                       }
                     }
-                    setEditingItem(null);
+                    closeEditor();
                  }} className="flex-1 adventure-gradient text-white px-10 py-6 rounded-3xl font-black tracking-widest text-[12px] shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 transition-all">Apply changes</button>
-                 <button onClick={() => { if (requestCloseModal()) setEditingItem(null); }} className="flex-1 bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground px-10 py-6 rounded-3xl font-black tracking-widest text-[12px] hover:bg-background/60 dark:hover:bg-dark-background/60 transition-colors border border-border dark:border-dark-border">Cancel</button>
+                 <button onClick={() => { if (requestCloseModal()) closeEditor(); }} className="flex-1 bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground px-10 py-6 rounded-3xl font-black tracking-widest text-[12px] hover:bg-background/60 dark:hover:bg-dark-background/60 transition-colors border border-border dark:border-dark-border">Cancel</button>
               </div>
            </div>
         </div>

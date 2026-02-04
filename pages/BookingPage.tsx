@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { ItineraryQuery, SiteContent, Trip } from '../types';
 import Turnstile from '../components/Turnstile';
+import { safeMailtoHref } from '../utils/sanitizeUrl';
 
 interface BookingPageProps {
   trip: Trip;
@@ -43,22 +44,55 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
   const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in' || window.location?.hostname === 'revrom.vercel.app');
   const requiresTurnstile = isProduction && !!turnstileSiteKey;
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value.trim());
+
+  const buildInquiryMessage = useMemo(() => {
+    const normalizedName = (name || '').trim() || 'Web User';
+    const normalizedEmail = (email || '').trim();
+    const normalizedPhone = (phone || '').trim();
+    return `TRIP INQUIRY:
+Adventure: ${trip.title}
+Region: ${trip.destination}
+Name: ${normalizedName}
+Email: ${normalizedEmail}
+WhatsApp: ${normalizedPhone}
+Number of Travelers: ${travelers}
+Room Type: ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}
+
+I'm interested in joining this trip. Please send me more details. Thank you!`;
+  }, [email, name, phone, roomType, travelers, trip.destination, trip.title]);
+
+  const buildEmailHref = () => {
+    const mailto = safeMailtoHref(siteContent.contactEmail);
+    if (!mailto) return null;
+    const subject = `Revrom trip inquiry: ${trip.title}`;
+    const body = buildInquiryMessage;
+    return `${mailto}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
+  const emailEnabled = !!safeMailtoHref(siteContent.contactEmail);
+
+  const handleSubmit = (mode: 'whatsapp' | 'email', e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setTurnstileError('');
+    setFormNotice('');
 
-    // Do not block WhatsApp on missing fields (keep conversion flow).
-    // We only use these fields to improve the message + optionally save a lead.
-    if (!name.trim() || !email.trim() || !phone.trim()) {
-      setFormNotice('Tip: add your name, email, and WhatsApp number for faster follow-up.');
+    const normalizedName = (name || '').trim() || 'Web User';
+    const normalizedEmail = (email || '').trim();
+    const normalizedPhoneRaw = (phone || '').trim();
+    const normalizedPhoneDigits = normalizedPhoneRaw.replace(/\D/g, '');
+    const hasValidPhone = normalizedPhoneDigits.length >= 8 && normalizedPhoneDigits.length <= 15;
+    const hasValidEmail = !!normalizedEmail && isValidEmail(normalizedEmail);
+
+    if (!hasValidPhone && !hasValidEmail) {
+      setFormNotice('Please add a WhatsApp number or an email so we can contact you.');
+    } else if (!hasValidPhone || !hasValidEmail) {
+      setFormNotice('Tip: adding both WhatsApp and email helps us reach you faster.');
     }
 
     // Save a lead for admin visibility when we have usable details.
-    // (Supabase schema enforces 8-15 digits for whatsapp_number.)
+    // (Supabase schema enforces 8-15 digits for whatsapp_number when provided.)
     try {
-      const normalizedPhone = (phone || '').replace(/\\D/g, '');
-      const normalizedName = (name || '').trim();
-      if (normalizedPhone.length >= 8 && normalizedPhone.length <= 15) {
+      if (hasValidPhone || hasValidEmail) {
         const needsVerification = isProduction && !!turnstileSiteKey;
         if (needsVerification && !turnstileToken) {
           // Do not block WhatsApp; just skip saving the lead if verification is missing.
@@ -67,8 +101,9 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
           onAddInquiry({
             tripId: trip.id,
             tripTitle: trip.title,
-            name: normalizedName.length >= 2 ? normalizedName : 'Web User',
-            whatsappNumber: normalizedPhone,
+            name: normalizedName,
+            whatsappNumber: hasValidPhone ? normalizedPhoneRaw : undefined,
+            email: hasValidEmail ? normalizedEmail : undefined,
             planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
             // Pass token through for server-side save; not persisted in DB.
             ...(turnstileToken ? ({ turnstileToken } as any) : {}),
@@ -79,21 +114,29 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
     } catch {}
 
     const adminPhone = siteContent.adminWhatsappNumber.replace(/\D/g, '');
-    const message = `TRIP INQUIRY:
-Adventure: ${trip.title}
-Region: ${trip.destination}
-Name: ${name}
-Email: ${email}
-WhatsApp: ${phone}
-Number of Travelers: ${travelers}
-Room Type: ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}
+    if (mode === 'email') {
+      const href = buildEmailHref();
+      if (!href) {
+        setFormNotice('Email is not configured. Please use WhatsApp.');
+      } else {
+        try {
+          window.location.href = href;
+        } catch {
+          // ignore
+        }
+      }
+      return;
+    }
 
-I'm interested in joining this trip. Please send me more details. Thank you!`;
-    
-    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
-    try {
-      if (w) (w as any).opener = null;
-    } catch {}
+    if (!adminPhone) {
+      const href = buildEmailHref();
+      if (href) window.location.href = href;
+      else setFormNotice('WhatsApp is not configured. Please try again later.');
+      return;
+    }
+
+    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(buildInquiryMessage)}`, '_blank', 'noopener,noreferrer');
+    try { if (w) (w as any).opener = null; } catch {}
   };
 
   return (
@@ -108,7 +151,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
               <h1 className="text-4xl md:text-5xl font-black font-display italic tracking-tight mb-4 uppercase leading-none">Book Your Trip</h1>
               <p className="text-muted-foreground dark:text-dark-muted-foreground mb-12 text-sm md:text-base max-w-2xl leading-relaxed">Let us know you're interested in the {trip.title}. Share your details below and we'll get back to you with all the information you need.</p>
 
-              <form onSubmit={handleSubmit} className="space-y-12">
+               <form onSubmit={(e) => handleSubmit('whatsapp', e)} className="space-y-12">
                 <section>
                     <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary mb-8">Traveler Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -154,7 +197,6 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 name="name"
                                 autoComplete="name"
                                 autoCapitalize="words"
-                                required 
                                 value={name} 
                                 onChange={e => { setName(e.target.value); if (formNotice) setFormNotice(''); }} 
                                 placeholder="Your full name" 
@@ -170,12 +212,11 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 inputMode="email"
                                 autoCapitalize="none"
                                 spellCheck={false}
-                                required 
-                                type="email" 
-                                value={email} 
-                                onChange={e => { setEmail(e.target.value); if (formNotice) setFormNotice(''); }} 
-                                placeholder="hello@example.com" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
+                                 type="email" 
+                                 value={email} 
+                                 onChange={e => { setEmail(e.target.value); if (formNotice) setFormNotice(''); }} 
+                                 placeholder="hello@example.com" 
+                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
                             />
                         </div>
                         <div className="md:col-span-2">
@@ -186,12 +227,11 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 autoComplete="tel"
                                 inputMode="tel"
                                 autoCapitalize="none"
-                                required 
-                                type="tel" 
-                                value={phone} 
-                                onChange={e => { setPhone(e.target.value); if (formNotice) setFormNotice(''); }} 
-                                placeholder="+91 00000 00000" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
+                                 type="tel" 
+                                 value={phone} 
+                                 onChange={e => { setPhone(e.target.value); if (formNotice) setFormNotice(''); }} 
+                                 placeholder="+91 00000 00000" 
+                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
                             />
                         </div>
                     </div>
@@ -222,10 +262,22 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                 <button 
                     type="submit" 
                     className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all items-center justify-center gap-3"
+                    title="Opens WhatsApp in a new tab"
                 >
                     <WhatsAppIcon className="w-5 h-5" />
                     INQUIRE VIA WHATSAPP
                 </button>
+                <p className="hidden lg:block mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
+                  Opens WhatsApp in a new tab
+                </p>
+                {emailEnabled ? (
+                  <div className="hidden lg:flex items-center justify-center gap-2 mt-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-80">
+                    <span>Prefer email?</span>
+                    <button type="button" onClick={() => handleSubmit('email')} className="text-brand-primary hover:text-brand-primary-dark underline underline-offset-4">
+                      Email instead
+                    </button>
+                  </div>
+                ) : null}
               </form>
             </div>
 
@@ -273,14 +325,25 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
             </div>
             <button 
                 type="button"
-                onClick={() => handleSubmit()}
+                onClick={() => handleSubmit('whatsapp')}
                 className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center gap-2"
-                aria-label="Send inquiry via WhatsApp"
+                aria-label="Open WhatsApp to send inquiry"
+                title="Opens WhatsApp in a new tab"
             >
                 <WhatsAppIcon className="w-4 h-4" />
-                INQUIRE
+                WHATSAPP
             </button>
         </div>
+        {emailEnabled ? (
+          <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl px-6 pb-4 -mt-1 lg:hidden border-t border-border/10">
+            <button type="button" onClick={() => handleSubmit('email')} className="w-full text-[10px] font-black uppercase tracking-widest text-brand-primary py-2">
+              Email instead
+            </button>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
+              Opens your email app
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <style>{`

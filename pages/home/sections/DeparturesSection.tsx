@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { Departure, ItineraryQuery, SiteContent, Trip } from '../../../types';
 import { destinationsMatch } from '../../../services/destinationNormalizer';
 import { getActiveBgStyle } from '../activeBgStyle';
@@ -14,6 +14,26 @@ type Props = {
 const DeparturesSection: React.FC<Props> = ({ trips, departures, siteContent, sectionConfig, onAddInquiry }) => {
   const [depDestFilter, setDepDestFilter] = useState('all');
   const [depMonthFilter, setDepMonthFilter] = useState('all');
+  const [showAll, setShowAll] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+
+    const mq = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobile(Boolean(mq.matches));
+    update();
+
+    if (typeof (mq as any).addEventListener === 'function') {
+      (mq as any).addEventListener('change', update);
+      return () => (mq as any).removeEventListener('change', update);
+    }
+    // Safari <= 13
+    if (typeof (mq as any).addListener === 'function') {
+      (mq as any).addListener(update);
+      return () => (mq as any).removeListener(update);
+    }
+  }, []);
 
   const filteredDepartures = useMemo(() => {
     const deps = [...departures].sort(
@@ -29,12 +49,21 @@ const DeparturesSection: React.FC<Props> = ({ trips, departures, siteContent, se
     });
   }, [departures, trips, depDestFilter, depMonthFilter]);
 
+  useEffect(() => {
+    setShowAll(false);
+  }, [depDestFilter, depMonthFilter]);
+
+  const visibleDepartures = useMemo(() => {
+    if (!isMobile) return filteredDepartures;
+    if (showAll) return filteredDepartures;
+    return filteredDepartures.slice(0, 3);
+  }, [filteredDepartures, isMobile, showAll]);
+
   const handleInquiry = (trip: Trip, departure: Departure) => {
     onAddInquiry({
       tripId: trip.id,
       tripTitle: trip.title,
       name: 'Web User Inquiry',
-      whatsappNumber: 'Awaiting Response',
       planningTime: `${new Date(departure.startDate).toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
@@ -219,7 +248,7 @@ I'm interested in this tour. Please share pricing and details.`;
                           onClick={() => handleInquiry(dTrip, departure)}
                           className={`text-[13px] font-black uppercase tracking-widest transition-all ${departure.status === 'Sold Out' ? 'text-slate-300 pointer-events-none' : 'text-brand-primary hover:text-brand-primary-dark hover:translate-x-1'}`}
                         >
-                          Inquire {departure.status !== 'Sold Out' && 'Now'}
+                          {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire on WhatsApp →'}
                         </button>
                       </td>
                     </tr>
@@ -236,7 +265,7 @@ I'm interested in this tour. Please share pricing and details.`;
                 No departures found for the selected filters.
               </div>
             ) : (
-              filteredDepartures.map((departure) => {
+              visibleDepartures.map((departure) => {
                 const dTrip = trips.find((t) => t.id === departure.tripId);
                 if (!dTrip) return null;
                 const slotColor =
@@ -310,13 +339,30 @@ I'm interested in this tour. Please share pricing and details.`;
                           : 'adventure-gradient text-white shadow-lg hover:shadow-xl active:scale-95'
                       }`}
                     >
-                      {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire Now →'}
+                      {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire on WhatsApp →'}
                     </button>
+                    {departure.status !== 'Sold Out' && (
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center opacity-70">
+                        Opens WhatsApp in a new tab
+                      </p>
+                    )}
                   </div>
                 );
               })
             )}
           </div>
+
+          {isMobile && filteredDepartures.length > 3 && (
+            <div className="md:hidden p-6 sm:p-8 flex justify-center border-t border-border/30 dark:border-dark-border/30">
+              <button
+                type="button"
+                onClick={() => setShowAll((v) => !v)}
+                className="px-8 py-4 rounded-2xl border border-border dark:border-dark-border bg-card dark:bg-dark-card text-[11px] font-black uppercase tracking-widest hover:border-brand-primary/30 transition-colors"
+              >
+                {showAll ? 'Show fewer dates' : `View all dates (${filteredDepartures.length})`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -31,7 +31,7 @@ const AdventuresSection: React.FC<Props> = ({
   const [destFilter, setDestFilter] = useState('all');
   const [durationFilter, setDurationFilter] = useState('all');
   const [diffFilter, setDifficultyFilter] = useState('all');
-  const disableMarqueeMotion = useDisableMarqueeMotion();
+  const disableMarqueeMotion = useDisableMarqueeMotion({ disableOnMobile: false });
 
   useEffect(() => {
     if (!initialDestinationFilter) return;

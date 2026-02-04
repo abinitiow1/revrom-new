@@ -15,7 +15,8 @@ export default async function handler(req: any, res: any) {
     await verifyTurnstileOrThrow(req, turnstileToken);
 
     const name = String(body?.name || '').trim();
-    const email = String(body?.email || '').trim().toLowerCase();
+    const email = String(body?.email || '').trim();
+    const whatsappNumber = String(body?.whatsappNumber || '').trim();
     const message = String(body?.message || '').trim();
 
     if (!name) return sendJson(res, 400, { error: 'Name is required.' });
@@ -23,10 +24,15 @@ export default async function handler(req: any, res: any) {
     if (!message || message.length < 10) return sendJson(res, 400, { error: 'Message must be at least 10 characters.' });
     if (name.length > 120) return sendJson(res, 400, { error: 'Name is too long.' });
     if (email.length > 254) return sendJson(res, 400, { error: 'Email is too long.' });
+    if (whatsappNumber.length > 40) return sendJson(res, 400, { error: 'WhatsApp number is too long.' });
     if (message.length > 8000) return sendJson(res, 400, { error: 'Message is too long.' });
+    if (whatsappNumber) {
+      const digits = whatsappNumber.replace(/\D/g, '');
+      if (digits.length < 8 || digits.length > 15) return sendJson(res, 400, { error: 'WhatsApp number looks invalid.' });
+    }
 
     const supabase = getSupabaseAdmin() as any;
-    const { error } = await supabase.from('contact_messages').insert({ name, email, message } as any);
+    const { error } = await supabase.from('contact_messages').insert({ name, email, whatsapp_number: whatsappNumber || null, message } as any);
     if (error) return sendJson(res, 500, { error: error.message || 'Failed to save message.' }, { 'Cache-Control': 'no-store' });
 
     return sendJson(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });

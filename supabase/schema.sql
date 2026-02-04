@@ -39,7 +39,8 @@ create table if not exists public.itinerary_queries (
   trip_id text not null,
   trip_title text not null,
   name text not null,
-  whatsapp_number text not null,
+  whatsapp_number text,
+  email text,
   planning_time text not null,
   status text not null default 'new',
   date timestamptz not null default now()
@@ -52,6 +53,7 @@ create table if not exists public.contact_messages (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email text not null,
+  whatsapp_number text,
   message text not null,
   created_at timestamptz not null default now()
 );
@@ -154,15 +156,26 @@ $$;
 alter table public.itinerary_queries
   add column if not exists status text not null default 'new';
 
+-- Optional contact details (safe to re-run).
+alter table public.itinerary_queries
+  add column if not exists email text;
+alter table public.itinerary_queries
+  alter column whatsapp_number drop not null;
+
+alter table public.contact_messages
+  add column if not exists whatsapp_number text;
+
 alter table public.itinerary_queries
   drop constraint if exists itinerary_queries_name_len,
   drop constraint if exists itinerary_queries_whatsapp_len,
   drop constraint if exists itinerary_queries_planning_time_len,
   drop constraint if exists itinerary_queries_trip_title_len,
-  drop constraint if exists itinerary_queries_status_chk;
+  drop constraint if exists itinerary_queries_status_chk,
+  drop constraint if exists itinerary_queries_email_fmt;
 alter table public.itinerary_queries
   add constraint itinerary_queries_name_len check (length(trim(name)) between 2 and 80) not valid,
   add constraint itinerary_queries_whatsapp_len check (length(regexp_replace(whatsapp_number, '[^0-9]', '', 'g')) between 8 and 15) not valid,
+  add constraint itinerary_queries_email_fmt check (email is null or email ~* '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$') not valid,
   add constraint itinerary_queries_planning_time_len check (length(trim(planning_time)) between 2 and 50) not valid,
   add constraint itinerary_queries_trip_title_len check (length(trim(trip_title)) between 2 and 140) not valid,
   add constraint itinerary_queries_status_chk check (status in ('new', 'contacted', 'closed')) not valid;
@@ -170,10 +183,12 @@ alter table public.itinerary_queries
 alter table public.contact_messages
   drop constraint if exists contact_messages_name_len,
   drop constraint if exists contact_messages_email_fmt,
-  drop constraint if exists contact_messages_message_len;
+  drop constraint if exists contact_messages_message_len,
+  drop constraint if exists contact_messages_whatsapp_len;
 alter table public.contact_messages
   add constraint contact_messages_name_len check (length(trim(name)) between 2 and 80) not valid,
   add constraint contact_messages_email_fmt check (email ~* '^[^@[:space:]]+@[^@[:space:]]+[.][^@[:space:]]+$') not valid,
+  add constraint contact_messages_whatsapp_len check (length(regexp_replace(whatsapp_number, '[^0-9]', '', 'g')) between 8 and 15) not valid,
   add constraint contact_messages_message_len check (length(trim(message)) between 10 and 2000) not valid;
 
 alter table public.newsletter_subscribers
@@ -364,6 +379,7 @@ using (public.is_admin());
 -- Lead/message/newsletter inserts:
 -- We intentionally block direct inserts from anon/authenticated and accept inserts via server/API (Service Role).
 drop policy if exists "public insert itinerary_queries" on public.itinerary_queries;
+drop policy if exists "no public insert itinerary_queries" on public.itinerary_queries;
 create policy "no public insert itinerary_queries"
 on public.itinerary_queries
 for insert
@@ -392,6 +408,7 @@ with check (
 );
 
 drop policy if exists "public insert contact_messages" on public.contact_messages;
+drop policy if exists "no public insert contact_messages" on public.contact_messages;
 create policy "no public insert contact_messages"
 on public.contact_messages
 for insert
@@ -408,6 +425,7 @@ using (
 );
 
 drop policy if exists "public insert newsletter_subscribers" on public.newsletter_subscribers;
+drop policy if exists "no public insert newsletter_subscribers" on public.newsletter_subscribers;
 create policy "no public insert newsletter_subscribers"
 on public.newsletter_subscribers
 for insert

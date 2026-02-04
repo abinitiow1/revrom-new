@@ -440,6 +440,9 @@ const App: React.FC = () => {
   
   const addInquiry = useCallback(
     (q: Omit<ItineraryQuery, 'id' | 'date'>) => {
+      const hasContact = Boolean(q.whatsappNumber || q.email);
+      if (!hasContact) return;
+
       const lead: ItineraryQuery = {
         ...q,
         id: makeId(),
@@ -501,10 +504,23 @@ const App: React.FC = () => {
   const updateHashFromState = () => {
     if (suppressHashUpdateRef.current) return;
     const params: Record<string, string | null> = { view };
-    if (selectedTrip) params.tripId = selectedTrip.id;
-    if (selectedBlogPost) params.blogId = selectedBlogPost.id;
-    if (currentCustomPageSlug) params.custom = currentCustomPageSlug;
-    if (initialDestinationFilter) params.dest = initialDestinationFilter;
+
+    // Preserve admin-only UI state in the hash so browser back/forward stays inside admin when modals/tabs are open.
+    if (view === 'admin') {
+      const current = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+      const tab = current.get('tab');
+      const modal = current.get('modal');
+      if (tab) params.tab = tab;
+      if (modal) params.modal = modal;
+    }
+
+    // Only encode detail IDs when that view is active; otherwise back/exit can "snap" into a detail page.
+    if ((view === 'tripDetail' || view === 'booking') && selectedTrip) params.tripId = selectedTrip.id;
+    if (view === 'blogDetail' && selectedBlogPost) params.blogId = selectedBlogPost.id;
+    if (view === 'customPage' && currentCustomPageSlug) params.custom = currentCustomPageSlug;
+
+    // Destination filter is relevant when browsing tours.
+    if (view === 'allTours' && initialDestinationFilter) params.dest = initialDestinationFilter;
     const newHash = buildHash(params);
     if (window.location.hash === newHash) return;
     // On first initialization replaceState to avoid cluttering history, afterwards pushState

@@ -89,7 +89,8 @@ export interface ItineraryQuery {
     tripId: string;
     tripTitle: string;
     name: string;
-    whatsappNumber: string;
+    whatsappNumber?: string;
+    email?: string;
     planningTime: string;
     date: string;
     status?: LeadStatus;
@@ -101,6 +102,7 @@ export interface ContactMessage {
   id: string;
   name: string;
   email: string;
+  whatsappNumber?: string;
   message: string;
   createdAt: string;
 }

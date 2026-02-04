@@ -38,6 +38,7 @@ const CheckCircleIcon: React.FC<{className?: string}> = ({ className }) => (
 const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [whatsappNumber, setWhatsappNumber] = useState('');
     const [message, setMessage] = useState(() => {
         try {
             return localStorage.getItem('lastItinerary') || '';
@@ -47,7 +48,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     });
     const [submitted, setSubmitted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [errors, setErrors] = useState<{ name?: string; email?: string; message?: string }>({});
+    const [errors, setErrors] = useState<{ name?: string; email?: string; whatsappNumber?: string; message?: string }>({});
     const [honeypot, setHoneypot] = useState('');
     const [notice, setNotice] = useState<string>('');
     const [turnstileToken, setTurnstileToken] = useState('');
@@ -60,7 +61,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const requiresTurnstile = isProduction && !!turnstileSiteKey;
 
     const validateForm = () => {
-        const newErrors: { name?: string; email?: string; message?: string } = {};
+        const newErrors: { name?: string; email?: string; whatsappNumber?: string; message?: string } = {};
 
         if (!name.trim()) {
             newErrors.name = 'Name is required.';
@@ -70,6 +71,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             newErrors.email = 'Email is required.';
         } else if (!/\S+@\S+\.\S+/.test(email)) {
             newErrors.email = 'Email address is invalid.';
+        }
+
+        if (whatsappNumber.trim()) {
+            const digits = whatsappNumber.replace(/\D/g, '');
+            if (digits.length < 8 || digits.length > 15) newErrors.whatsappNumber = 'WhatsApp number looks invalid.';
         }
 
         if (!message.trim()) {
@@ -94,11 +100,18 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         }
     };
 
-    const buildWhatsAppUrl = (payload: { name: string; email: string; message: string }) => {
+    const buildWhatsAppUrl = (payload: { name: string; email: string; whatsappNumber?: string; message: string }) => {
         const adminNumber = (siteContent.adminWhatsappNumber || '').replace(/\D/g, '');
-        const text = `New website message\n\nName: ${payload.name}\nEmail: ${payload.email}\n\n${payload.message}`;
+        const text = `New website message\n\nName: ${payload.name}\nEmail: ${payload.email}\nWhatsApp: ${payload.whatsappNumber || ''}\n\n${payload.message}`;
         const encoded = encodeURIComponent(text);
         return adminNumber ? `https://wa.me/${adminNumber}?text=${encoded}` : '';
+    };
+
+    const buildEmailHref = (payload: { name: string; email: string; whatsappNumber?: string; message: string }) => {
+        if (!contactEmailHref) return '';
+        const subject = 'Revrom inquiry';
+        const body = `Name: ${payload.name}\nEmail: ${payload.email}\nWhatsApp: ${payload.whatsappNumber || ''}\n\n${payload.message}`;
+        return `${contactEmailHref}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -117,7 +130,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             return;
         }
 
-        const whatsappUrl = buildWhatsAppUrl({ name, email, message });
+        const whatsappUrl = buildWhatsAppUrl({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message });
         if (!whatsappUrl) {
             setErrors({ message: 'WhatsApp number is not configured. Please try again later.' });
             return;
@@ -132,13 +145,14 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                 if (!isLocalhost && !turnstileToken) {
                     setNotice('Please complete verification. Opening WhatsApp… (message will still send)');
                 } else {
-                    await submitContactMessage({ name, email, message, turnstileToken: turnstileToken || undefined });
+                    await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: turnstileToken || undefined });
                     setTurnstileToken('');
                 }
             }
             setSubmitted(true);
             setName('');
             setEmail('');
+            setWhatsappNumber('');
             setMessage('');
             try { localStorage.removeItem('lastItinerary'); } catch (e) {}
             setErrors({});
@@ -175,6 +189,71 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             } catch {
                 window.location.href = whatsappUrl;
             }
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const emailEnabled = !!contactEmailHref;
+
+    const handleEmailInstead = async () => {
+        setNotice('');
+        setTurnstileError('');
+
+        const formErrors = validateForm();
+        if (Object.keys(formErrors).length > 0) {
+            setErrors(formErrors);
+            return;
+        }
+
+        const href = buildEmailHref({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message });
+        if (!href) {
+            setNotice('Email is not configured. Please use WhatsApp.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            // Same saving behavior as WhatsApp: best-effort.
+            if (isRateLimited()) {
+                setNotice('Too many attempts, try again later. Opening email… (saving is temporarily limited)');
+            } else {
+                if (!isLocalhost && !turnstileToken) {
+                    setNotice('Please complete verification. Opening email… (message will still send)');
+                } else {
+                    await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: turnstileToken || undefined });
+                    setTurnstileToken('');
+                }
+            }
+
+            setSubmitted(true);
+            setName('');
+            setEmail('');
+            setWhatsappNumber('');
+            setMessage('');
+            try { localStorage.removeItem('lastItinerary'); } catch (e) {}
+            setErrors({});
+
+            window.location.href = href;
+        } catch (err: any) {
+            console.error(err);
+            const msg = String(err?.message || '');
+            const status = Number(err?.status || 0);
+            if (status === 429 || msg.toLowerCase().includes('rate limit')) {
+                setNotice('Too many attempts, try again later. Opening email… (saving is temporarily limited)');
+            } else if (
+                status === 400 ||
+                status === 401 ||
+                status === 403 ||
+                msg.toLowerCase().includes('turnstile') ||
+                msg.toLowerCase().includes('token') ||
+                msg.toLowerCase().includes('verification')
+            ) {
+                setNotice('Please complete verification. Opening email… (message will still send)');
+            } else {
+                setNotice('Opening email…');
+            }
+            try { window.location.href = href; } catch {}
         } finally {
             setIsSubmitting(false);
         }
@@ -226,6 +305,22 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     {errors.email && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.email}</p>}
                                 </div>
                                 <div>
+                                    <label htmlFor="whatsapp" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">WhatsApp Number (optional)</label>
+                                    <input
+                                        type="tel"
+                                        id="whatsapp"
+                                        name="whatsapp"
+                                        autoComplete="tel"
+                                        inputMode="tel"
+                                        autoCapitalize="none"
+                                        value={whatsappNumber}
+                                        onChange={e => setWhatsappNumber(e.target.value)}
+                                        placeholder="+91 00000 00000"
+                                        className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.whatsappNumber ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
+                                    />
+                                    {errors.whatsappNumber && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.whatsappNumber}</p>}
+                                </div>
+                                <div>
                                     <label htmlFor="message" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Message</label>
                                     <textarea id="message" name="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
@@ -244,15 +339,27 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     </div>
                                 ) : null}
                                 <div>
-                                    <button 
-                                        type="submit" 
-                                        disabled={isSubmitting}
-                                        className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1DA851] disabled:bg-[#25D366]/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
-                                    >
-                                        {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
-                                    </button>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <button 
+                                            type="submit" 
+                                            disabled={isSubmitting}
+                                            className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1DA851] disabled:bg-[#25D366]/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
+                                        >
+                                            {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
+                                        </button>
+                                        {emailEnabled ? (
+                                          <button
+                                              type="button"
+                                              onClick={handleEmailInstead}
+                                              disabled={isSubmitting}
+                                              className="w-full sm:w-auto px-8 py-3 rounded-md border border-border dark:border-dark-border bg-card dark:bg-dark-card font-bold text-lg hover:border-brand-primary transition-colors disabled:opacity-60"
+                                          >
+                                              Email instead
+                                          </button>
+                                        ) : null}
+                                    </div>
                                     <p className="mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
-                                        This will open WhatsApp with your message ready to send.
+                                        Choose WhatsApp{emailEnabled ? ' or email' : ''}. We'll open your app with the message ready.
                                     </p>
                                 </div>
                             </form>

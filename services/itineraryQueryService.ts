@@ -8,7 +8,8 @@ type ItineraryQueryRow = {
   trip_id: string;
   trip_title: string;
   name: string;
-  whatsapp_number: string;
+  whatsapp_number: string | null;
+  email: string | null;
   planning_time: string;
   date: string;
   status: string | null;
@@ -19,7 +20,8 @@ const toRow = (lead: ItineraryQuery): ItineraryQueryRow => ({
   trip_id: lead.tripId,
   trip_title: lead.tripTitle,
   name: lead.name,
-  whatsapp_number: lead.whatsappNumber,
+  whatsapp_number: lead.whatsappNumber ?? null,
+  email: lead.email ?? null,
   planning_time: lead.planningTime,
   date: lead.date,
   status: lead.status ?? 'new',
@@ -30,7 +32,8 @@ const fromRow = (row: ItineraryQueryRow): ItineraryQuery => ({
   tripId: row.trip_id,
   tripTitle: row.trip_title,
   name: row.name,
-  whatsappNumber: row.whatsapp_number,
+  whatsappNumber: row.whatsapp_number || undefined,
+  email: row.email || undefined,
   planningTime: row.planning_time,
   date: row.date,
   status: (row.status || 'new') as any,
@@ -49,6 +52,7 @@ export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> 
       tripTitle: lead.tripTitle,
       name: lead.name,
       whatsappNumber: lead.whatsappNumber,
+      email: lead.email,
       planningTime: lead.planningTime,
       turnstileToken: token,
     }),
@@ -68,15 +72,30 @@ export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> 
 
 export const listItineraryQueries = async (): Promise<ItineraryQuery[]> => {
   const supabase = getSupabase();
-  const { data, error } = await supabase
+  const res = await supabase
     .from(TABLE)
-    .select('id,trip_id,trip_title,name,whatsapp_number,planning_time,date,status')
+    .select('id,trip_id,trip_title,name,whatsapp_number,email,planning_time,date,status')
     .order('date', { ascending: false })
     .limit(200)
     .returns<ItineraryQueryRow[]>();
 
-  if (error) throw error;
-  return (data || []).map(fromRow);
+  if (res.error) {
+    // Backward-compatible: if the DB hasn't been migrated yet, retry without newer columns.
+    const msg = String((res.error as any)?.message || '');
+    if (msg.toLowerCase().includes('email') && msg.toLowerCase().includes('does not exist')) {
+      const legacy = await supabase
+        .from(TABLE)
+        .select('id,trip_id,trip_title,name,whatsapp_number,planning_time,date,status')
+        .order('date', { ascending: false })
+        .limit(200)
+        .returns<Omit<ItineraryQueryRow, 'email'>[]>();
+      if (legacy.error) throw legacy.error;
+      return (legacy.data || []).map((row: any) => fromRow({ ...row, email: null } as any));
+    }
+    throw res.error;
+  }
+
+  return (res.data || []).map(fromRow);
 };
 
 export const updateItineraryQueryStatus = async (id: string, status: string): Promise<void> => {
