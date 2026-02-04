@@ -195,8 +195,6 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     };
 
     const emailConfigured = !!contactEmailHref;
-    // UX: always show the Email option, but disable it when admin email isn't configured.
-    const emailEnabled = true;
 
     const handleEmailInstead = async () => {
         setNotice('');
@@ -262,7 +260,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     };
 
     return (
-        <div className="bg-background dark:bg-dark-background pb-24">
+        <div className="bg-background dark:bg-dark-background pb-40 sm:pb-24">
             <div className="relative h-48 sm:h-64 bg-cover bg-center contact-hero-bg">
                 <div className="absolute inset-0 bg-black/50"></div>
                 <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
@@ -341,7 +339,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     </div>
                                 ) : null}
                                 <div>
-                                    <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="hidden sm:flex flex-col sm:flex-row gap-3">
                                         <button 
                                             type="submit" 
                                             disabled={isSubmitting}
@@ -364,7 +362,39 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                             Email
                                         </button>
                                     </div>
-                                    <p className="mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+                                    <div className="sm:hidden fixed bottom-0 left-0 right-0 z-[100]">
+                                      <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+                                        <div className="flex items-stretch gap-3">
+                                          <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className="flex-1 bg-[#25D366] hover:bg-[#1DA851] disabled:bg-[#25D366]/50 text-white font-bold py-3 px-4 rounded-md transition-colors duration-300 text-sm"
+                                            aria-label="Open WhatsApp to send message"
+                                            title="Opens WhatsApp"
+                                          >
+                                            {isSubmitting ? 'Opening…' : 'WhatsApp'}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={handleEmailInstead}
+                                            disabled={isSubmitting || !emailConfigured}
+                                            aria-disabled={isSubmitting || !emailConfigured}
+                                            title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
+                                            className={`flex-1 py-3 px-4 rounded-md border font-bold text-sm transition-colors disabled:opacity-60 ${
+                                              emailConfigured
+                                                ? 'border-border dark:border-dark-border bg-card dark:bg-dark-card hover:border-brand-primary'
+                                                : 'border-border/40 dark:border-white/10 bg-muted/20 dark:bg-white/5 text-muted-foreground cursor-not-allowed'
+                                            }`}
+                                          >
+                                            Email
+                                          </button>
+                                        </div>
+                                        <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
+                                          Opens WhatsApp or email{emailConfigured ? '' : ' (email not configured)'}.
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <p className="hidden sm:block mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
                                         Choose WhatsApp{emailConfigured ? ' or email' : ''}. We'll open your app with the message ready{emailConfigured ? '' : ' (email not configured)'}.
                                     </p>
                                 </div>

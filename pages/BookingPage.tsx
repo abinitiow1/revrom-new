@@ -71,8 +71,8 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
   };
   const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
   const emailConfigured = !!contactEmailHref;
-  // Show the Email option only when we have a safe `mailto:` target.
-  const emailEnabled = emailConfigured;
+  // UX: always show the Email option, but disable it when admin email isn't configured.
+  const emailEnabled = true;
 
   const handleSubmit = (mode: 'whatsapp' | 'email', e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -340,41 +340,43 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-[100] lg:hidden animate-fade-up">
-        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 py-4 flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
-                <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Pricing Info</span>
-                <span className="text-xl font-black italic tracking-tighter">REQ. PRICING</span>
+              <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Pricing Info</span>
+              <span className="text-xl font-black italic tracking-tighter">REQ. PRICING</span>
             </div>
-            <button 
+            <div className="flex flex-col gap-2">
+              <button
                 type="button"
                 onClick={() => handleSubmit('whatsapp')}
-                className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center gap-2"
+                className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center justify-center gap-2"
                 aria-label="Open WhatsApp to send inquiry"
                 title="Opens WhatsApp in a new tab"
-            >
+              >
                 <WhatsAppIcon className="w-4 h-4" />
                 WHATSAPP
-            </button>
-        </div>
-        {emailEnabled ? (
-          <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl px-6 pb-4 -mt-1 lg:hidden border-t border-border/10">
-            <button
-              type="button"
-              onClick={() => handleSubmit('email')}
-              disabled={!emailConfigured}
-              aria-disabled={!emailConfigured}
-              title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
-              className={`w-full text-[10px] font-black uppercase tracking-widest py-2 ${
-                emailConfigured ? 'text-brand-primary' : 'text-muted-foreground cursor-not-allowed opacity-70'
-              }`}
-            >
-              Email
-            </button>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-              {emailConfigured ? 'Opens your email app' : 'Not configured'}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSubmit('email')}
+                disabled={!emailConfigured}
+                aria-disabled={!emailConfigured}
+                title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
+                className={`rounded-xl border px-8 py-2 text-[10px] font-black uppercase tracking-widest transition-colors active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary ${
+                  emailConfigured
+                    ? 'bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground border-border dark:border-dark-border'
+                    : 'bg-muted/40 dark:bg-white/5 text-muted-foreground border-border/40 dark:border-white/10 cursor-not-allowed opacity-70'
+                }`}
+              >
+                Email
+              </button>
             </div>
           </div>
-        ) : null}
+          <div className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
+            Opens WhatsApp in a new tab{emailConfigured ? ' • Email opens your email app' : ' • Email not configured'}
+          </div>
+        </div>
       </div>
 
       <style>{`
