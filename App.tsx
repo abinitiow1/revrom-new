@@ -573,7 +573,16 @@ const App: React.FC = () => {
     }
     if (tripId) {
       const found = trips.find(t => t.id === tripId);
-      if (found) { setSelectedTrip(found); setView('tripDetail'); return; }
+      if (found) {
+        setSelectedTrip(found);
+        // Respect explicit view for shareable URLs like #view=booking&tripId=...
+        if (hView === 'booking' || hView === 'tripDetail') {
+          setView(hView as View);
+        } else {
+          setView('tripDetail');
+        }
+        return;
+      }
     }
     if (hView) setView(hView as View);
     // allow updates again and mark initialized
