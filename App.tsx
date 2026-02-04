@@ -521,10 +521,10 @@ const App: React.FC = () => {
   const updateHashFromState = () => {
     if (suppressHashUpdateRef.current) return;
     const params: Record<string, string | null> = { view };
+    const current = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 
     // Preserve admin-only UI state in the hash so browser back/forward stays inside admin when modals/tabs are open.
     if (view === 'admin') {
-      const current = new URLSearchParams(window.location.hash.replace(/^#/, ''));
       const tab = current.get('tab');
       const modal = current.get('modal');
       if (tab) params.tab = tab;
@@ -532,9 +532,19 @@ const App: React.FC = () => {
     }
 
     // Only encode detail IDs when that view is active; otherwise back/exit can "snap" into a detail page.
-    if ((view === 'tripDetail' || view === 'booking') && selectedTrip) params.tripId = selectedTrip.id;
-    if (view === 'blogDetail' && selectedBlogPost) params.blogId = selectedBlogPost.id;
-    if (view === 'customPage' && currentCustomPageSlug) params.custom = currentCustomPageSlug;
+    // If selected objects aren't loaded yet, preserve IDs from the existing hash so refresh during load doesn't strip them.
+    if (view === 'tripDetail' || view === 'booking') {
+      if (selectedTrip) params.tripId = selectedTrip.id;
+      else if (current.get('tripId')) params.tripId = current.get('tripId');
+    }
+    if (view === 'blogDetail') {
+      if (selectedBlogPost) params.blogId = selectedBlogPost.id;
+      else if (current.get('blogId')) params.blogId = current.get('blogId');
+    }
+    if (view === 'customPage') {
+      if (currentCustomPageSlug) params.custom = currentCustomPageSlug;
+      else if (current.get('custom')) params.custom = current.get('custom');
+    }
 
     // Destination filter is relevant when browsing tours.
     if (view === 'allTours' && initialDestinationFilter) params.dest = initialDestinationFilter;
@@ -557,37 +567,50 @@ const App: React.FC = () => {
   const applyHashToState = () => {
     // Prevent updateHashFromState while we apply hash to state
     suppressHashUpdateRef.current = true;
-    const hash = window.location.hash.replace(/^#/, '');
-    const sp = new URLSearchParams(hash);
-    const hView = sp.get('view');
-    const tripId = sp.get('tripId');
-    const blogId = sp.get('blogId');
-    const custom = sp.get('custom');
-    const dest = sp.get('dest');
 
-    if (dest) setInitialDestinationFilter(dest);
-    if (custom) { setCurrentCustomPageSlug(custom); setView('customPage'); return; }
-    if (blogId) {
-      const found = blogPosts.find(b => b.id === blogId);
-      if (found) { setSelectedBlogPost(found); setView('blogDetail'); return; }
-    }
-    if (tripId) {
-      const found = trips.find(t => t.id === tripId);
-      if (found) {
-        setSelectedTrip(found);
-        // Respect explicit view for shareable URLs like #view=booking&tripId=...
-        if (hView === 'booking' || hView === 'tripDetail') {
-          setView(hView as View);
-        } else {
-          setView('tripDetail');
-        }
+    try {
+      const hash = window.location.hash.replace(/^#/, '');
+      const sp = new URLSearchParams(hash);
+      const hView = sp.get('view');
+      const tripId = sp.get('tripId');
+      const blogId = sp.get('blogId');
+      const custom = sp.get('custom');
+      const dest = sp.get('dest');
+
+      if (dest) setInitialDestinationFilter(dest);
+
+      if (custom) {
+        setCurrentCustomPageSlug(custom);
+        setView('customPage');
         return;
       }
+
+      if (blogId) {
+        const found = blogPosts.find((b) => b.id === blogId);
+        if (found) {
+          setSelectedBlogPost(found);
+          setView('blogDetail');
+          return;
+        }
+      }
+
+      if (tripId) {
+        const found = trips.find((t) => t.id === tripId);
+        if (found) {
+          setSelectedTrip(found);
+          // Respect explicit view for shareable URLs like #view=booking&tripId=...
+          if (hView === 'booking' || hView === 'tripDetail') setView(hView as View);
+          else setView('tripDetail');
+          return;
+        }
+      }
+
+      if (hView) setView(hView as View);
+    } finally {
+      // allow updates again and mark initialized, even when we early-return above
+      suppressHashUpdateRef.current = false;
+      initializedRef.current = true;
     }
-    if (hView) setView(hView as View);
-    // allow updates again and mark initialized
-    suppressHashUpdateRef.current = false;
-    initializedRef.current = true;
   };
 
   // update hash whenever relevant state changes
