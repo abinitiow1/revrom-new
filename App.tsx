@@ -523,6 +523,12 @@ const App: React.FC = () => {
 
   const updateHashFromState = () => {
     if (suppressHashUpdateRef.current) return;
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+    const hasIncomingHash = typeof window !== 'undefined' && window.location.hash && window.location.hash.length > 1;
+    // On first mount, don't overwrite an incoming deep-link hash (or /admin entry) before applyHashToState runs.
+    // Otherwise a refresh on `/#view=tripDetail&tripId=...` can get clobbered back to `#view=home` (dropping IDs).
+    if (!initializedRef.current && (hasIncomingHash || normalizedPath === '/admin')) return;
+
     const params: Record<string, string | null> = { view };
     const current = new URLSearchParams(window.location.hash.replace(/^#/, ''));
 
@@ -558,7 +564,6 @@ const App: React.FC = () => {
 
     // If we're currently on /admin, keep that path only for admin/login views.
     // When leaving admin, canonicalize back to "/" so public navigation doesn't live under /admin#...
-    const normalizedPath = window.location.pathname.replace(/\/+$/, '');
     const shouldKeepAdminPath = normalizedPath === '/admin' && (view === 'admin' || view === 'login');
     const desiredPath = shouldKeepAdminPath ? window.location.pathname : '/';
     const targetUrl = `${desiredPath}${window.location.search || ''}${newHash}`;
@@ -699,14 +704,44 @@ const App: React.FC = () => {
       case 'blog':
         return <BlogPage posts={blogPosts} onSelectPost={p => { setSelectedBlogPost(p); setView('blogDetail'); }} />;
       case 'blogDetail':
-        return selectedBlogPost && <BlogDetailPage post={selectedBlogPost} onBack={() => setView('blog')} />;
+        return selectedBlogPost ? (
+          <BlogDetailPage post={selectedBlogPost} onBack={() => setView('blog')} />
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            <div className="text-sm font-bold">
+              {isSupabaseMode && !isRemoteReady ? 'Loading post…' : 'Post not found.'}
+            </div>
+            <button
+              type="button"
+              onClick={() => setView('blog')}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-xl border border-border hover:border-brand-primary/40 transition-colors text-xs font-black uppercase tracking-widest"
+            >
+              Go to Blog
+            </button>
+          </div>
+        );
       case 'gallery':
         return <GalleryPage photos={galleryPhotos} />;
       case 'customize':
         return <CustomizePage onNavigateContact={() => setView('contact')} trips={trips} />;
       case 'customPage':
         const activePage = customPages.find(p => p.slug === currentCustomPageSlug);
-        return activePage ? <DynamicPage page={activePage} /> : <div>Page Not Found</div>;
+        return activePage ? (
+          <DynamicPage page={activePage} />
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            <div className="text-sm font-bold">
+              {isSupabaseMode && !isRemoteReady ? 'Loading page…' : 'Page not found.'}
+            </div>
+            <button
+              type="button"
+              onClick={() => setView('home')}
+              className="mt-4 inline-flex items-center justify-center px-4 py-2 rounded-xl border border-border hover:border-brand-primary/40 transition-colors text-xs font-black uppercase tracking-widest"
+            >
+              Go Home
+            </button>
+          </div>
+        );
       case 'login':
         return (
           <LoginPage

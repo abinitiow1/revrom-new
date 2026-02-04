@@ -194,7 +194,9 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         }
     };
 
-    const emailEnabled = !!contactEmailHref;
+    const emailConfigured = !!contactEmailHref;
+    // UX: always show the Email option, but disable it when admin email isn't configured.
+    const emailEnabled = true;
 
     const handleEmailInstead = async () => {
         setNotice('');
@@ -208,7 +210,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
 
         const href = buildEmailHref({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message });
         if (!href) {
-            setNotice('Email is not configured. Please use WhatsApp.');
+            setNotice('Email is not available right now. Please use WhatsApp.');
             return;
         }
 
@@ -347,19 +349,23 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                         >
                                             {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
                                         </button>
-                                        {emailEnabled ? (
-                                          <button
-                                              type="button"
-                                              onClick={handleEmailInstead}
-                                              disabled={isSubmitting}
-                                              className="w-full sm:w-auto px-8 py-3 rounded-md border border-border dark:border-dark-border bg-card dark:bg-dark-card font-bold text-lg hover:border-brand-primary transition-colors disabled:opacity-60"
-                                          >
-                                              Email instead
-                                          </button>
-                                        ) : null}
+                                        <button
+                                            type="button"
+                                            onClick={handleEmailInstead}
+                                            disabled={isSubmitting || !emailConfigured}
+                                            aria-disabled={isSubmitting || !emailConfigured}
+                                            title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
+                                            className={`w-full sm:w-auto px-8 py-3 rounded-md border font-bold text-lg transition-colors disabled:opacity-60 ${
+                                              emailConfigured
+                                                ? 'border-border dark:border-dark-border bg-card dark:bg-dark-card hover:border-brand-primary'
+                                                : 'border-border/40 dark:border-white/10 bg-muted/20 dark:bg-white/5 text-muted-foreground cursor-not-allowed'
+                                            }`}
+                                        >
+                                            Email
+                                        </button>
                                     </div>
                                     <p className="mt-2 text-xs text-muted-foreground dark:text-dark-muted-foreground">
-                                        Choose WhatsApp{emailEnabled ? ' or email' : ''}. We'll open your app with the message ready.
+                                        Choose WhatsApp{emailConfigured ? ' or email' : ''}. We'll open your app with the message ready{emailConfigured ? '' : ' (email not configured)'}.
                                     </p>
                                 </div>
                             </form>

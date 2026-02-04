@@ -69,7 +69,10 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
     const body = buildInquiryMessage;
     return `${mailto}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   };
-  const emailEnabled = !!safeMailtoHref(siteContent.contactEmail);
+  const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
+  const emailConfigured = !!contactEmailHref;
+  // Show the Email option only when we have a safe `mailto:` target.
+  const emailEnabled = emailConfigured;
 
   const handleSubmit = (mode: 'whatsapp' | 'email', e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -117,7 +120,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
     if (mode === 'email') {
       const href = buildEmailHref();
       if (!href) {
-        setFormNotice('Email is not configured. Please use WhatsApp.');
+        setFormNotice('Email is not available right now. Please use WhatsApp.');
       } else {
         try {
           window.location.href = href;
@@ -272,8 +275,14 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     <button
                       type="button"
                       onClick={() => handleSubmit('email')}
-                      className="bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm border border-border dark:border-dark-border shadow-sm hover:border-brand-primary/40 hover:shadow-md active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all"
-                      title="Opens your email app"
+                      disabled={!emailConfigured}
+                      aria-disabled={!emailConfigured}
+                      className={`py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm border shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all ${
+                        emailConfigured
+                          ? 'bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground border border-border dark:border-dark-border hover:border-brand-primary/40 hover:shadow-md active:scale-95'
+                          : 'bg-muted/40 dark:bg-white/5 text-muted-foreground border border-border/40 dark:border-white/10 cursor-not-allowed opacity-70'
+                      }`}
+                      title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
                     >
                       Email
                     </button>
@@ -289,7 +298,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                   </button>
                 )}
                 <p className="hidden lg:block mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-                  Opens WhatsApp in a new tab{emailEnabled ? ' • Email opens your email app' : ''}
+                  Opens WhatsApp in a new tab{emailEnabled ? (emailConfigured ? ' • Email opens your email app' : ' • Email not configured') : ''}
                 </p>
               </form>
             </div>
@@ -349,11 +358,20 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
         </div>
         {emailEnabled ? (
           <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl px-6 pb-4 -mt-1 lg:hidden border-t border-border/10">
-            <button type="button" onClick={() => handleSubmit('email')} className="w-full text-[10px] font-black uppercase tracking-widest text-brand-primary py-2">
-              Email instead
+            <button
+              type="button"
+              onClick={() => handleSubmit('email')}
+              disabled={!emailConfigured}
+              aria-disabled={!emailConfigured}
+              title={emailConfigured ? 'Opens your email app' : 'Admin email is not configured'}
+              className={`w-full text-[10px] font-black uppercase tracking-widest py-2 ${
+                emailConfigured ? 'text-brand-primary' : 'text-muted-foreground cursor-not-allowed opacity-70'
+              }`}
+            >
+              Email
             </button>
             <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-              Opens your email app
+              {emailConfigured ? 'Opens your email app' : 'Not configured'}
             </div>
           </div>
         ) : null}

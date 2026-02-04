@@ -2124,7 +2124,18 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact email</label>
-                        <input title="Contact email" value={siteContent.contactEmail} onChange={e => onUpdateSiteContent({contactEmail: e.target.value})} className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground" />
+                        <input
+                          title="Contact email"
+                          value={siteContent.contactEmail}
+                          onChange={e => {
+                            // Allow admins to paste either a plain email or a mailto:... or a "Name <email>" value.
+                            const raw = String(e.target.value || '').trim();
+                            const angleMatch = raw.match(/<([^>]+)>/);
+                            const candidate = angleMatch ? angleMatch[1].trim() : raw.replace(/^mailto:\s*/i, '').trim();
+                            onUpdateSiteContent({ contactEmail: candidate });
+                          }}
+                          className="w-full p-4 rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
+                        />
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Contact phone</label>
