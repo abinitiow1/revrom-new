@@ -1,40 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getHostname } from '../utils/env';
 import { logError, logWarn, logInfo, logDebug } from '../utils/logger';
-
-/**
- * Turnstile widget render options type
- * Defines all supported options for Cloudflare Turnstile widget
- */
-interface TurnstileRenderOptions {
-  sitekey: string;
-  theme: 'auto' | 'light' | 'dark';
-  size: 'normal' | 'compact';
-  callback?: (token: string) => void;
-  'expired-callback'?: () => void;
-  'error-callback'?: (code: string) => void;
-  'timeout-callback'?: () => void;
-  'before-interactive-callback'?: () => void;
-  'after-interactive-callback'?: () => void;
-  'unsupported-callback'?: () => void;
-}
-
-/**
- * Turnstile API interface
- * Defines the global window.turnstile API shape
- */
-interface TurnstileAPI {
-  render: (container: HTMLElement, options: TurnstileRenderOptions) => string;
-  reset: (widgetId: string) => void;
-  remove: (widgetId: string) => void;
-  getResponse: (widgetId: string) => string | undefined;
-  isReady: () => boolean;
-}
+import { loadTurnstile } from '../utils/turnstileLoader';
+import type { TurnstileAPI } from '../utils/turnstileTypes';
 
 declare global {
   interface Window {
     turnstile?: TurnstileAPI;
-    onTurnstileLoad?: () => void;
   }
 }
 
@@ -44,10 +16,12 @@ type Props = {
   onError?: (message: string) => void;
   theme?: 'auto' | 'light' | 'dark';
   size?: 'normal' | 'compact';
+  /**
+   * Optional: lazy-mount the widget until visible or interacted with.
+   * This reduces cold-load flakiness and avoids multiple widgets competing at startup.
+   */
+  lazy?: boolean;
 };
-
-const SCRIPT_ID = 'cf-turnstile-script';
-const SCRIPT_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad';
 
 // Cloudflare error codes - https://developers.cloudflare.com/turnstile/reference/client-side-errors/
 const ERROR_MAP: Record<string, string> = {
@@ -63,7 +37,9 @@ const ERROR_MAP: Record<string, string> = {
   '600020': 'Execution error - refresh and try again',
 };
 
-export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal' }: Props) {
+const TRANSIENT_ERROR_CODES = new Set(['600010', '600020']);
+
+export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal', lazy = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'verified'>('loading');
@@ -72,6 +48,9 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
   const renderAttemptedRef = useRef(false);
   const onTokenRef = useRef(onToken);
   const onErrorRef = useRef(onError);
+  const retryAttemptedRef = useRef(false);
+  const retryTimerRef = useRef<number | null>(null);
+  const [shouldLoad, setShouldLoad] = useState(!lazy);
 
   useEffect(() => {
     onTokenRef.current = onToken;
@@ -106,16 +85,24 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     
     mountedRef.current = true;
     renderAttemptedRef.current = false;
+    retryAttemptedRef.current = false;
 
-    const renderWidget = () => {
-      if (!mountedRef.current || !containerRef.current || !window.turnstile) return;
+    const clearRetryTimer = () => {
+      if (retryTimerRef.current != null) {
+        window.clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+    };
+
+    const renderWidget = (api: TurnstileAPI) => {
+      if (!mountedRef.current || !containerRef.current) return;
       if (widgetIdRef.current || renderAttemptedRef.current) return;
       
       renderAttemptedRef.current = true;
       logInfo('Turnstile', 'Rendering widget');
 
       try {
-        widgetIdRef.current = window.turnstile.render(containerRef.current, {
+        widgetIdRef.current = api.render(containerRef.current, {
           sitekey: siteKey,
           theme,
           size,
@@ -132,9 +119,9 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             // Clear expired token immediately
             onTokenRef.current?.('');
             
-            if (mountedRef.current && widgetIdRef.current && window.turnstile?.reset) {
+            if (mountedRef.current && widgetIdRef.current && api.reset) {
               try {
-                window.turnstile.reset(widgetIdRef.current);
+                api.reset(widgetIdRef.current);
                 setState('ready');
                 logInfo('Turnstile', 'Widget reset after expiry');
               } catch (resetError: unknown) {
@@ -155,11 +142,50 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             logError('Turnstile', `Verification error (${code})`, `Hostname: ${hostname}, Error: ${errorDescription}`);
             
             if (mountedRef.current) {
+              // Clear token on error
+              onTokenRef.current?.('');
+
+              // Transient first-load flakiness: retry once after a short delay.
+              if (TRANSIENT_ERROR_CODES.has(code) && !retryAttemptedRef.current) {
+                retryAttemptedRef.current = true;
+                clearRetryTimer();
+                setState('loading');
+                setErrorMsg('');
+
+                retryTimerRef.current = window.setTimeout(() => {
+                  if (!mountedRef.current || !widgetIdRef.current) return;
+                  logWarn('Turnstile', `Transient error (${code}) - retrying once`);
+
+                  try {
+                    if (api.reset) {
+                      api.reset(widgetIdRef.current);
+                      setState('ready');
+                      return;
+                    }
+                  } catch (e: unknown) {
+                    logWarn('Turnstile', 'Reset failed during retry', e instanceof Error ? e.message : String(e));
+                  }
+
+                  try {
+                    if (api.remove) {
+                      api.remove(widgetIdRef.current);
+                    }
+                  } catch (e: unknown) {
+                    logWarn('Turnstile', 'Remove failed during retry', e instanceof Error ? e.message : String(e));
+                  } finally {
+                    widgetIdRef.current = null;
+                    renderAttemptedRef.current = false;
+                  }
+
+                  renderWidget(api);
+                }, 500);
+
+                return;
+              }
+
               const msg = `Verification failed (error ${code})`;
               setState('error');
               setErrorMsg(msg);
-              // Clear token on error
-              onTokenRef.current?.('');
               onErrorRef.current?.(msg);
             }
           },
@@ -181,48 +207,31 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       }
     };
 
-    // Load script and render
-    const init = () => {
-      if (window.turnstile) {
-        logInfo('Turnstile', 'Script already loaded, rendering');
-        renderWidget();
-        return;
-      }
+    const start = async () => {
+      if (!mountedRef.current || !containerRef.current) return;
+      if (!shouldLoad) return;
 
-      const existing = document.getElementById(SCRIPT_ID);
-      if (existing) {
-        logInfo('Turnstile', 'Script tag exists, waiting for load event');
-        window.onTurnstileLoad = renderWidget;
-        return;
-      }
-
-      logInfo('Turnstile', 'Loading Cloudflare Turnstile script');
-      const script = document.createElement('script');
-      script.id = SCRIPT_ID;
-      script.src = SCRIPT_URL;
-      script.async = true;
-      
-      window.onTurnstileLoad = () => {
-        logInfo('Turnstile', 'Script loaded successfully');
-        renderWidget();
-      };
-      
-      script.onerror = () => {
-        logError('Turnstile', 'Failed to load script from CDN');
+      try {
+        const api = await loadTurnstile();
+        if (!mountedRef.current) return;
+        logInfo('Turnstile', 'Script ready, rendering');
+        renderWidget(api);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logError('Turnstile', 'Failed to load Turnstile', msg);
         if (mountedRef.current) {
           setState('error');
-          setErrorMsg('Failed to load Turnstile - check CSP headers and internet connection');
-          onErrorRef.current?.('Failed to load Turnstile script');
+          setErrorMsg('Failed to load Turnstile. Please retry.');
+          onErrorRef.current?.('Failed to load Turnstile');
         }
-      };
-      
-      document.head.appendChild(script);
+      }
     };
 
-    init();
+    start();
 
     return () => {
       mountedRef.current = false;
+      clearRetryTimer();
       // Cleanup: Remove widget and clear token
       if (widgetIdRef.current && window.turnstile?.remove) {
         try { 
@@ -237,7 +246,39 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       // Clear token on unmount
       onTokenRef.current?.('');
     };
-  }, [siteKey, theme, size]);
+  }, [siteKey, theme, size, shouldLoad]);
+
+  // Optional lazy-mount: load when widget is visible.
+  useEffect(() => {
+    if (!lazy) return;
+    if (shouldLoad) return;
+    if (!containerRef.current) return;
+
+    let cancelled = false;
+    const el = containerRef.current;
+
+    if (!('IntersectionObserver' in window)) {
+      setShouldLoad(true);
+      return;
+    }
+
+    const obs = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (cancelled) return;
+        if (entry?.isIntersecting) {
+          setShouldLoad(true);
+        }
+      },
+      { root: null, threshold: 0.1 }
+    );
+
+    obs.observe(el);
+    return () => {
+      cancelled = true;
+      try { obs.disconnect(); } catch {}
+    };
+  }, [lazy, shouldLoad]);
 
   const handleRetry = () => {
     logInfo('Turnstile', 'User clicked retry button');
@@ -260,7 +301,12 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
   };
 
   return (
-    <div className="turnstile-container">
+    <div
+      className="turnstile-container"
+      onFocusCapture={() => { if (lazy && !shouldLoad) setShouldLoad(true); }}
+      onPointerDown={() => { if (lazy && !shouldLoad) setShouldLoad(true); }}
+      onMouseEnter={() => { if (lazy && !shouldLoad) setShouldLoad(true); }}
+    >
       <div ref={containerRef} />
       
       {state === 'loading' && (
