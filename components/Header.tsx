@@ -13,7 +13,6 @@ interface HeaderProps {
   onNavigateCustomize: () => void;
   onNavigateToTours: (destination: string | null) => void;
   onNavigateCustomPage: (slug: string) => void;
-  onNavigateAdmin: () => void;
   destinations: string[];
   siteContent: SiteContent;
   theme: Theme;
@@ -47,7 +46,6 @@ const Header: React.FC<HeaderProps> = ({
   onNavigateCustomize, 
   onNavigateToTours, 
   onNavigateCustomPage, 
-  onNavigateAdmin,
   destinations, 
   siteContent, 
   theme, 
@@ -130,9 +128,6 @@ const Header: React.FC<HeaderProps> = ({
             <button onClick={onNavigateBlog} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Blog</button>
             <button onClick={onNavigateGallery} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Gallery</button>
             <button onClick={onNavigateContact} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Contact</button>
-            <button onClick={onNavigateAdmin} className="text-[10px] font-black uppercase tracking-widest text-brand-primary opacity-50 hover:opacity-100 transition-all border border-brand-primary/20 px-3 py-1 rounded-md">Admin</button>
-            
-            <div className="h-4 w-px bg-border dark:bg-dark-border mx-2"></div>
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           </nav>
 
@@ -183,17 +178,12 @@ const Header: React.FC<HeaderProps> = ({
               },
               { label: 'Gallery', action: () => handleMobileNavClick(onNavigateGallery) },
               { label: 'Blog', action: () => handleMobileNavClick(onNavigateBlog) },
-              { label: 'Contact', action: () => handleMobileNavClick(onNavigateContact) },
-              { label: 'Admin Panel', action: () => handleMobileNavClick(onNavigateAdmin), special: true }
+              { label: 'Contact', action: () => handleMobileNavClick(onNavigateContact) }
             ].map((item, idx) => (
               <button 
                 key={idx}
                 onClick={item.action}
-                className={`w-full text-left p-6 rounded-2xl border transition-all active:scale-[0.98] ${
-                  item.special 
-                  ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary' 
-                  : 'bg-slate-900/50 border-white/5 text-white/90 hover:bg-slate-800/70'
-                }`}
+                className="w-full text-left p-6 rounded-2xl border transition-all active:scale-[0.98] bg-slate-900/50 border-white/5 text-white/90 hover:bg-slate-800/70"
               >
                 <span className="text-lg font-black uppercase tracking-widest">{item.label}</span>
               </button>

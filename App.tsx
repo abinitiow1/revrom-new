@@ -61,6 +61,13 @@ const App: React.FC = () => {
       const hView = sp.get('view');
       if (hView) return hView as View;
     } catch (err) {}
+
+    // Support direct /admin access (production rewrite serves the SPA entry).
+    // We start at login and let the existing auth flow switch to 'admin' after successful sign-in.
+    try {
+      const path = window.location.pathname.replace(/\/+$/, '');
+      if (path === '/admin') return 'login';
+    } catch {}
     return 'home';
   });
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
@@ -97,6 +104,16 @@ const App: React.FC = () => {
         : null,
     [isSupabaseMode],
   );
+
+  // If the user hits /admin directly and already has an active admin session, auto-enter the admin view.
+  useEffect(() => {
+    try {
+      const path = window.location.pathname.replace(/\/+$/, '');
+      if (path === '/admin' && view === 'login' && isLoggedIn && isAdmin) {
+        setView('admin');
+      }
+    } catch {}
+  }, [isAdmin, isLoggedIn, view]);
 
   useEffect(() => {
     if (saveStatus !== 'saved') return;
@@ -735,7 +752,6 @@ const App: React.FC = () => {
           onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
           onNavigateCustomize={() => setView('customize')} onNavigateToTours={d => { setInitialDestinationFilter(d); setView('allTours'); }}
           onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
-          onNavigateAdmin={() => setView(isLoggedIn && isAdmin ? 'admin' : 'login')}
           destinations={[...new Set(trips.map(t => t.destination))]} siteContent={siteContent} theme={theme} toggleTheme={toggleTheme} customPages={customPages}
         />
       )}
@@ -747,7 +763,6 @@ const App: React.FC = () => {
       {!hideSiteChrome && (
         <Footer 
           onNavigateHome={() => setView('home')} onNavigateContact={() => setView('contact')} 
-          onNavigateAdmin={() => setView(isLoggedIn && isAdmin ? 'admin' : 'login')} 
           onNavigateBlog={() => setView('blog')} onNavigateGallery={() => setView('gallery')}
           onNavigateCustomize={() => setView('customize')} onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
           siteContent={siteContent}

@@ -8,7 +8,6 @@ import { safeExternalUrl, safeMailtoHref } from '../utils/sanitizeUrl';
 interface FooterProps {
   onNavigateHome: () => void;
   onNavigateContact: () => void;
-  onNavigateAdmin: () => void;
   onNavigateBlog: () => void;
   onNavigateGallery: () => void;
   onNavigateCustomize: () => void;
@@ -55,7 +54,6 @@ const FooterMailIcon: React.FC<{ className?: string }> = ({ className }) => (
 const Footer: React.FC<FooterProps> = ({ 
   onNavigateHome, 
   onNavigateContact, 
-  onNavigateAdmin, 
   onNavigateBlog, 
   onNavigateGallery, 
   onNavigateCustomize,
@@ -312,7 +310,6 @@ const Footer: React.FC<FooterProps> = ({
             <button onClick={() => onNavigateCustomPage('faq')} className="hover:text-brand-primary transition-colors">FAQ</button>
             <button onClick={() => onNavigateCustomPage('privacy-policy')} className="hover:text-brand-primary transition-colors">Privacy Policy</button>
             <button onClick={() => onNavigateCustomPage('terms-and-conditions')} className="hover:text-brand-primary transition-colors">Terms</button>
-            <button onClick={onNavigateAdmin} className="hover:text-brand-primary transition-colors opacity-50 hover:opacity-100">Admin</button>
           </div>
         </div>
       </div>
