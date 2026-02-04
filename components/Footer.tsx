@@ -281,6 +281,7 @@ const Footer: React.FC<FooterProps> = ({
                     siteKey={turnstileSiteKey}
                     theme="auto"
                     size="compact"
+                    lazy={true}
                     onToken={(t) => {
                       setTurnstileToken(t);
                       setTurnstileError('');
