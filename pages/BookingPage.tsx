@@ -259,25 +259,38 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                   </div>
                 ) : null}
 
-                <button 
-                    type="submit" 
-                    className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all items-center justify-center gap-3"
-                    title="Opens WhatsApp in a new tab"
-                >
-                    <WhatsAppIcon className="w-5 h-5" />
-                    INQUIRE VIA WHATSAPP
-                </button>
-                <p className="hidden lg:block mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-                  Opens WhatsApp in a new tab
-                </p>
                 {emailEnabled ? (
-                  <div className="hidden lg:flex items-center justify-center gap-2 mt-3 text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-80">
-                    <span>Prefer email?</span>
-                    <button type="button" onClick={() => handleSubmit('email')} className="text-brand-primary hover:text-brand-primary-dark underline underline-offset-4">
-                      Email instead
+                  <div className="hidden lg:grid grid-cols-2 gap-4">
+                    <button
+                      type="submit"
+                      className="adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center justify-center gap-3"
+                      title="Opens WhatsApp in a new tab"
+                    >
+                      <WhatsAppIcon className="w-5 h-5" />
+                      WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSubmit('email')}
+                      className="bg-card dark:bg-dark-card text-foreground dark:text-dark-foreground py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm border border-border dark:border-dark-border shadow-sm hover:border-brand-primary/40 hover:shadow-md active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all"
+                      title="Opens your email app"
+                    >
+                      Email
                     </button>
                   </div>
-                ) : null}
+                ) : (
+                  <button
+                    type="submit"
+                    className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all items-center justify-center gap-3"
+                    title="Opens WhatsApp in a new tab"
+                  >
+                    <WhatsAppIcon className="w-5 h-5" />
+                    Inquire via WhatsApp
+                  </button>
+                )}
+                <p className="hidden lg:block mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
+                  Opens WhatsApp in a new tab{emailEnabled ? ' • Email opens your email app' : ''}
+                </p>
               </form>
             </div>
 
