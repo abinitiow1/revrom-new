@@ -539,10 +539,19 @@ const App: React.FC = () => {
     // Destination filter is relevant when browsing tours.
     if (view === 'allTours' && initialDestinationFilter) params.dest = initialDestinationFilter;
     const newHash = buildHash(params);
-    if (window.location.hash === newHash) return;
-    // On first initialization replaceState to avoid cluttering history, afterwards pushState
-    if (initializedRef.current) window.history.pushState(null, '', newHash);
-    else window.history.replaceState(null, '', newHash);
+
+    // If we're currently on /admin, keep that path only for admin/login views.
+    // When leaving admin, canonicalize back to "/" so public navigation doesn't live under /admin#...
+    const normalizedPath = window.location.pathname.replace(/\/+$/, '');
+    const shouldKeepAdminPath = normalizedPath === '/admin' && (view === 'admin' || view === 'login');
+    const desiredPath = shouldKeepAdminPath ? window.location.pathname : '/';
+    const targetUrl = `${desiredPath}${window.location.search || ''}${newHash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search || ''}${window.location.hash}`;
+    if (currentUrl === targetUrl) return;
+
+    // On first initialization replaceState to avoid cluttering history, afterwards pushState.
+    if (initializedRef.current) window.history.pushState(null, '', targetUrl);
+    else window.history.replaceState(null, '', targetUrl);
   };
 
   const applyHashToState = () => {
