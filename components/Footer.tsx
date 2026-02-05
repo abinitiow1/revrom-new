@@ -99,7 +99,7 @@ const Footer: React.FC<FooterProps> = ({
         {authOpen ? (
           <TurnstileAuthModal
             siteKey={turnstileSiteKey}
-            action="forms:newsletter"
+            action="forms_newsletter"
             title="Verify to subscribe"
             description="Complete verification to subscribe to the newsletter."
             onCancel={cancelAuth}

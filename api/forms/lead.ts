@@ -11,7 +11,8 @@ export default async function handler(req: any, res: any) {
 
     const body = await readJsonBody(req);
     const turnstileToken = String(body?.turnstileToken || '').trim();
-    await verifyTurnstileOrThrow(req, turnstileToken, 'forms:lead');
+    // Turnstile "action" must be a simple token (Cloudflare rejects ":" etc).
+    await verifyTurnstileOrThrow(req, turnstileToken, 'forms_lead');
 
     const tripId = String(body?.tripId || '').trim();
     const tripTitle = String(body?.tripTitle || '').trim();

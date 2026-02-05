@@ -194,7 +194,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
       {authOpen ? (
         <TurnstileAuthModal
           siteKey={turnstileSiteKey}
-          action="forms:lead"
+          action="forms_lead"
           title="Verify to continue"
           description="Complete verification to submit your inquiry."
           onCancel={cancelAuth}

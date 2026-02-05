@@ -11,7 +11,8 @@ export default async function handler(req: any, res: any) {
 
     const body = await readJsonBody(req);
     const turnstileToken = String(body?.turnstileToken || '').trim();
-    await verifyTurnstileOrThrow(req, turnstileToken, 'forms:newsletter');
+    // Turnstile "action" must be a simple token (Cloudflare rejects ":" etc).
+    await verifyTurnstileOrThrow(req, turnstileToken, 'forms_newsletter');
 
     const email = String(body?.email || '')
       .replace(/[\s\u200B-\u200D\uFEFF]/g, '')

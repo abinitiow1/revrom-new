@@ -210,7 +210,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             {authOpen ? (
                 <TurnstileAuthModal
                     siteKey={turnstileSiteKey}
-                    action="forms:contact"
+                    action="forms_contact"
                     title="Verify to continue"
                     description="Complete verification to send your message."
                     onCancel={cancelAuth}
