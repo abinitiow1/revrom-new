@@ -149,11 +149,8 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         }
 
         // Always authorize via Turnstile modal before opening WhatsApp.
-        try {
-            pendingTabRef.current = window.open('', '_blank', 'noopener,noreferrer');
-        } catch {
-            pendingTabRef.current = null;
-        }
+        // Do not open a blank tab before authorization (avoids about:blank on failed verification).
+        pendingTabRef.current = null;
 
         authAuthorizeRef.current = async (token: string) => {
             await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: token });
@@ -161,9 +158,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
 
         postAuthActionRef.current = () => {
             try {
-                const w = pendingTabRef.current;
-                if (w && !w.closed) w.location.href = whatsappUrl;
-                else window.location.href = whatsappUrl;
+                window.location.href = whatsappUrl;
             } catch {
                 window.location.href = whatsappUrl;
             }
@@ -307,7 +302,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                             disabled={isSubmitting}
                                             className="w-full sm:w-auto bg-[#25D366] hover:bg-[#1DA851] disabled:bg-[#25D366]/50 text-white font-bold py-3 px-8 rounded-md transition-colors duration-300 text-lg"
                                         >
-                                            {isSubmitting ? 'Opening WhatsApp...' : 'Send on WhatsApp'}
+                                            {isSubmitting ? 'Verifying...' : 'Send on WhatsApp'}
                                         </button>
                                         <button
                                             type="button"

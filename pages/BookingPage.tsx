@@ -149,25 +149,15 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
 
       const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(buildInquiryMessage)}`;
       try {
-        const w = pendingTabRef.current;
-        if (w && !w.closed) w.location.href = whatsappUrl;
-        else {
-          const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-          if (!opened) window.location.href = whatsappUrl;
-        }
+        // Avoid opening a blank tab before authorization; redirect only after verification.
+        window.location.href = whatsappUrl;
       } catch {
         window.location.href = whatsappUrl;
       }
     };
 
-    // WhatsApp should open in a new tab; create a placeholder during the user gesture to avoid popup blockers.
-    if (mode === 'whatsapp' && adminPhone) {
-      try {
-        pendingTabRef.current = window.open('', '_blank', 'noopener,noreferrer');
-      } catch {
-        pendingTabRef.current = null;
-      }
-    }
+    // Do not open a placeholder tab before authorization (avoids about:blank if verification fails).
+    pendingTabRef.current = null;
 
     authAuthorizeRef.current = async (token: string) => {
       const lead: ItineraryQuery = {
