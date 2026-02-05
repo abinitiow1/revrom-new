@@ -467,17 +467,10 @@ const App: React.FC = () => {
         status: 'new',
       };
 
-      // In Supabase mode, submit the lead via server API (Service Role insert). Keep local fallback otherwise.
-      if (isSupabaseMode) {
-        submitItineraryQuery(lead).catch((err) => {
-          console.error('Failed to submit lead to Supabase:', err);
-          try {
-            console.error('Supabase error details:', JSON.stringify(err, Object.getOwnPropertyNames(err as any)));
-          } catch {}
-        });
-      } else {
-        setItineraryQueries((prev) => [lead, ...prev]);
-      }
+      // Local-only mode: keep client state. In Supabase mode, all lead submissions go through
+      // the action-triggered Turnstile modal pipeline (pages/BookingPage.tsx), not via this helper.
+      if (isSupabaseMode) return;
+      setItineraryQueries((prev) => [lead, ...prev]);
     },
     [isSupabaseMode],
   );
@@ -897,7 +890,8 @@ const App: React.FC = () => {
       {/* Floating Action Buttons */}
       {view !== 'admin' && view !== 'booking' && view !== 'contact' && (
         <FloatingWhatsApp
-          phoneNumber={siteContent.adminWhatsappNumber}
+          href="#view=contact"
+          label="Contact us"
           bottomOffsetPx={view === 'tripDetail' ? 110 : 20}
         />
       )}

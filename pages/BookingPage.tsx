@@ -1,8 +1,9 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { ItineraryQuery, SiteContent, Trip } from '../types';
-import Turnstile from '../components/Turnstile';
+import TurnstileAuthModal from '../components/TurnstileAuthModal';
 import { safeMailtoHref } from '../utils/sanitizeUrl';
+import { submitItineraryQuery } from '../services/itineraryQueryService';
 
 interface BookingPageProps {
   trip: Trip;
@@ -36,13 +37,34 @@ const BookingPage: React.FC<BookingPageProps> = ({ trip, onBack, siteContent, on
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [formNotice, setFormNotice] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileError, setTurnstileError] = useState('');
+  const [authOpen, setAuthOpen] = useState(false);
+  const authAuthorizeRef = useRef<((token: string) => Promise<void>) | null>(null);
+  const postAuthActionRef = useRef<(() => void) | null>(null);
+  const wasAuthOpenRef = useRef(false);
+  const pendingTabRef = useRef<Window | null>(null);
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
-  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-  const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in' || window.location?.hostname === 'revrom.vercel.app');
-  const requiresTurnstile = isProduction && !!turnstileSiteKey;
+
+  useEffect(() => {
+    const wasOpen = wasAuthOpenRef.current;
+    if (wasOpen && !authOpen) {
+      const fn = postAuthActionRef.current;
+      postAuthActionRef.current = null;
+      try { fn?.(); } finally { pendingTabRef.current = null; }
+    }
+    wasAuthOpenRef.current = authOpen;
+  }, [authOpen]);
+
+  const cancelAuth = () => {
+    postAuthActionRef.current = null;
+    authAuthorizeRef.current = null;
+    try {
+      const w = pendingTabRef.current;
+      if (w && !w.closed) w.close();
+    } catch {}
+    pendingTabRef.current = null;
+    setAuthOpen(false);
+  };
 
   const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value.trim());
 
@@ -74,9 +96,8 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
   // UX: always show the Email option, but disable it when admin email isn't configured.
   const emailEnabled = true;
 
-  const handleSubmit = (mode: 'whatsapp' | 'email', e?: React.FormEvent) => {
+  const handleSubmit = async (mode: 'whatsapp' | 'email', e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    setTurnstileError('');
     setFormNotice('');
 
     const normalizedName = (name || '').trim() || 'Web User';
@@ -88,62 +109,106 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
 
     if (!hasValidPhone && !hasValidEmail) {
       setFormNotice('Please add a WhatsApp number or an email so we can contact you.');
+      return;
     } else if (!hasValidPhone || !hasValidEmail) {
       setFormNotice('Tip: adding both WhatsApp and email helps us reach you faster.');
     }
 
-    // Save a lead for admin visibility when we have usable details.
-    // (Supabase schema enforces 8-15 digits for whatsapp_number when provided.)
-    try {
-      if (hasValidPhone || hasValidEmail) {
-        const needsVerification = isProduction && !!turnstileSiteKey;
-        if (needsVerification && !turnstileToken) {
-          // Do not block WhatsApp; just skip saving the lead if verification is missing.
-          setTurnstileError('Please complete verification.');
-        } else {
-          onAddInquiry({
-            tripId: trip.id,
-            tripTitle: trip.title,
-            name: normalizedName,
-            whatsappNumber: hasValidPhone ? normalizedPhoneRaw : undefined,
-            email: hasValidEmail ? normalizedEmail : undefined,
-            planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
-            // Pass token through for server-side save; not persisted in DB.
-            ...(turnstileToken ? ({ turnstileToken } as any) : {}),
-          } as any);
-          setTurnstileToken('');
-        }
-      }
-    } catch {}
-
     const adminPhone = siteContent.adminWhatsappNumber.replace(/\D/g, '');
-    if (mode === 'email') {
-      const href = buildEmailHref();
-      if (!href) {
-        setFormNotice('Email is not available right now. Please use WhatsApp.');
-      } else {
-        try {
-          window.location.href = href;
-        } catch {
-          // ignore
+    const emailHref = buildEmailHref();
+
+    // Avoid forcing verification when the target action cannot be completed.
+    if (mode === 'email' && !emailHref) {
+      setFormNotice('Email is not available right now. Please use WhatsApp.');
+      return;
+    }
+    if (mode === 'whatsapp' && !adminPhone && !emailHref) {
+      setFormNotice('WhatsApp is not configured. Please try again later.');
+      return;
+    }
+
+    // Determine the protected external action (open WhatsApp or email) after authorization.
+    const openExternal = () => {
+      if (mode === 'email') {
+        if (!emailHref) {
+          setFormNotice('Email is not available right now. Please use WhatsApp.');
+          return;
         }
+        try { window.location.href = emailHref; } catch {}
+        return;
       }
-      return;
+
+      if (!adminPhone) {
+        if (emailHref) {
+          try { window.location.href = emailHref; } catch {}
+        } else {
+          setFormNotice('WhatsApp is not configured. Please try again later.');
+        }
+        return;
+      }
+
+      const whatsappUrl = `https://wa.me/${adminPhone}?text=${encodeURIComponent(buildInquiryMessage)}`;
+      try {
+        const w = pendingTabRef.current;
+        if (w && !w.closed) w.location.href = whatsappUrl;
+        else {
+          const opened = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+          if (!opened) window.location.href = whatsappUrl;
+        }
+      } catch {
+        window.location.href = whatsappUrl;
+      }
+    };
+
+    // WhatsApp should open in a new tab; create a placeholder during the user gesture to avoid popup blockers.
+    if (mode === 'whatsapp' && adminPhone) {
+      try {
+        pendingTabRef.current = window.open('', '_blank', 'noopener,noreferrer');
+      } catch {
+        pendingTabRef.current = null;
+      }
     }
 
-    if (!adminPhone) {
-      const href = buildEmailHref();
-      if (href) window.location.href = href;
-      else setFormNotice('WhatsApp is not configured. Please try again later.');
-      return;
-    }
+    authAuthorizeRef.current = async (token: string) => {
+      const lead: ItineraryQuery = {
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        tripId: trip.id,
+        tripTitle: trip.title,
+        name: normalizedName,
+        whatsappNumber: hasValidPhone ? normalizedPhoneRaw : undefined,
+        email: hasValidEmail ? normalizedEmail : undefined,
+        planningTime: `${travelers} traveler(s), ${roomType === 'double' ? 'Twin Sharing' : 'Single Room'}`,
+        date: new Date().toISOString(),
+        status: 'new',
+      };
+      (lead as any).turnstileToken = token;
+      await submitItineraryQuery(lead as any);
+    };
 
-    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(buildInquiryMessage)}`, '_blank', 'noopener,noreferrer');
-    try { if (w) (w as any).opener = null; } catch {}
+    postAuthActionRef.current = openExternal;
+    setAuthOpen(true);
   };
 
   return (
     <div className="bg-background dark:bg-dark-background min-h-screen pb-24 lg:pb-0">
+      {authOpen ? (
+        <TurnstileAuthModal
+          siteKey={turnstileSiteKey}
+          action="forms:lead"
+          title="Verify to continue"
+          description="Complete verification to submit your inquiry."
+          onCancel={cancelAuth}
+          authorize={async (token) => {
+            const fn = authAuthorizeRef.current;
+            if (!fn) throw new Error('Verification is not ready. Please try again.');
+            await fn(token);
+          }}
+          onAuthorized={() => {
+            authAuthorizeRef.current = null;
+            setAuthOpen(false);
+          }}
+        />
+      ) : null}
       <div className="container mx-auto px-6 py-12 md:py-20 max-w-7xl">
           <button onClick={onBack} className="text-xs sm:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-brand-primary active:text-brand-primary-dark px-4 py-2 sm:py-1 mb-12 flex items-center gap-2 transition-all group bg-slate-50 dark:bg-neutral-900/50 rounded-lg active:scale-95">
             <span className="group-hover:-translate-x-1 active:-translate-x-1 transition-transform">&larr;</span> BACK
@@ -154,7 +219,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
               <h1 className="text-4xl md:text-5xl font-black font-display italic tracking-tight mb-4 uppercase leading-none">Book Your Trip</h1>
               <p className="text-muted-foreground dark:text-dark-muted-foreground mb-12 text-sm md:text-base max-w-2xl leading-relaxed">Let us know you're interested in the {trip.title}. Share your details below and we'll get back to you with all the information you need.</p>
 
-               <form onSubmit={(e) => handleSubmit('whatsapp', e)} className="space-y-12">
+               <form onSubmit={(e) => { void handleSubmit('whatsapp', e); }} className="space-y-12">
                 <section>
                     <h3 className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary mb-8">Traveler Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -243,24 +308,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     ) : null}
                 </section>
 
-                {requiresTurnstile ? (
-                  <div className="space-y-2">
-                    <div className="text-[10px] font-black uppercase tracking-widest opacity-40">Verification</div>
-                    <Turnstile
-                      siteKey={turnstileSiteKey}
-                      theme="auto"
-                      size="compact"
-                      onToken={(t) => setTurnstileToken(t)}
-                      onError={(m) => setTurnstileError(m)}
-                    />
-                    {turnstileError ? (
-                      <div className="text-sm text-red-600 dark:text-red-300">{turnstileError}</div>
-                    ) : null}
-                    <div className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
-                      This helps prevent spam. Your WhatsApp message will still open even if verification fails.
-                    </div>
-                  </div>
-                ) : null}
+                
 
                 {emailEnabled ? (
                   <div className="hidden lg:grid grid-cols-2 gap-4">
@@ -274,7 +322,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleSubmit('email')}
+                      onClick={() => { void handleSubmit('email'); }}
                       disabled={!emailConfigured}
                       aria-disabled={!emailConfigured}
                       className={`py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm border shadow-sm focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all ${

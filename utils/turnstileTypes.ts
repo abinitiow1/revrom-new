@@ -7,6 +7,7 @@ export interface TurnstileRenderOptions {
   sitekey: string;
   theme: 'auto' | 'light' | 'dark';
   size: 'normal' | 'compact';
+  action?: string;
   callback?: (token: string) => void;
   'expired-callback'?: () => void;
   'error-callback'?: (code: string) => void;
@@ -23,4 +24,3 @@ export interface TurnstileAPI {
   getResponse?: (widgetId: string) => string | undefined;
   isReady?: () => boolean;
 }
-

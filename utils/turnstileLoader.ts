@@ -13,6 +13,12 @@ const SCRIPT_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render
 
 let loadPromise: Promise<TurnstileAPI> | null = null;
 
+declare global {
+  interface Window {
+    turnstile?: TurnstileAPI;
+  }
+}
+
 const waitFor = async <T>(
   fn: () => T | null | undefined,
   opts: { timeoutMs: number; intervalMs: number; label: string }
@@ -37,37 +43,48 @@ export function loadTurnstile(): Promise<TurnstileAPI> {
   if (loadPromise) return loadPromise;
 
   loadPromise = (async () => {
-    // If script already exists, do not inject again.
-    let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
-    if (!script) {
-      script = document.createElement('script');
-      script.id = SCRIPT_ID;
-      script.src = SCRIPT_SRC;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
+    try {
+      // If script already exists by id or src, reuse it. This avoids injecting duplicates
+      // when the script was added by other code or server templates.
+      let script = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+      if (!script) {
+        script = document.querySelector(`script[src="${SCRIPT_SRC}"]`) as HTMLScriptElement | null;
+      }
+
+      if (!script) {
+        script = document.createElement('script');
+        script.id = SCRIPT_ID;
+        script.src = SCRIPT_SRC;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+
+      // If the script is blocked by CSP/network, script.onerror fires but can be missed if attached late.
+      // We therefore also poll for `window.turnstile` with a timeout.
+      await Promise.race([
+        new Promise<void>((resolve, reject) => {
+          const onLoad = () => resolve();
+          const onError = () => reject(new Error('Failed to load Turnstile script'));
+          script!.addEventListener('load', onLoad, { once: true });
+          script!.addEventListener('error', onError, { once: true });
+        }),
+        // Some browsers won't fire `load` for already-cached scripts if listener added late.
+        waitFor(
+          () => (window.turnstile ? true : null),
+          { timeoutMs: 10_000, intervalMs: 50, label: 'Turnstile script execution' }
+        ).then(() => undefined),
+      ]);
+
+      return await waitFor(
+        () => window.turnstile,
+        { timeoutMs: 10_000, intervalMs: 50, label: 'window.turnstile' }
+      );
+    } catch (err) {
+      // Reset the shared promise so callers can attempt a retry later.
+      loadPromise = null;
+      throw err;
     }
-
-    // If the script is blocked by CSP/network, script.onerror fires but can be missed if attached late.
-    // We therefore also poll for `window.turnstile` with a timeout.
-    await Promise.race([
-      new Promise<void>((resolve, reject) => {
-        const onLoad = () => resolve();
-        const onError = () => reject(new Error('Failed to load Turnstile script'));
-        script!.addEventListener('load', onLoad, { once: true });
-        script!.addEventListener('error', onError, { once: true });
-      }),
-      // Some browsers won't fire `load` for already-cached scripts if listener added late.
-      waitFor(
-        () => (window.turnstile ? true : null),
-        { timeoutMs: 10_000, intervalMs: 50, label: 'Turnstile script execution' }
-      ).then(() => undefined),
-    ]);
-
-    return await waitFor(
-      () => window.turnstile,
-      { timeoutMs: 10_000, intervalMs: 50, label: 'window.turnstile' }
-    );
   })();
 
   return loadPromise;

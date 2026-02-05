@@ -66,6 +66,28 @@ create table if not exists public.newsletter_subscribers (
   created_at timestamptz not null default now()
 );
 
+-- --- Security: server-side rate limiting + Turnstile replay protection ---
+-- These tables are written/read only by the server (Service Role). Public access is denied via RLS.
+
+create table if not exists public.rate_limit_events (
+  id bigserial primary key,
+  bucket text not null,
+  ip text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists rate_limit_events_bucket_ip_created_at_idx
+on public.rate_limit_events (bucket, ip, created_at desc);
+
+create table if not exists public.turnstile_token_replay (
+  token_hash text primary key,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+create index if not exists turnstile_token_replay_expires_at_idx
+on public.turnstile_token_replay (expires_at);
+
 -- Prevent duplicate subscriptions that differ only by email casing (e.g. User@X.com vs user@x.com).
 -- Note: if you already have such duplicates, creating this index will fail until you delete/merge them.
 create unique index if not exists newsletter_subscribers_email_lower_uniq
@@ -206,112 +228,16 @@ alter table public.newsletter_subscribers
 -- alter table public.contact_messages validate constraint contact_messages_message_len;
 -- alter table public.newsletter_subscribers validate constraint newsletter_subscribers_email_fmt;
 
--- Simple server-side rate limits (best-effort, per email/phone).
--- NOTE: For stronger bot protection, use Turnstile/Recaptcha + Edge Function.
-create table if not exists public.rate_limits (
-  bucket text not null,
-  key text not null,
-  count int not null default 0,
-  reset_at timestamptz not null,
-  primary key (bucket, key)
-);
-
-create or replace function public.enforce_rate_limit(
-  p_bucket text,
-  p_key text,
-  p_limit int,
-  p_window interval
-)
-returns void
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_now timestamptz := now();
-  v_count int;
-begin
-  -- Cleanup (Free plan friendly):
-  -- `public.rate_limits` can grow unbounded over time because old buckets/keys stick around.
-  -- On Supabase Free, scheduled DB jobs (pg_cron) may not be available, so we do a tiny
-  -- probabilistic cleanup here to keep the table bounded without adding noticeable latency.
-  if random() < 0.01 then
-    delete from public.rate_limits
-    where ctid in (
-      select ctid
-      from public.rate_limits
-      where reset_at < v_now - interval '15 days'
-      limit 500
-    );
-  end if;
-
-  if p_key is null or length(trim(p_key)) = 0 then
-    return;
-  end if;
-
-  insert into public.rate_limits(bucket, key, count, reset_at)
-  values (p_bucket, p_key, 1, v_now + p_window)
-  on conflict (bucket, key) do update set
-    count = case when public.rate_limits.reset_at <= v_now then 1 else public.rate_limits.count + 1 end,
-    reset_at = case when public.rate_limits.reset_at <= v_now then v_now + p_window else public.rate_limits.reset_at end
-  returning count into v_count;
-
-  if v_count > p_limit then
-    raise exception 'Rate limit exceeded for %', p_bucket;
-  end if;
-end;
-$$;
-
-create or replace function public.trg_contact_messages_rate_limit()
-returns trigger
-language plpgsql
-as $$
-begin
-  perform public.enforce_rate_limit('contact_email', lower(new.email), 3, interval '1 hour');
-  return new;
-end;
-$$;
-
-create or replace function public.trg_newsletter_rate_limit()
-returns trigger
-language plpgsql
-as $$
-begin
-  perform public.enforce_rate_limit('newsletter_email', lower(new.email), 2, interval '1 day');
-  return new;
-end;
-$$;
-
-create or replace function public.trg_itinerary_queries_rate_limit()
-returns trigger
-language plpgsql
-as $$
-declare
-  v_phone text;
-begin
-  v_phone := regexp_replace(new.whatsapp_number, '[^0-9]', '', 'g');
-  perform public.enforce_rate_limit('itinerary_whatsapp', v_phone, 5, interval '1 day');
-  return new;
-end;
-$$;
-
+-- Legacy DB-level rate-limit triggers removed.
+-- Rate limiting is handled in the server/API (per-IP buckets) so behavior is consistent and returns proper 429s.
 drop trigger if exists trg_contact_messages_rate_limit on public.contact_messages;
-create trigger trg_contact_messages_rate_limit
-before insert on public.contact_messages
-for each row
-execute function public.trg_contact_messages_rate_limit();
-
 drop trigger if exists trg_newsletter_rate_limit on public.newsletter_subscribers;
-create trigger trg_newsletter_rate_limit
-before insert on public.newsletter_subscribers
-for each row
-execute function public.trg_newsletter_rate_limit();
-
 drop trigger if exists trg_itinerary_queries_rate_limit on public.itinerary_queries;
-create trigger trg_itinerary_queries_rate_limit
-before insert on public.itinerary_queries
-for each row
-execute function public.trg_itinerary_queries_rate_limit();
+drop function if exists public.trg_contact_messages_rate_limit();
+drop function if exists public.trg_newsletter_rate_limit();
+drop function if exists public.trg_itinerary_queries_rate_limit();
+drop function if exists public.enforce_rate_limit(text, text, int, interval);
+drop table if exists public.rate_limits;
 
 -- keep updated_at fresh
 create or replace function public.set_updated_at()
@@ -335,6 +261,8 @@ alter table public.app_state enable row level security;
 alter table public.itinerary_queries enable row level security;
 alter table public.contact_messages enable row level security;
 alter table public.newsletter_subscribers enable row level security;
+alter table public.rate_limit_events enable row level security;
+alter table public.turnstile_token_replay enable row level security;
 
 -- Public can read the website content.
 drop policy if exists "public read app_state" on public.app_state;
@@ -432,6 +360,22 @@ for insert
 to anon, authenticated
 with check (false);
 
+drop policy if exists "no public access rate_limit_events" on public.rate_limit_events;
+create policy "no public access rate_limit_events"
+on public.rate_limit_events
+for all
+to anon, authenticated
+using (false)
+with check (false);
+
+drop policy if exists "no public access turnstile_token_replay" on public.turnstile_token_replay;
+create policy "no public access turnstile_token_replay"
+on public.turnstile_token_replay
+for all
+to anon, authenticated
+using (false)
+with check (false);
+
 drop policy if exists "admin read newsletter_subscribers" on public.newsletter_subscribers;
 create policy "admin read newsletter_subscribers"
 on public.newsletter_subscribers
@@ -452,6 +396,8 @@ revoke insert on table public.contact_messages from anon, authenticated;
 grant select on table public.contact_messages to authenticated;
 revoke insert on table public.newsletter_subscribers from anon, authenticated;
 grant select on table public.newsletter_subscribers to authenticated;
+revoke all on table public.rate_limit_events from anon, authenticated;
+revoke all on table public.turnstile_token_replay from anon, authenticated;
 
 -- Allow frontend to call the admin-check RPC without exposing admin_users table.
 grant execute on function public.is_admin() to anon, authenticated;

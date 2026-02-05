@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { SiteContent } from '../types';
 import { submitContactMessage } from '../services/contactMessageService';
-import Turnstile from '../components/Turnstile';
+import TurnstileAuthModal from '../components/TurnstileAuthModal';
 import { safeMailtoHref } from '../utils/sanitizeUrl';
 
 interface ContactPageProps {
@@ -51,14 +51,40 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const [errors, setErrors] = useState<{ name?: string; email?: string; whatsappNumber?: string; message?: string }>({});
     const [honeypot, setHoneypot] = useState('');
     const [notice, setNotice] = useState<string>('');
-    const [turnstileToken, setTurnstileToken] = useState('');
-    const [turnstileError, setTurnstileError] = useState('');
+    const [authOpen, setAuthOpen] = useState(false);
+    const authAuthorizeRef = useRef<((token: string) => Promise<void>) | null>(null);
+    const postAuthActionRef = useRef<(() => void) | null>(null);
+    const wasAuthOpenRef = useRef(false);
+    const pendingTabRef = useRef<Window | null>(null);
     const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
 
     const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
-    const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-    const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in' || window.location?.hostname === 'revrom.vercel.app');
-    const requiresTurnstile = isProduction && !!turnstileSiteKey;
+
+    useEffect(() => {
+        // Run "post-auth" actions only after the modal is fully closed (so the widget is destroyed first).
+        const wasOpen = wasAuthOpenRef.current;
+        if (wasOpen && !authOpen) {
+            const fn = postAuthActionRef.current;
+            postAuthActionRef.current = null;
+            try { fn?.(); } finally {
+                // Always clear pending tab ref after we attempt the post-auth action.
+                pendingTabRef.current = null;
+            }
+        }
+        wasAuthOpenRef.current = authOpen;
+    }, [authOpen]);
+
+    const cancelAuth = () => {
+        postAuthActionRef.current = null;
+        authAuthorizeRef.current = null;
+        try {
+            const w = pendingTabRef.current;
+            if (w && !w.closed) w.close();
+        } catch {}
+        pendingTabRef.current = null;
+        setIsSubmitting(false);
+        setAuthOpen(false);
+    };
 
     const validateForm = () => {
         const newErrors: { name?: string; email?: string; whatsappNumber?: string; message?: string } = {};
@@ -87,19 +113,6 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
         return newErrors;
     };
 
-    const isRateLimited = (): boolean => {
-        try {
-            const key = 'contact_last_submit_ts';
-            const last = Number(localStorage.getItem(key) || '0');
-            const now = Date.now();
-            if (last && now - last < 30_000) return true;
-            localStorage.setItem(key, String(now));
-            return false;
-        } catch {
-            return false;
-        }
-    };
-
     const buildWhatsAppUrl = (payload: { name: string; email: string; whatsappNumber?: string; message: string }) => {
         const adminNumber = (siteContent.adminWhatsappNumber || '').replace(/\D/g, '');
         const text = `New website message\n\nName: ${payload.name}\nEmail: ${payload.email}\nWhatsApp: ${payload.whatsappNumber || ''}\n\n${payload.message}`;
@@ -117,7 +130,6 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setNotice('');
-        setTurnstileError('');
 
         if (honeypot.trim()) {
             setSubmitted(true);
@@ -136,69 +148,36 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             return;
         }
 
-        setIsSubmitting(true);
+        // Always authorize via Turnstile modal before opening WhatsApp.
         try {
-            // Save to DB unless the user is rate-limited (prevents spam). WhatsApp send still works.
-            if (isRateLimited()) {
-                setNotice('Too many attempts, try again later. Opening WhatsApp… (saving is temporarily limited)');
-            } else {
-                if (!isLocalhost && !turnstileToken) {
-                    setNotice('Please complete verification. Opening WhatsApp… (message will still send)');
-                } else {
-                    await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: turnstileToken || undefined });
-                    setTurnstileToken('');
-                }
-            }
-            setSubmitted(true);
-            setName('');
-            setEmail('');
-            setWhatsappNumber('');
-            setMessage('');
-            try { localStorage.removeItem('lastItinerary'); } catch (e) {}
-            setErrors({});
-
-            // Redirect to WhatsApp (more reliable than popup windows).
-            try {
-                const w = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                if (!w) window.location.href = whatsappUrl;
-            } catch {
-                window.location.href = whatsappUrl;
-            }
-        } catch (err: any) {
-            console.error(err);
-            // Even if DB save fails, still open WhatsApp for the customer.
-            const msg = String(err?.message || '');
-            const status = Number(err?.status || 0);
-            if (status === 429 || msg.toLowerCase().includes('rate limit')) {
-                setNotice('Too many attempts, try again later. Opening WhatsApp… (saving is temporarily limited)');
-            } else if (
-                status === 400 ||
-                status === 401 ||
-                status === 403 ||
-                msg.toLowerCase().includes('turnstile') ||
-                msg.toLowerCase().includes('token') ||
-                msg.toLowerCase().includes('verification')
-            ) {
-                setNotice('Please complete verification. Opening WhatsApp… (message will still send)');
-            } else {
-                setNotice('Opening WhatsApp…');
-            }
-            try {
-                const w = window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
-                if (!w) window.location.href = whatsappUrl;
-            } catch {
-                window.location.href = whatsappUrl;
-            }
-        } finally {
-            setIsSubmitting(false);
+            pendingTabRef.current = window.open('', '_blank', 'noopener,noreferrer');
+        } catch {
+            pendingTabRef.current = null;
         }
+
+        authAuthorizeRef.current = async (token: string) => {
+            await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: token });
+        };
+
+        postAuthActionRef.current = () => {
+            try {
+                const w = pendingTabRef.current;
+                if (w && !w.closed) w.location.href = whatsappUrl;
+                else window.location.href = whatsappUrl;
+            } catch {
+                window.location.href = whatsappUrl;
+            }
+        };
+
+        setIsSubmitting(true);
+        setAuthOpen(true);
+        return;
     };
 
     const emailConfigured = !!contactEmailHref;
 
     const handleEmailInstead = async () => {
         setNotice('');
-        setTurnstileError('');
 
         const formErrors = validateForm();
         if (Object.keys(formErrors).length > 0) {
@@ -212,55 +191,49 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
             return;
         }
 
-        setIsSubmitting(true);
-        try {
-            // Same saving behavior as WhatsApp: best-effort.
-            if (isRateLimited()) {
-                setNotice('Too many attempts, try again later. Opening email… (saving is temporarily limited)');
-            } else {
-                if (!isLocalhost && !turnstileToken) {
-                    setNotice('Please complete verification. Opening email… (message will still send)');
-                } else {
-                    await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: turnstileToken || undefined });
-                    setTurnstileToken('');
-                }
-            }
+        // Always authorize via Turnstile modal before opening email.
+        authAuthorizeRef.current = async (token: string) => {
+            await submitContactMessage({ name, email, whatsappNumber: whatsappNumber.trim() || undefined, message, turnstileToken: token });
+        };
 
-            setSubmitted(true);
-            setName('');
-            setEmail('');
-            setWhatsappNumber('');
-            setMessage('');
-            try { localStorage.removeItem('lastItinerary'); } catch (e) {}
-            setErrors({});
-
-            window.location.href = href;
-        } catch (err: any) {
-            console.error(err);
-            const msg = String(err?.message || '');
-            const status = Number(err?.status || 0);
-            if (status === 429 || msg.toLowerCase().includes('rate limit')) {
-                setNotice('Too many attempts, try again later. Opening email… (saving is temporarily limited)');
-            } else if (
-                status === 400 ||
-                status === 401 ||
-                status === 403 ||
-                msg.toLowerCase().includes('turnstile') ||
-                msg.toLowerCase().includes('token') ||
-                msg.toLowerCase().includes('verification')
-            ) {
-                setNotice('Please complete verification. Opening email… (message will still send)');
-            } else {
-                setNotice('Opening email…');
-            }
+        postAuthActionRef.current = () => {
             try { window.location.href = href; } catch {}
-        } finally {
-            setIsSubmitting(false);
-        }
+        };
+
+        setIsSubmitting(true);
+        setAuthOpen(true);
+        return;
     };
 
     return (
         <div className="bg-background dark:bg-dark-background pb-40 sm:pb-24">
+            {authOpen ? (
+                <TurnstileAuthModal
+                    siteKey={turnstileSiteKey}
+                    action="forms:contact"
+                    title="Verify to continue"
+                    description="Complete verification to send your message."
+                    onCancel={cancelAuth}
+                    authorize={async (token) => {
+                        const fn = authAuthorizeRef.current;
+                        if (!fn) throw new Error('Verification is not ready. Please try again.');
+                        await fn(token);
+                    }}
+                    onAuthorized={() => {
+                        setSubmitted(true);
+                        setName('');
+                        setEmail('');
+                        setWhatsappNumber('');
+                        setMessage('');
+                        try { localStorage.removeItem('lastItinerary'); } catch (e) {}
+                        setErrors({});
+                        setNotice('');
+                        authAuthorizeRef.current = null;
+                        setIsSubmitting(false);
+                        setAuthOpen(false);
+                    }}
+                />
+            ) : null}
             <div className="relative h-48 sm:h-64 bg-cover bg-center contact-hero-bg">
                 <div className="absolute inset-0 bg-black/50"></div>
                 <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
@@ -326,18 +299,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                     {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
                                     {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
                                 </div>
-                                {requiresTurnstile ? (
-                                    <div className="space-y-2">
-                                        <div className="text-sm font-semibold text-foreground dark:text-dark-foreground">Bot Verification</div>
-                                        <Turnstile
-                                            siteKey={turnstileSiteKey}
-                                            theme="auto"
-                                            onToken={(t) => setTurnstileToken(t)}
-                                            onError={(m) => setTurnstileError(m)}
-                                        />
-                                        {turnstileError ? <p className="mt-1 text-sm text-red-600 dark:text-red-300">{turnstileError}</p> : null}
-                                    </div>
-                                ) : null}
+                                
                                 <div>
                                     <div className="hidden sm:flex flex-col sm:flex-row gap-3">
                                         <button 

@@ -42,7 +42,11 @@ const fromRow = (row: ItineraryQueryRow): ItineraryQuery => ({
 export const submitItineraryQuery = async (lead: ItineraryQuery): Promise<void> => {
   // Require Turnstile token on production/preview to prevent automated spam.
   const token = (lead as any)?.turnstileToken as string | undefined;
-  if (!token) return; // best-effort: still allow the UX (WhatsApp) without saving a lead.
+  if (!token) {
+    const err: any = new Error('Please complete verification.');
+    err.status = 400;
+    throw err;
+  }
 
   const res = await fetch('/api/forms/lead', {
     method: 'POST',

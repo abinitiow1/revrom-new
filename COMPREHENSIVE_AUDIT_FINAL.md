@@ -229,7 +229,7 @@ destinationsMatch(t.destination, 'Ladakh')  // Matches all variations
 - Likely cause: `TURNSTILE_SECRET_KEY` environment variable issue in Vercel
 
 **Action Required:**
-1. Verify `TURNSTILE_SECRET_KEY` in Vercel (should be `0x4AAAAAACWGt5rFi_OIPGNP4y3Zt1y0dv0` - 47 chars)
+1. Verify `TURNSTILE_SECRET_KEY` in Vercel (should start with `0x` and be the **secret** key, not the site key)
 2. Verify `TURNSTILE_EXPECTED_HOSTNAMES` set to `revrom.vercel.app`
 3. Trigger manual redeploy in Vercel if changed
 4. Clear browser cache (Ctrl+Shift+Delete)

@@ -42,7 +42,7 @@
 2. Verify `TURNSTILE_SECRET_KEY` is set correctly:
    - Must be the **SECRET KEY** (not the site key)
    - From Cloudflare Turnstile Dashboard
-   - Should look like: `0x4AAAAAACWGt5rFi_OIPGNP4y3Zt1y0dv0` (47 chars)
+   - Should start with `0x` (secret key format) and match the secret shown in Cloudflare
    - Check: No extra spaces, no quotes, no copy-paste errors
 3. Also verify `TURNSTILE_EXPECTED_HOSTNAMES` is set to `revrom.vercel.app`
 4. Click "Deploy" to redeploy with new env vars

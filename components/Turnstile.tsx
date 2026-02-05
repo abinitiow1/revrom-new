@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { getHostname } from '../utils/env';
 import { logError, logWarn, logInfo, logDebug } from '../utils/logger';
 import { loadTurnstile } from '../utils/turnstileLoader';
@@ -16,6 +16,7 @@ type Props = {
   onError?: (message: string) => void;
   theme?: 'auto' | 'light' | 'dark';
   size?: 'normal' | 'compact';
+  action?: string;
   /**
    * Optional: lazy-mount the widget until visible or interacted with.
    * This reduces cold-load flakiness and avoids multiple widgets competing at startup.
@@ -33,19 +34,32 @@ const ERROR_MAP: Record<string, string> = {
   '110500': 'Challenge timed out',
   '110600': 'Challenge failed',
   '600000': 'Internal error - try again',
-  '600010': 'Configuration error - check that www.revrom.in is added to allowed domains in Cloudflare Turnstile dashboard',
-  '600020': 'Execution error - refresh and try again',
+  '600010': 'Verification could not start (configuration / browser privacy). If you are in private mode or using strict tracking prevention, try normal mode or a different browser.',
+  '600020': 'Verification failed to execute (temporary). Refresh and try again.',
 };
 
 const TRANSIENT_ERROR_CODES = new Set(['600010', '600020']);
 
-export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', size = 'normal', lazy = false }: Props) {
+export type TurnstileHandle = {
+  getToken: () => string;
+  reset: () => void;
+};
+
+const Turnstile = forwardRef<TurnstileHandle, Props>(function Turnstile(
+  { siteKey, onToken, onError, theme = 'auto', size = 'normal', action, lazy = false }: Props,
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const [state, setState] = useState<'loading' | 'ready' | 'error' | 'verified'>('loading');
   const [errorMsg, setErrorMsg] = useState('');
   const mountedRef = useRef(true);
   const renderAttemptedRef = useRef(false);
+  const tokenRef = useRef<string>('');
+  const stateRef = useRef<'loading' | 'ready' | 'error' | 'verified'>('loading');
+  const verifiedRef = useRef(false);
+  const apiRef = useRef<TurnstileAPI | null>(null);
+  const renderWidgetRef = useRef<((api: TurnstileAPI) => void) | null>(null);
   const onTokenRef = useRef(onToken);
   const onErrorRef = useRef(onError);
   const retryAttemptedRef = useRef(false);
@@ -57,6 +71,86 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     onErrorRef.current = onError;
   }, [onToken, onError]);
 
+  const setStateSafe = (next: 'loading' | 'ready' | 'error' | 'verified') => {
+    stateRef.current = next;
+    setState(next);
+  };
+
+  const clearToken = () => {
+    verifiedRef.current = false;
+    tokenRef.current = '';
+    onTokenRef.current?.('');
+  };
+
+  const clearRetryTimer = () => {
+    if (retryTimerRef.current != null) {
+      window.clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  };
+
+  const performReset = (reason: 'user' | 'imperative' | 'expired' | 'transient') => {
+    const api = apiRef.current || window.turnstile;
+    const id = widgetIdRef.current;
+
+    clearRetryTimer();
+    retryAttemptedRef.current = false;
+    renderAttemptedRef.current = false;
+
+    clearToken();
+    setErrorMsg('');
+    setStateSafe('loading');
+
+    if (!api || !id) {
+      logWarn('Turnstile', `Reset requested (${reason}) but widget is not ready yet`);
+      setStateSafe('ready');
+      return;
+    }
+
+    try {
+      if (api.reset) {
+        api.reset(id);
+        setStateSafe('ready');
+        logInfo('Turnstile', `Widget reset (${reason})`);
+        return;
+      }
+    } catch (e: unknown) {
+      logWarn('Turnstile', `Reset failed (${reason})`, e instanceof Error ? e.message : String(e));
+    }
+
+    try {
+      api.remove?.(id);
+    } catch (e: unknown) {
+      logWarn('Turnstile', `Remove failed (${reason})`, e instanceof Error ? e.message : String(e));
+    } finally {
+      widgetIdRef.current = null;
+      const el = containerRef.current;
+      if (el) {
+        delete el.dataset.turnstileWidgetId;
+        delete el.dataset.turnstileBound;
+      }
+    }
+
+    try {
+      renderWidgetRef.current?.(api);
+    } catch (e: unknown) {
+      logWarn('Turnstile', `Re-render failed (${reason})`, e instanceof Error ? e.message : String(e));
+      setStateSafe('error');
+      setErrorMsg('Verification failed to restart. Please try again.');
+    }
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getToken: () => tokenRef.current,
+      reset: () => {
+        performReset('imperative');
+      },
+    }),
+    []
+  );
+
   // Debug logging on mount
   useEffect(() => {
     const hostname = getHostname();
@@ -64,7 +158,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     logDebug('Turnstile', 'Site key status', siteKey ? 'provided' : 'missing');
     
     if (!siteKey) {
-      setState('error');
+      setStateSafe('error');
       setErrorMsg('Site key missing - VITE_TURNSTILE_SITE_KEY not set in Vercel');
       onError?.('Missing site key');
       logError('Turnstile', 'Site key missing - verification will fail');
@@ -72,7 +166,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     }
     
     if (!siteKey.startsWith('0x')) {
-      setState('error');
+      setStateSafe('error');
       setErrorMsg('Invalid site key format');
       onError?.('Invalid key format');
       logError('Turnstile', 'Site key format invalid - must start with "0x"');
@@ -87,54 +181,62 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     renderAttemptedRef.current = false;
     retryAttemptedRef.current = false;
 
-    const clearRetryTimer = () => {
-      if (retryTimerRef.current != null) {
-        window.clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
+    const bindContainer = (widgetId: string) => {
+      const el = containerRef.current;
+      if (!el) return;
+      el.dataset.turnstileBound = '1';
+      el.dataset.turnstileWidgetId = widgetId;
+    };
+
+    const readBoundWidgetId = () => {
+      const el = containerRef.current;
+      const id = el?.dataset?.turnstileWidgetId;
+      return id && id.length ? id : null;
     };
 
     const renderWidget = (api: TurnstileAPI) => {
       if (!mountedRef.current || !containerRef.current) return;
       if (widgetIdRef.current || renderAttemptedRef.current) return;
+
+      // StrictMode / double-initialization safety: if this DOM node already has a widget bound, reuse it.
+      const existingId = readBoundWidgetId();
+      if (existingId) {
+        widgetIdRef.current = existingId;
+        const existingToken = api.getResponse?.(existingId) || '';
+        if (existingToken) tokenRef.current = existingToken;
+        setStateSafe(existingToken ? 'verified' : 'ready');
+        setErrorMsg('');
+        return;
+      }
+
+      if (containerRef.current.dataset.turnstileBound === '1') {
+        // Bound without an id; avoid re-rendering.
+        return;
+      }
       
       renderAttemptedRef.current = true;
       logInfo('Turnstile', 'Rendering widget');
+      containerRef.current.dataset.turnstileBound = '1';
 
       try {
         widgetIdRef.current = api.render(containerRef.current, {
           sitekey: siteKey,
           theme,
           size,
+          action: action?.trim() || undefined,
           callback: (token: string) => {
             logInfo('Turnstile', 'Token verified successfully');
             if (mountedRef.current) {
-              setState('verified');
+              verifiedRef.current = true;
+              tokenRef.current = token;
+              setStateSafe('verified');
               setErrorMsg('');
               onTokenRef.current?.(token);
             }
           },
           'expired-callback': () => {
             logWarn('Turnstile', 'Token expired, clearing and attempting auto-refresh');
-            // Clear expired token immediately
-            onTokenRef.current?.('');
-            
-            if (mountedRef.current && widgetIdRef.current && api.reset) {
-              try {
-                api.reset(widgetIdRef.current);
-                setState('ready');
-                logInfo('Turnstile', 'Widget reset after expiry');
-              } catch (resetError: unknown) {
-                const errorMsg = resetError instanceof Error ? resetError.message : 'Unknown error during reset';
-                logError('Turnstile', 'Reset failed after token expiry', errorMsg);
-                setState('error');
-                setErrorMsg('Verification expired - click retry');
-              }
-            } else {
-              logWarn('Turnstile', 'Cannot reset widget - missing API or mounted state');
-              setState('error');
-              setErrorMsg('Verification expired - click retry');
-            }
+            performReset('expired');
           },
           'error-callback': (code: string) => {
             const hostname = getHostname();
@@ -142,49 +244,43 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
             logError('Turnstile', `Verification error (${code})`, `Hostname: ${hostname}, Error: ${errorDescription}`);
             
             if (mountedRef.current) {
-              // Clear token on error
-              onTokenRef.current?.('');
+              // After a token is verified, ignore all subsequent errors until expiry.
+              // This prevents late PAT/bootstrap errors from downgrading the UI or clearing state.
+              if (verifiedRef.current && tokenRef.current) {
+                logWarn('Turnstile', `Ignoring error (${code}) because token is already verified`);
+                return;
+              }
+
+              // Durable token rule:
+              // - Do NOT clear a valid token here.
+              // - Ignore transient errors if we already have a verified token.
+              if (stateRef.current === 'verified' && tokenRef.current && TRANSIENT_ERROR_CODES.has(code)) {
+                logWarn('Turnstile', `Ignoring transient error (${code}) because token is already verified`);
+                return;
+              }
 
               // Transient first-load flakiness: retry once after a short delay.
               if (TRANSIENT_ERROR_CODES.has(code) && !retryAttemptedRef.current) {
                 retryAttemptedRef.current = true;
                 clearRetryTimer();
-                setState('loading');
+                setStateSafe('loading');
                 setErrorMsg('');
 
                 retryTimerRef.current = window.setTimeout(() => {
                   if (!mountedRef.current || !widgetIdRef.current) return;
-                  logWarn('Turnstile', `Transient error (${code}) - retrying once`);
+                  logWarn('Turnstile', `Transient error (${code}) - retrying once (after delay)`);
 
-                  try {
-                    if (api.reset) {
-                      api.reset(widgetIdRef.current);
-                      setState('ready');
-                      return;
-                    }
-                  } catch (e: unknown) {
-                    logWarn('Turnstile', 'Reset failed during retry', e instanceof Error ? e.message : String(e));
-                  }
-
-                  try {
-                    if (api.remove) {
-                      api.remove(widgetIdRef.current);
-                    }
-                  } catch (e: unknown) {
-                    logWarn('Turnstile', 'Remove failed during retry', e instanceof Error ? e.message : String(e));
-                  } finally {
-                    widgetIdRef.current = null;
-                    renderAttemptedRef.current = false;
-                  }
-
-                  renderWidget(api);
-                }, 500);
+                  performReset('transient');
+                }, 1500);
 
                 return;
               }
 
-              const msg = `Verification failed (error ${code})`;
-              setState('error');
+              // Only show UI errors for "real" failures.
+              // If the error code isn't mapped, keep it generic.
+              const mapped = ERROR_MAP[code];
+              const msg = mapped ? `${mapped} (code ${code})` : `Verification failed (error ${code})`;
+              setStateSafe('error');
               setErrorMsg(msg);
               onErrorRef.current?.(msg);
             }
@@ -192,17 +288,17 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
         });
         
         logInfo('Turnstile', 'Widget rendered', `ID: ${widgetIdRef.current}`);
+        if (widgetIdRef.current) bindContainer(widgetIdRef.current);
         if (mountedRef.current) {
-          setState('ready');
+          // Do not overwrite a synchronously-verified token (rare, but can happen).
+          if (!tokenRef.current && stateRef.current !== 'verified') setStateSafe('ready');
         }
       } catch (err: unknown) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error';
         logError('Turnstile', 'Widget render failed', errorMsg);
         if (mountedRef.current) {
-          setState('error');
+          setStateSafe('error');
           setErrorMsg('Failed to render widget: ' + errorMsg);
-          // Clear token on error
-          onTokenRef.current?.('');
         }
       }
     };
@@ -214,13 +310,15 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       try {
         const api = await loadTurnstile();
         if (!mountedRef.current) return;
+        apiRef.current = api;
+        renderWidgetRef.current = renderWidget;
         logInfo('Turnstile', 'Script ready, rendering');
         renderWidget(api);
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : String(e);
         logError('Turnstile', 'Failed to load Turnstile', msg);
         if (mountedRef.current) {
-          setState('error');
+          setStateSafe('error');
           setErrorMsg('Failed to load Turnstile. Please retry.');
           onErrorRef.current?.('Failed to load Turnstile');
         }
@@ -232,6 +330,8 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
     return () => {
       mountedRef.current = false;
       clearRetryTimer();
+      apiRef.current = null;
+      renderWidgetRef.current = null;
       // Cleanup: Remove widget and clear token
       if (widgetIdRef.current && window.turnstile?.remove) {
         try { 
@@ -243,10 +343,15 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
         }
         widgetIdRef.current = null;
       }
-      // Clear token on unmount
-      onTokenRef.current?.('');
+      // Do NOT clear token on unmount. The token belongs to the parent form session,
+      // and clearing it here can race with navigation / StrictMode lifecycles.
+      const el = containerRef.current;
+      if (el) {
+        delete el.dataset.turnstileWidgetId;
+        delete el.dataset.turnstileBound;
+      }
     };
-  }, [siteKey, theme, size, shouldLoad]);
+  }, [siteKey, shouldLoad]);
 
   // Optional lazy-mount: load when widget is visible.
   useEffect(() => {
@@ -282,22 +387,7 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
 
   const handleRetry = () => {
     logInfo('Turnstile', 'User clicked retry button');
-    if (widgetIdRef.current && window.turnstile?.reset) {
-      try {
-        setState('loading');
-        setErrorMsg('');
-        window.turnstile.reset(widgetIdRef.current);
-        setState('ready');
-        logInfo('Turnstile', 'Widget reset successfully');
-      } catch (resetError: unknown) {
-        const errorMsg = resetError instanceof Error ? resetError.message : 'Unknown error';
-        logError('Turnstile', 'Reset failed on retry, reloading page', errorMsg);
-        window.location.reload();
-      }
-    } else {
-      logWarn('Turnstile', 'Cannot reset widget, reloading page');
-      window.location.reload();
-    }
+    performReset('user');
   };
 
   return (
@@ -333,4 +423,6 @@ export default function Turnstile({ siteKey, onToken, onError, theme = 'auto', s
       )}
     </div>
   );
-}
+});
+
+export default Turnstile;

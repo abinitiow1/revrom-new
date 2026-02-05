@@ -1,8 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { SiteContent } from '../types';
 import { subscribeNewsletter } from '../services/newsletterService';
-import Turnstile from './Turnstile';
+import TurnstileAuthModal from './TurnstileAuthModal';
 import { safeExternalUrl, safeMailtoHref } from '../utils/sanitizeUrl';
 
 interface FooterProps {
@@ -66,18 +66,22 @@ const Footer: React.FC<FooterProps> = ({
   const [newsletterToast, setNewsletterToast] = useState<string | null>(null);
   const [newsletterFormError, setNewsletterFormError] = useState<string>('');
   const [newsletterHoneypot, setNewsletterHoneypot] = useState('');
-  const [turnstileToken, setTurnstileToken] = useState('');
-  const [turnstileError, setTurnstileError] = useState('');
+  const [authOpen, setAuthOpen] = useState(false);
+  const authAuthorizeRef = useRef<((token: string) => Promise<void>) | null>(null);
+  const authResultRef = useRef<{ duplicate?: boolean } | null>(null);
   const facebookUrl = safeExternalUrl(siteContent.facebookUrl);
   const instagramUrl = safeExternalUrl(siteContent.instagramUrl);
   const youtubeUrl = safeExternalUrl(siteContent.youtubeUrl);
   const contactEmailHref = safeMailtoHref(siteContent.contactEmail);
 
   const turnstileSiteKey = String((import.meta as any).env?.VITE_TURNSTILE_SITE_KEY || '').trim();
-  const isLocalhost = typeof window !== 'undefined' && window.location?.hostname === 'localhost';
-  const isProduction = typeof window !== 'undefined' && (window.location?.hostname === 'revrom.in' || window.location?.hostname === 'www.revrom.in' || window.location?.hostname === 'revrom.vercel.app');
-  // Require Turnstile verification on production when site key is configured
-  const needsVerification = isProduction && !!turnstileSiteKey;
+
+  const cancelAuth = () => {
+    authAuthorizeRef.current = null;
+    authResultRef.current = null;
+    setNewsletterSubmitting(false);
+    setAuthOpen(false);
+  };
 
   const showNewsletterToast = (text: string) => {
     setNewsletterToast(text);
@@ -92,6 +96,29 @@ const Footer: React.FC<FooterProps> = ({
             {newsletterToast}
           </div>
         )}
+        {authOpen ? (
+          <TurnstileAuthModal
+            siteKey={turnstileSiteKey}
+            action="forms:newsletter"
+            title="Verify to subscribe"
+            description="Complete verification to subscribe to the newsletter."
+            onCancel={cancelAuth}
+            authorize={async (token) => {
+              const fn = authAuthorizeRef.current;
+              if (!fn) throw new Error('Verification is not ready. Please try again.');
+              await fn(token);
+            }}
+            onAuthorized={() => {
+              const result = authResultRef.current;
+              authResultRef.current = null;
+              authAuthorizeRef.current = null;
+              setNewsletterEmail('');
+              showNewsletterToast(result?.duplicate ? 'Already subscribed' : 'Thanks for subscribing');
+              setNewsletterSubmitting(false);
+              setAuthOpen(false);
+            }}
+          />
+        ) : null}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           {/* Brand Column */}
           <div className="space-y-6">
@@ -189,65 +216,12 @@ const Footer: React.FC<FooterProps> = ({
                   return;
                 }
 
-                // Client-side throttle: only block if the previous *successful* submit was recent.
-                // Do not set the timestamp before the request, otherwise a failed request "locks" the user out.
-                try {
-                  const key = 'newsletter_last_submit_ts';
-                  const last = Number(localStorage.getItem(key) || '0');
-                  const now = Date.now();
-                  if (last && now - last < 30_000) {
-                    showNewsletterToast('Please wait and try again');
-                    return;
-                  }
-                } catch {}
-
+                authResultRef.current = null;
+                authAuthorizeRef.current = async (token: string) => {
+                  authResultRef.current = await subscribeNewsletter(email, { turnstileToken: token });
+                };
                 setNewsletterSubmitting(true);
-                try {
-                  if (needsVerification) {
-                    if (!turnstileSiteKey) {
-                      setTurnstileError('Missing VITE_TURNSTILE_SITE_KEY. Add it in Vercel/Cloudflare and redeploy.');
-                      return;
-                    }
-                    if (!turnstileToken) {
-                      setTurnstileError('Please complete verification.');
-                      return;
-                    }
-                  }
-                  const result = await subscribeNewsletter(email, { turnstileToken: turnstileToken || undefined });
-                  try {
-                    localStorage.setItem('newsletter_last_submit_ts', String(Date.now()));
-                  } catch {}
-                  setNewsletterEmail('');
-                  setTurnstileToken('');
-                  showNewsletterToast(result?.duplicate ? 'Already subscribed' : 'Thanks for subscribing');
-                } catch (err: any) {
-                  const msg = String(err?.message || '');
-                  const status = Number(err?.status || 0);
-                  if (status === 429 || msg.toLowerCase().includes('rate limit')) {
-                    showNewsletterToast('Too many attempts, try again later');
-                    return;
-                  }
-
-                  // Common: token expired / reused or missing.
-                  if (
-                    msg.toLowerCase().includes('turnstile') ||
-                    msg.toLowerCase().includes('verification') ||
-                    msg.toLowerCase().includes('token')
-                  ) {
-                    setTurnstileToken('');
-                    setTurnstileError('Please complete verification.');
-                  }
-
-                  if (msg.toLowerCase().includes('duplicate') || msg.toLowerCase().includes('already')) {
-                    showNewsletterToast('Already subscribed');
-                    return;
-                  }
-
-                  // Surface the actual server error (safe: it never contains secrets, only config/table hints).
-                  showNewsletterToast(msg || 'Could not subscribe');
-                } finally {
-                  setNewsletterSubmitting(false);
-                }
+                setAuthOpen(true);
               }}
             >
               <div className="hidden">
@@ -267,31 +241,12 @@ const Footer: React.FC<FooterProps> = ({
                 onChange={(e) => {
                   setNewsletterEmail(e.target.value);
                   if (newsletterFormError) setNewsletterFormError('');
-                  if (turnstileError) setTurnstileError('');
                 }}
                 disabled={newsletterSubmitting}
                 className="w-full p-4 text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
               {newsletterFormError ? (
                 <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{newsletterFormError}</div>
-              ) : null}
-              {needsVerification && turnstileSiteKey ? (
-                <div className="space-y-2">
-                  <Turnstile
-                    siteKey={turnstileSiteKey}
-                    theme="auto"
-                    size="compact"
-                    lazy={true}
-                    onToken={(t) => {
-                      setTurnstileToken(t);
-                      setTurnstileError('');
-                    }}
-                    onError={(m) => setTurnstileError(m)}
-                  />
-                  {turnstileError ? (
-                    <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{turnstileError}</div>
-                  ) : null}
-                </div>
               ) : null}
               <button
                 type="submit"

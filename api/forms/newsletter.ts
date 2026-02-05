@@ -5,20 +5,20 @@ export const config = { runtime: 'nodejs' };
 
 export default async function handler(req: any, res: any) {
   try {
-    if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed.' });
+    if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed.' }, { 'Cache-Control': 'no-store' });
 
-    rateLimitOrThrow(req, 30, 10 * 60 * 1000, 'forms:newsletter'); // 30 requests / 10 minutes / IP
+    await rateLimitOrThrow(req, 5, 5 * 60 * 1000, 'forms:newsletter'); // 5 requests / 5 minutes / IP
 
     const body = await readJsonBody(req);
     const turnstileToken = String(body?.turnstileToken || '').trim();
-    await verifyTurnstileOrThrow(req, turnstileToken);
+    await verifyTurnstileOrThrow(req, turnstileToken, 'forms:newsletter');
 
     const email = String(body?.email || '')
       .replace(/[\s\u200B-\u200D\uFEFF]/g, '')
       .trim()
       .toLowerCase();
-    if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' });
-    if (email.length > 254) return sendJson(res, 400, { error: 'Email is too long.' });
+    if (!email || !/\S+@\S+\.\S+/.test(email)) return sendJson(res, 400, { error: 'Enter a valid email.' }, { 'Cache-Control': 'no-store' });
+    if (email.length > 254) return sendJson(res, 400, { error: 'Email is too long.' }, { 'Cache-Control': 'no-store' });
 
     const supabase = getSupabaseAdmin() as any;
     const { error } = await supabase.from('newsletter_subscribers').insert({ email } as any);
@@ -34,6 +34,13 @@ export default async function handler(req: any, res: any) {
     return sendJson(res, 200, { ok: true }, { 'Cache-Control': 'no-store' });
   } catch (e: any) {
     const status = e?.statusCode || 500;
-    return sendJson(res, status, { error: e?.message || 'Server error.' }, { 'Cache-Control': 'no-store' });
+    const retryAfterSec = status === 429 ? Number(e?.retryAfterSec || 0) : 0;
+    const payload: any = { error: e?.message || 'Server error.' };
+    const headers: Record<string, string> = { 'Cache-Control': 'no-store' };
+    if (status === 429 && retryAfterSec > 0) {
+      payload.retryAfterSec = retryAfterSec;
+      headers['Retry-After'] = String(retryAfterSec);
+    }
+    return sendJson(res, status, payload, headers);
   }
 }

@@ -60,31 +60,21 @@ const DeparturesSection: React.FC<Props> = ({ trips, departures, siteContent, se
   }, [filteredDepartures, isMobile, showAll]);
 
   const handleInquiry = (trip: Trip, departure: Departure) => {
-    onAddInquiry({
-      tripId: trip.id,
-      tripTitle: trip.title,
-      name: 'Web User Inquiry',
-      planningTime: `${new Date(departure.startDate).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-      })} Expedition`,
-    });
-
-    const adminPhone = siteContent.adminWhatsappNumber.replace(/\D/g, '');
-    const message = `REVROM EXPEDITION INQUIRY:
-Tour Name: ${trip.title}
-Departure Date: ${new Date(departure.startDate).toLocaleDateString('en-IN', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    })}
-Status: ${departure.status.toUpperCase()}
-
-I'm interested in this tour. Please share pricing and details.`;
-    const w = window.open(`https://wa.me/${adminPhone}?text=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer');
+    // Authorization-gated flow: do not open external channels (WhatsApp/email) directly from the home page.
+    // Send users to the Booking page which requires Turnstile verification before opening WhatsApp/email.
     try {
-      if (w) (w as any).opener = null;
-    } catch {}
+      const sp = new URLSearchParams();
+      sp.set('view', 'booking');
+      sp.set('tripId', trip.id);
+      sp.set('from', 'departures');
+      sp.set(
+        'departureStart',
+        new Date(departure.startDate).toISOString().slice(0, 10),
+      );
+      window.location.hash = sp.toString();
+    } catch {
+      // Fallback: keep the current page if hash navigation fails.
+    }
   };
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -248,7 +238,7 @@ I'm interested in this tour. Please share pricing and details.`;
                           onClick={() => handleInquiry(dTrip, departure)}
                           className={`text-[13px] font-black uppercase tracking-widest transition-all ${departure.status === 'Sold Out' ? 'text-slate-300 pointer-events-none' : 'text-brand-primary hover:text-brand-primary-dark hover:translate-x-1'}`}
                         >
-                          {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire on WhatsApp →'}
+                          {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire →'}
                         </button>
                       </td>
                     </tr>
@@ -339,7 +329,7 @@ I'm interested in this tour. Please share pricing and details.`;
                           : 'adventure-gradient text-white shadow-lg hover:shadow-xl active:scale-95'
                       }`}
                     >
-                      {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire on WhatsApp →'}
+                      {departure.status === 'Sold Out' ? 'Sold Out' : 'Inquire →'}
                     </button>
                     {departure.status !== 'Sold Out' && (
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center opacity-70">

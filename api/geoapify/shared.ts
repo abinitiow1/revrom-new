@@ -4,12 +4,9 @@ type CacheEntry<T> = { value: T; expiresAt: number };
 
 const memoryCache = new Map<string, CacheEntry<any>>();
 
-// Turnstile tokens are intended to be single-use, but real UIs can trigger duplicate server calls
-// (double-clicks, retries, parallel requests). To avoid false negatives, cache successful
-// verifications for a short window keyed by token + IP.
-const verifiedTurnstileCache = new Map<string, number>();
-
 import { fetchWithTimeout } from './fetchWithTimeout.js';
+import { getSupabaseAdmin } from '../supabaseAdmin.js';
+import * as crypto from 'node:crypto';
 
 export const cacheGet = <T>(key: string): T | null => {
   const entry = memoryCache.get(key);
@@ -33,8 +30,8 @@ export const cacheSet = <T>(key: string, value: T, ttlMs: number) => {
   }
 };
 
-type RateState = { count: number; resetAt: number };
-const rateMap = new Map<string, RateState>();
+let lastRatePruneAtMs = 0;
+let lastReplayPruneAtMs = 0;
 
 export const getClientIp = (req: any) => {
   const xff = (req?.headers?.['x-forwarded-for'] || req?.headers?.['X-Forwarded-For']) as string | undefined;
@@ -44,32 +41,65 @@ export const getClientIp = (req: any) => {
   return 'unknown';
 };
 
-export const rateLimitOrThrow = (req: any, limit: number, windowMs: number, bucket: string = 'default') => {
+export const rateLimitOrThrow = async (req: any, limit: number, windowMs: number, bucket: string = 'default') => {
   const ip = getClientIp(req);
-  const key = `${bucket}:${ip}`;
   const now = Date.now();
-  const cur = rateMap.get(key);
-  if (!cur || now > cur.resetAt) {
-    rateMap.set(key, { count: 1, resetAt: now + windowMs });
-    return;
+  const windowStartIso = new Date(now - windowMs).toISOString();
+
+  const supabase = getSupabaseAdmin() as any;
+
+  // Insert an event (serverless-safe). We then count events in the last `windowMs`.
+  // If over limit, reject with Retry-After based on the oldest event in the window.
+  const insertRes = await supabase.from('rate_limit_events').insert({ bucket, ip } as any);
+  if (insertRes?.error) {
+    const err: any = new Error('Rate limiter failed (storage error).');
+    err.statusCode = 500;
+    throw err;
   }
-  if (cur.count >= limit) {
-    const retryAfterSec = Math.max(1, Math.ceil((cur.resetAt - now) / 1000));
+
+  const countRes = await supabase
+    .from('rate_limit_events')
+    .select('id', { count: 'exact', head: true })
+    .eq('bucket', bucket)
+    .eq('ip', ip)
+    .gte('created_at', windowStartIso);
+
+  if (countRes?.error) {
+    const err: any = new Error('Rate limiter failed (count error).');
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const count = Number(countRes?.count || 0);
+  if (count > limit) {
+    const oldestRes = await supabase
+      .from('rate_limit_events')
+      .select('created_at')
+      .eq('bucket', bucket)
+      .eq('ip', ip)
+      .gte('created_at', windowStartIso)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const oldestIso = String(oldestRes?.data?.created_at || '');
+    const oldestMs = oldestIso ? Date.parse(oldestIso) : Number.NaN;
+    const retryAfterSec =
+      Number.isFinite(oldestMs) ? Math.max(1, Math.ceil((windowMs - (now - oldestMs)) / 1000)) : Math.max(1, Math.ceil(windowMs / 1000));
+
     const err: any = new Error('Rate limit exceeded.');
     err.statusCode = 429;
     err.retryAfterSec = retryAfterSec;
     throw err;
   }
-  cur.count += 1;
-  rateMap.set(key, cur);
 
-  // Periodic pruning to avoid unbounded map size
-  if (rateMap.size > 5000) {
-    const now = Date.now();
-    for (const [k, v] of rateMap.entries()) {
-      if (v.resetAt + 60 * 60 * 1000 < now) rateMap.delete(k); // purge very old entries
-      if (rateMap.size <= 4000) break;
-    }
+  // Best-effort pruning (keeps table small without cron). Run at most every ~60s per instance.
+  if (now - lastRatePruneAtMs > 60_000) {
+    lastRatePruneAtMs = now;
+    const pruneBeforeIso = new Date(now - Math.max(windowMs * 6, 30 * 60 * 1000)).toISOString();
+    try {
+      await supabase.from('rate_limit_events').delete().lt('created_at', pruneBeforeIso);
+    } catch {}
   }
 };
 
@@ -111,8 +141,9 @@ export const getQuery = (req: any) => {
 export const sendJson = (res: any, statusCode: number, data: any, headers?: Record<string, string>) => {
   res.statusCode = statusCode;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  // Helps Vercel edge cache (best-effort); in-memory cache is still used.
-  res.setHeader('Cache-Control', 's-maxage=600, stale-while-revalidate=86400');
+  // API responses should not be cached by browsers/CDNs (forms/security endpoints especially).
+  // Geoapify endpoints have their own in-memory cache.
+  res.setHeader('Cache-Control', 'no-store');
   if (headers) {
     for (const [k, v] of Object.entries(headers)) res.setHeader(k, v);
   }
@@ -130,21 +161,21 @@ export const getGeoapifyApiKey = () => {
   return key;
 };
 
-export const verifyTurnstileOrThrow = async (req: any, token: string | undefined) => {
+export const verifyTurnstileOrThrow = async (req: any, token: string | undefined, expectedAction?: string) => {
   const secret = process.env.TURNSTILE_SECRET_KEY;
-  const vercelEnv = (process.env.VERCEL_ENV || process.env.NODE_ENV || '').toLowerCase();
-  const shouldEnforce = vercelEnv === 'production'; // Only enforce on production (revrom.in)
+  // Do NOT depend on deployment environment; APIs are attacked directly.
+  // If this function is called, Turnstile is required (fail closed if misconfigured).
+  const maxAgeSec = 120;
 
-  // Allow local/dev/preview to function without Turnstile configured
+  // Always enforce (preview deployments must also verify tokens).
+
+  // Production enforcement: Turnstile must be configured.
   if (!secret) {
-    if (shouldEnforce) {
       console.error('[Turnstile Server] CRITICAL: TURNSTILE_SECRET_KEY is not set in Vercel environment variables!');
       console.error('[Turnstile Server] Go to Vercel Dashboard → Settings → Environment Variables → Add TURNSTILE_SECRET_KEY');
       const err: any = new Error('Turnstile is not configured on the server (missing TURNSTILE_SECRET_KEY). Add it to Vercel Environment Variables.');
       err.statusCode = 500;
       throw err;
-    }
-    return;
   }
 
   // Validate secret key format (should start with 0x, not be the site key)
@@ -164,13 +195,7 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   }
 
   const ip = getClientIp(req);
-  const cacheKey = `${response}:${ip || 'unknown'}`;
   const now = Date.now();
-  const cachedOkUntil = verifiedTurnstileCache.get(cacheKey);
-  if (cachedOkUntil && now < cachedOkUntil) {
-    return;
-  }
-  if (cachedOkUntil && now >= cachedOkUntil) verifiedTurnstileCache.delete(cacheKey);
 
   const params = new URLSearchParams();
   params.set('secret', secret);
@@ -203,7 +228,8 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
     console.error('[Turnstile Server]   3. The secret key was regenerated and the old one is deployed');
     console.error('[Turnstile Server] Fix: Go to https://dash.cloudflare.com/ → Turnstile → Copy the SECRET key (not site key)');
     const err: any = new Error('Turnstile 401 error: Invalid TURNSTILE_SECRET_KEY. Make sure you copied the SECRET key (not site key) from Cloudflare Turnstile dashboard.');
-    err.statusCode = 401;
+    // Secret key is server configuration; treat as 500 so it gets fixed promptly.
+    err.statusCode = 500;
     throw err;
   }
 
@@ -217,41 +243,81 @@ export const verifyTurnstileOrThrow = async (req: any, token: string | undefined
   if (!data?.success) {
     const codes = Array.isArray(data?.['error-codes']) ? data['error-codes'].join(', ') : '';
     console.error('[Turnstile Server] Verification failed:', codes || 'unknown error');
-
-    // If we already verified this token recently for this IP, treat it as OK.
-    // This specifically avoids spurious "timeout-or-duplicate" failures from repeated calls.
-    if (cachedOkUntil && codes.includes('timeout-or-duplicate')) {
-      return;
-    }
-
+    // Treat Turnstile as an authorization gate: always reject failures.
+    // Especially: "timeout-or-duplicate" must never be accepted.
     const err: any = new Error(`Turnstile verification failed${codes ? ` (${codes})` : ''}.`);
     err.statusCode = 403;
     throw err;
   }
 
-  // Cache successful verification briefly to tolerate duplicate requests.
-  verifiedTurnstileCache.set(cacheKey, now + 2 * 60 * 1000); // 2 minutes
-  // Best-effort pruning to avoid unbounded growth.
-  if (verifiedTurnstileCache.size > 2000) {
-    for (const [k, exp] of verifiedTurnstileCache.entries()) {
-      if (exp <= now) verifiedTurnstileCache.delete(k);
-      if (verifiedTurnstileCache.size <= 1500) break;
-    }
-  }
-
-  // Optional: lock verification to expected hostnames (comma-separated list).
-  // Example: "revrom.vercel.app,revrom.in,www.revrom.in"
+  // Authorization hardening: require hostname allow-list and a fresh challenge timestamp.
+  // Example: TURNSTILE_EXPECTED_HOSTNAMES="revrom.in,www.revrom.in,revrom.vercel.app"
   const expected = String(process.env.TURNSTILE_EXPECTED_HOSTNAMES || '')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
-  if (expected.length) {
-    const hostname = String(data?.hostname || '').trim();
-    if (!hostname || !expected.includes(hostname)) {
-      const err: any = new Error(`Turnstile hostname mismatch (${hostname || 'missing'}).`);
+  if (!expected.length) {
+    const err: any = new Error('Turnstile server is misconfigured (missing TURNSTILE_EXPECTED_HOSTNAMES).');
+    err.statusCode = 500;
+    throw err;
+  }
+
+  const hostname = String(data?.hostname || '').trim();
+  if (!hostname || !expected.includes(hostname)) {
+    const err: any = new Error(`Turnstile hostname mismatch (${hostname || 'missing'}).`);
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const challengeTsRaw = String(data?.challenge_ts || '').trim();
+  const challengeTs = challengeTsRaw ? Date.parse(challengeTsRaw) : Number.NaN;
+  if (!Number.isFinite(challengeTs)) {
+    const err: any = new Error('Turnstile verification missing/invalid challenge timestamp.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const ageSec = Math.floor((now - challengeTs) / 1000);
+  if (ageSec < 0 || ageSec > maxAgeSec) {
+    const err: any = new Error('Turnstile token is too old. Please retry verification.');
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Bind token to an action (must be configured on the client widget).
+  if (expectedAction) {
+    const action = String(data?.action || '').trim();
+    if (!action || action !== expectedAction) {
+      const err: any = new Error('Turnstile action mismatch.');
       err.statusCode = 403;
       throw err;
     }
+  }
+
+  // Prevent token replay: store a hashed token for ~2 minutes and reject duplicates.
+  // Store only after Cloudflare verification succeeds to reduce storage abuse.
+  const supabase = getSupabaseAdmin() as any;
+  const tokenHash = crypto.createHmac('sha256', String(secret)).update(String(response)).digest('hex');
+  const expiresAtIso = new Date(now + 2 * 60 * 1000).toISOString();
+  const ins = await supabase.from('turnstile_token_replay').insert({ token_hash: tokenHash, expires_at: expiresAtIso } as any);
+  if (ins?.error) {
+    const msg = String(ins.error?.message || '').toLowerCase();
+    if (msg.includes('duplicate') || msg.includes('unique') || msg.includes('already exists')) {
+      const err: any = new Error('Turnstile token already used.');
+      err.statusCode = 403;
+      throw err;
+    }
+    const err: any = new Error('Turnstile replay store failed.');
+    err.statusCode = 500;
+    throw err;
+  }
+
+  // Best-effort pruning of expired replay entries (at most every ~60s per instance).
+  if (now - lastReplayPruneAtMs > 60_000) {
+    lastReplayPruneAtMs = now;
+    try {
+      await supabase.from('turnstile_token_replay').delete().lt('expires_at', new Date(now - 60_000).toISOString());
+    } catch {}
   }
 };
 
