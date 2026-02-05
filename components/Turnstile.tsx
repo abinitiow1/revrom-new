@@ -38,7 +38,9 @@ const ERROR_MAP: Record<string, string> = {
   '600020': 'Verification failed to execute (temporary). Refresh and try again.',
 };
 
-const TRANSIENT_ERROR_CODES = new Set(['600010', '600020']);
+// Only treat truly-temporary failures as transient.
+// `600010` is commonly caused by privacy / PAT / browser configuration and will NOT resolve by auto-retrying.
+const TRANSIENT_ERROR_CODES = new Set(['600020']);
 
 export type TurnstileHandle = {
   getToken: () => string;
@@ -94,7 +96,8 @@ const Turnstile = forwardRef<TurnstileHandle, Props>(function Turnstile(
     const id = widgetIdRef.current;
 
     clearRetryTimer();
-    retryAttemptedRef.current = false;
+    // Preserve the transient-retry flag during the transient auto-reset to avoid retry loops.
+    if (reason !== 'transient') retryAttemptedRef.current = false;
     renderAttemptedRef.current = false;
 
     clearToken();
