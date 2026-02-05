@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import type { Trip, ItineraryDay } from '../types';
 import type { Theme } from '../App';
 import TripRouteMap from '../components/TripRouteMap';
@@ -77,16 +77,33 @@ const ItineraryDayAccordion: React.FC<{
 };
 
 const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack, theme }) => {
+  const gallery = Array.isArray(trip.gallery) ? trip.gallery : [];
+  const galleryCount = gallery.length;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [activeDay, setActiveDay] = useState<number | null>(1);
 
   const goToPrevious = useCallback(() => {
-    setCurrentIndex(prev => prev === 0 ? trip.gallery.length - 1 : prev - 1);
-  }, [trip.gallery.length]);
+    setCurrentIndex((prev) => {
+      if (galleryCount <= 1) return 0;
+      return prev === 0 ? galleryCount - 1 : prev - 1;
+    });
+  }, [galleryCount]);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex(prev => prev === trip.gallery.length - 1 ? 0 : prev + 1);
-  }, [trip.gallery.length]);
+    setCurrentIndex((prev) => {
+      if (galleryCount <= 1) return 0;
+      return prev === galleryCount - 1 ? 0 : prev + 1;
+    });
+  }, [galleryCount]);
+
+  // Render only the current + adjacent images to reduce DOM/memory on mobile devices.
+  const visibleGalleryIndices = useMemo(() => {
+    if (galleryCount === 0) return [] as number[];
+    if (galleryCount === 1) return [0];
+    const prev = (currentIndex - 1 + galleryCount) % galleryCount;
+    const next = (currentIndex + 1) % galleryCount;
+    return Array.from(new Set([prev, currentIndex, next]));
+  }, [currentIndex, galleryCount]);
 
   const difficultyColors = {
     Intermediate: 'bg-yellow-500/10 text-yellow-600',
@@ -109,16 +126,21 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
       />
 
       <section className="relative h-45vh-dvh sm:h-55vh-dvh md:h-65vh-dvh lg:h-75vh-dvh w-full overflow-hidden bg-black">
-        {trip.gallery.map((photo, index) => (
-          <img
-            key={index}
-            src={photo.imageUrl}
-            alt={photo.caption || `Gallery ${index + 1}`}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${currentIndex === index ? 'opacity-100' : 'opacity-0'}`}
-            loading={currentIndex === index ? 'eager' : 'lazy'}
-            decoding="async"
-          />
-        ))}
+        {visibleGalleryIndices.map((index) => {
+          const photo = gallery[index];
+          if (!photo) return null;
+          const isActive = currentIndex === index;
+          return (
+            <img
+              key={index}
+              src={photo.imageUrl}
+              alt={photo.caption || `Gallery ${index + 1}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
+              loading={isActive ? 'eager' : 'lazy'}
+              decoding="async"
+            />
+          );
+        })}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent"></div>
         
         <button onClick={onBack} className="absolute top-4 left-4 sm:top-6 sm:left-6 z-30 bg-black/40 backdrop-blur-md px-5 py-3 sm:px-6 sm:py-3 rounded-lg text-white text-xs sm:text-[10px] font-black uppercase tracking-widest border border-white/20 hover:bg-black/60 transition-all shadow-lg active:scale-95">

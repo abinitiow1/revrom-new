@@ -329,7 +329,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                             aria-label="Open WhatsApp to send message"
                                             title="Opens WhatsApp"
                                           >
-                                            {isSubmitting ? 'Opening…' : 'WhatsApp'}
+                                            {isSubmitting ? 'Verifying...' : 'WhatsApp'}
                                           </button>
                                           <button
                                             type="button"

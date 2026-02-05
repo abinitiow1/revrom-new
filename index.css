@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  /* Mobile UX: reduce tap highlight + improve perceived responsiveness on touch devices. */
+  :where(a, button, [role="button"], input, textarea, select) {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :where(a, button, [role="button"]) {
+    touch-action: manipulation;
+  }
+}
+
 /* Custom animations and utilities */
 @layer keyframes {
   @keyframes float {
