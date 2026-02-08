@@ -80,7 +80,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     </div>
 
                     {error && (
-                        <div className="text-red-500 dark:text-red-400 text-sm text-center">{error}</div>
+                        <div role="alert" aria-live="polite" className="text-red-500 dark:text-red-400 text-sm text-center">
+                          {error}
+                        </div>
                     )}
 
                     <div>

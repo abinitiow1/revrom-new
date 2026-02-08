@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import type { GalleryPhoto } from '../types';
+import SmartImage from '../components/SmartImage';
 
 interface GalleryPageProps {
   photos: GalleryPhoto[];
@@ -18,7 +19,13 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ photos }) => {
 
   return (
     <div className="bg-background dark:bg-dark-background">
-      <div className="relative h-48 sm:h-64 bg-cover bg-center" style={{ backgroundImage: "url('https://picsum.photos/seed/ladakh-gallery-hero/1920/1080')" }}>
+      <div
+        className="relative h-48 sm:h-64 bg-cover bg-center"
+        style={{
+          backgroundImage:
+            "url('https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000')",
+        }}
+      >
         <div className="absolute inset-0 bg-black/50"></div>
         <div className="container mx-auto px-4 sm:px-6 h-full flex items-center justify-center relative z-10">
           <h1 className="text-4xl md:text-5xl font-extrabold text-white font-display text-center">Moments From the Road</h1>
@@ -45,7 +52,14 @@ const GalleryPage: React.FC<GalleryPageProps> = ({ photos }) => {
         <div className="columns-2 md:columns-3 lg:columns-4 gap-4 space-y-4">
           {filteredPhotos.map(photo => (
             <div key={photo.id} className="break-inside-avoid relative group overflow-hidden rounded-lg shadow-md">
-              <img src={photo.imageUrl} alt={photo.caption} className="w-full h-auto object-cover" loading="lazy" decoding="async" />
+              <SmartImage
+                src={photo.imageUrl}
+                alt={photo.caption}
+                loading="lazy"
+                decoding="async"
+                wrapperClassName="w-full min-h-[160px]"
+                className="w-full h-auto object-cover"
+              />
                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/60 transition-all duration-300 flex items-end p-4">
                   <p className="text-white text-sm opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
                     {photo.caption}

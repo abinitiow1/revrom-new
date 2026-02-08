@@ -38,6 +38,7 @@ export default function TurnstileAuthModal({
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const turnstileRef = useRef<TurnstileHandle | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const mountedRef = useRef(true);
   const authorizingRef = useRef(false);
   const authorizedRef = useRef(false);
@@ -73,8 +74,58 @@ export default function TurnstileAuthModal({
 
   useEffect(() => {
     // Focus close button for accessibility.
+    if (typeof document === 'undefined') return;
+    previouslyFocusedRef.current = (document.activeElement as HTMLElement | null) || null;
     closeBtnRef.current?.focus?.();
+    return () => {
+      previouslyFocusedRef.current?.focus?.();
+    };
   }, []);
+
+  const getFocusable = () => {
+    const root = dialogRef.current;
+    if (!root) return [] as HTMLElement[];
+
+    const candidates = Array.from(
+      root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      )
+    );
+
+    return candidates.filter((el) => {
+      if (el.getAttribute('aria-hidden') === 'true') return false;
+      const style = window.getComputedStyle(el);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      return true;
+    });
+  };
+
+  const handleDialogKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== 'Tab') return;
+
+    const focusables = getFocusable();
+    if (focusables.length === 0) {
+      e.preventDefault();
+      return;
+    }
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    const active = document.activeElement as HTMLElement | null;
+
+    if (e.shiftKey) {
+      if (!active || active === first) {
+        e.preventDefault();
+        last.focus();
+      }
+      return;
+    }
+
+    if (active === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const startAuthorization = async (token: string) => {
     if (!token) return;
@@ -119,7 +170,9 @@ export default function TurnstileAuthModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="turnstile-auth-title"
+        aria-describedby="turnstile-auth-desc"
         tabIndex={-1}
+        onKeyDown={handleDialogKeyDown}
         className="bg-white dark:bg-neutral-900 w-full max-w-md rounded-2xl p-4 sm:p-6 shadow-2xl border border-border dark:border-dark-border pointer-events-auto"
       >
         <div className="flex justify-between items-start gap-4 mb-4">
@@ -127,7 +180,14 @@ export default function TurnstileAuthModal({
             <h3 id="turnstile-auth-title" className="text-lg font-black text-foreground dark:text-dark-foreground">
               {title}
             </h3>
-            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">{subtitle}</p>
+            <p
+              id="turnstile-auth-desc"
+              className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground"
+              role="status"
+              aria-live="polite"
+            >
+              {subtitle}
+            </p>
           </div>
           <button
             ref={closeBtnRef}
@@ -163,7 +223,7 @@ export default function TurnstileAuthModal({
           </div>
 
           {status === 'error' ? (
-            <div className="text-sm text-red-600 dark:text-red-300">
+            <div role="alert" aria-live="assertive" className="text-sm text-red-600 dark:text-red-300">
               {errorMsg || 'Verification failed. Please try again.'}
             </div>
           ) : null}

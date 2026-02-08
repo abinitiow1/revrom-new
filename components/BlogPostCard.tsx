@@ -1,5 +1,6 @@
 import React from 'react';
 import type { BlogPost } from '../types';
+import SmartImage from './SmartImage';
 
 interface BlogPostCardProps {
   post: BlogPost;
@@ -20,19 +21,22 @@ const UserIcon: React.FC<{className?: string}> = ({ className }) => (
 
 const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, onSelectPost }) => {
   return (
-    <div 
-      className="bg-card dark:bg-dark-card rounded-lg shadow-lg overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 cursor-pointer group flex flex-col border border-border dark:border-dark-border hover:border-brand-primary"
+    <button
+      type="button"
+      aria-label={`Read: ${post.title}`}
+      className="bg-card dark:bg-dark-card rounded-lg shadow-lg overflow-hidden transform hover:-translate-y-2 transition-transform duration-300 cursor-pointer group flex flex-col border border-border dark:border-dark-border hover:border-brand-primary text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
       onClick={() => onSelectPost(post)}
     >
       <div className="relative">
-        <img
+        <SmartImage
           src={post.imageUrl}
-          srcSet={post.imageUrl ? `${post.imageUrl} 1x, ${post.imageUrl} 2x` : undefined}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           alt={post.title}
-          className="w-full h-56 object-cover"
           loading="lazy"
           decoding="async"
+          fill
+          wrapperClassName="h-56"
+          className="w-full h-full object-cover"
+          fallbackSrc="https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200"
         />
       </div>
       <div className="p-6 flex flex-col flex-grow">
@@ -45,11 +49,11 @@ const BlogPostCard: React.FC<BlogPostCardProps> = ({ post, onSelectPost }) => {
         </div>
         <h3 className="text-xl font-bold font-display mb-2 text-foreground dark:text-dark-foreground group-hover:text-brand-primary transition-colors flex-grow">{post.title}</h3>
         <p className="text-muted-foreground dark:text-dark-muted-foreground text-sm mb-4">{post.excerpt}</p>
-        <button className="mt-auto text-brand-primary font-semibold text-sm self-start group-hover:underline">
+        <span className="mt-auto text-brand-primary font-semibold text-sm self-start group-hover:underline">
           Read More &rarr;
-        </button>
+        </span>
       </div>
-    </div>
+    </button>
   );
 };
 

@@ -2766,6 +2766,8 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                                   ? 'bg-amber-500/10 text-amber-700 dark:text-amber-200 border-amber-500/20'
                                   : 'bg-slate-500/10 text-slate-700 dark:text-slate-300 border-slate-500/20'
                         }`}
+                        role="status"
+                        aria-live="polite"
                       >
                         <span
                           className={`w-2 h-2 rounded-full ${
@@ -2790,6 +2792,16 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                             ? 'Unsaved'
                             : 'Saved'}
                       </div>
+                      {saveStatus === 'error' ? (
+                        <button
+                          type="button"
+                          onClick={() => props.onSaveNow?.()}
+                          disabled={isSaving}
+                          className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-300 hover:underline disabled:opacity-60"
+                        >
+                          Retry
+                        </button>
+                      ) : null}
                       <div className="hidden sm:block text-xs text-muted-foreground">
                         {autoSaveEnabled ? 'Auto-save is ON. You can also click Save now.' : 'Auto-save is OFF. Click Save to publish.'}
                       </div>

@@ -79,12 +79,25 @@ const Preloader: React.FC = () => {
 
       <div className="mt-8 flex flex-col items-center">
         <h2 className="font-black italic tracking-tighter text-2xl uppercase">Getting things ready...</h2>
+        <div className="mt-6 w-[min(520px,90vw)] space-y-3" aria-hidden="true">
+          <div className="h-3 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden relative">
+            <div className="absolute inset-0 animate-preloader-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent"></div>
+          </div>
+          <div className="h-3 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden relative">
+            <div className="absolute inset-0 animate-preloader-shimmer [animation-delay:120ms] bg-gradient-to-r from-transparent via-white/35 to-transparent"></div>
+          </div>
+          <div className="h-3 w-2/3 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden relative mx-auto">
+            <div className="absolute inset-0 animate-preloader-shimmer [animation-delay:240ms] bg-gradient-to-r from-transparent via-white/30 to-transparent"></div>
+          </div>
+        </div>
         <div className="flex gap-1 mt-2">
             <div className="w-2 h-2 bg-brand-primary rounded-full animate-bounce"></div>
             <div className="w-2 h-2 bg-brand-primary rounded-full animate-bounce [animation-delay:0.2s]"></div>
             <div className="w-2 h-2 bg-brand-primary rounded-full animate-bounce [animation-delay:0.4s]"></div>
         </div>
-        <p className="text-brand-primary text-[10px] font-black uppercase tracking-[0.4em] mt-4 opacity-50">Revrom Adventures • Explore With Locals</p>
+        <p className="text-brand-primary text-[10px] font-black uppercase tracking-[0.4em] mt-4 opacity-50">
+          Revrom Adventures {'\u2022'} Explore With Locals
+        </p>
       </div>
 
       <style>{`
@@ -106,12 +119,30 @@ const Preloader: React.FC = () => {
           50% { opacity: 1; }
           100% { transform: translateX(-100px); opacity: 0; }
         }
+        @keyframes preloader-shimmer {
+          0% { transform: translateX(-60%); opacity: 0.2; }
+          50% { opacity: 0.6; }
+          100% { transform: translateX(60%); opacity: 0.2; }
+        }
         .animate-spin-wheel { animation: spin-wheel 0.4s linear infinite; }
         .animate-motorcycle-ride { animation: motorcycle-ride 0.3s ease-in-out infinite; }
         .animate-shadow-pulse { animation: shadow-pulse 0.3s ease-in-out infinite; }
         .animate-speed-line-1 { animation: speed-line 0.5s linear infinite; }
-        .animate-speed-line-2 { animation: speed-line 0.7s linear infinite [animation-delay:0.2s]; }
-        .animate-speed-line-3 { animation: speed-line 0.4s linear infinite [animation-delay:0.1s]; }
+        .animate-speed-line-2 { animation: speed-line 0.7s linear infinite; animation-delay: 0.2s; }
+        .animate-speed-line-3 { animation: speed-line 0.4s linear infinite; animation-delay: 0.1s; }
+        .animate-preloader-shimmer { animation: preloader-shimmer 1.1s ease-in-out infinite; }
+
+        @media (prefers-reduced-motion: reduce) {
+          .animate-spin-wheel,
+          .animate-motorcycle-ride,
+          .animate-shadow-pulse,
+          .animate-speed-line-1,
+          .animate-speed-line-2,
+          .animate-speed-line-3,
+          .animate-preloader-shimmer {
+            animation: none !important;
+          }
+        }
       `}</style>
     </div>
   );

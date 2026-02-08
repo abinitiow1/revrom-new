@@ -255,10 +255,11 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 name="name"
                                 autoComplete="name"
                                 autoCapitalize="words"
+                                enterKeyHint="next"
                                 value={name} 
                                 onChange={e => { setName(e.target.value); if (formNotice) setFormNotice(''); }} 
                                 placeholder="Your full name" 
-                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
+                                className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-base font-bold shadow-sm"
                             />
                         </div>
                         <div>
@@ -269,12 +270,14 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 autoComplete="email"
                                 inputMode="email"
                                 autoCapitalize="none"
+                                autoCorrect="off"
                                 spellCheck={false}
+                                enterKeyHint="next"
                                  type="email" 
                                  value={email} 
                                  onChange={e => { setEmail(e.target.value); if (formNotice) setFormNotice(''); }} 
                                  placeholder="hello@example.com" 
-                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
+                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-base font-bold shadow-sm"
                             />
                         </div>
                         <div className="md:col-span-2">
@@ -285,16 +288,19 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                                 autoComplete="tel"
                                 inputMode="tel"
                                 autoCapitalize="none"
+                                enterKeyHint="done"
                                  type="tel" 
                                  value={phone} 
                                  onChange={e => { setPhone(e.target.value); if (formNotice) setFormNotice(''); }} 
                                  placeholder="+91 00000 00000" 
-                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-sm font-bold shadow-sm"
+                                 className="w-full bg-slate-50 dark:bg-neutral-900 p-4 sm:p-5 rounded-2xl border border-border/50 focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black outline-none transition-all text-base font-bold shadow-sm"
                             />
                         </div>
                     </div>
                     {formNotice ? (
-                      <div className="text-[12px] font-bold text-amber-700 dark:text-amber-200">{formNotice}</div>
+                      <div role="status" aria-live="polite" className="text-[12px] font-bold text-amber-700 dark:text-amber-200">
+                        {formNotice}
+                      </div>
                     ) : null}
                 </section>
 
@@ -304,8 +310,8 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                   <div className="hidden lg:grid grid-cols-2 gap-4">
                     <button
                       type="submit"
-                      className="adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center justify-center gap-3"
-                      title="Opens WhatsApp in a new tab"
+                      className="bg-[#25D366] hover:bg-[#1DA851] text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-emerald-500/25 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-emerald-400 transition-all flex items-center justify-center gap-3"
+                      title="Opens WhatsApp"
                     >
                       <WhatsAppIcon className="w-5 h-5" />
                       WhatsApp
@@ -328,15 +334,15 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
                 ) : (
                   <button
                     type="submit"
-                    className="w-full hidden lg:flex adventure-gradient text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-brand-primary/30 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all items-center justify-center gap-3"
-                    title="Opens WhatsApp in a new tab"
+                    className="w-full hidden lg:flex bg-[#25D366] hover:bg-[#1DA851] text-white py-6 rounded-2xl font-black uppercase tracking-[0.2em] text-sm shadow-2xl shadow-emerald-500/25 hover:scale-[1.01] active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-emerald-400 transition-all items-center justify-center gap-3"
+                    title="Opens WhatsApp"
                   >
                     <WhatsAppIcon className="w-5 h-5" />
                     Inquire via WhatsApp
                   </button>
                 )}
                 <p className="hidden lg:block mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-                  Opens WhatsApp in a new tab{emailEnabled ? (emailConfigured ? ' • Email opens your email app' : ' • Email not configured') : ''}
+                  Opens WhatsApp{emailEnabled ? (emailConfigured ? ' \u2022 Email opens your email app' : ' \u2022 Email not configured') : ''}
                 </p>
               </form>
             </div>
@@ -378,7 +384,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-[100] lg:hidden animate-fade-up">
-        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-md sm:backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col">
               <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Pricing Info</span>
@@ -388,9 +394,9 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
               <button
                 type="button"
                 onClick={() => handleSubmit('whatsapp')}
-                className="adventure-gradient text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-brand-primary transition-all flex items-center justify-center gap-2"
+                className="bg-[#25D366] hover:bg-[#1DA851] text-white px-8 py-4 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black focus:ring-emerald-400 transition-all flex items-center justify-center gap-2"
                 aria-label="Open WhatsApp to send inquiry"
-                title="Opens WhatsApp in a new tab"
+                title="Opens WhatsApp"
               >
                 <WhatsAppIcon className="w-4 h-4" />
                 WHATSAPP
@@ -412,7 +418,7 @@ I'm interested in joining this trip. Please send me more details. Thank you!`;
             </div>
           </div>
           <div className="mt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground opacity-70 text-center">
-            Opens WhatsApp in a new tab{emailConfigured ? ' • Email opens your email app' : ' • Email not configured'}
+            Opens WhatsApp{emailConfigured ? ' \u2022 Email opens your email app' : ' \u2022 Email not configured'}
           </div>
         </div>
       </div>

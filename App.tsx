@@ -124,13 +124,29 @@ const App: React.FC = () => {
   }, [saveStatus]);
 
   // Persistence Helpers
+  const safeJsonParse = <T,>(raw: string, fallback: T): T => {
+    try {
+      return JSON.parse(raw) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
   const getStored = <T,>(key: string, initial: T): T => {
-    const saved = localStorage.getItem(key);
-    return saved ? JSON.parse(saved) : initial;
+    try {
+      const saved = localStorage.getItem(key);
+      return saved ? safeJsonParse(saved, initial) : initial;
+    } catch {
+      return initial;
+    }
   };
 
   const setStored = <T,>(key: string, data: T) => {
-    localStorage.setItem(key, JSON.stringify(data));
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch {
+      // ignore (private browsing, quota exceeded, etc.)
+    }
   };
 
   // Persistent States
@@ -410,7 +426,10 @@ const App: React.FC = () => {
   }, [isSupabaseMode, isAdmin, saveStatus]);
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme | null;
+    let savedTheme: Theme | null = null;
+    try {
+      savedTheme = localStorage.getItem('theme') as Theme | null;
+    } catch {}
     const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     setTheme(savedTheme || (prefersDark ? 'dark' : 'light'));
   }, []);
@@ -418,7 +437,9 @@ const App: React.FC = () => {
   useEffect(() => {
     if (theme === 'dark') document.documentElement.classList.add('dark');
     else document.documentElement.classList.remove('dark');
-    localStorage.setItem('theme', theme);
+    try {
+      localStorage.setItem('theme', theme);
+    } catch {}
   }, [theme]);
   
   useEffect(() => {

@@ -44,7 +44,8 @@
   }
 
   .contact-hero-bg {
-    background-image: url('https://picsum.photos/seed/ladakh-contact/1920/1080');
+    /* Avoid random placeholder hosts in production; use a stable scenic fallback. */
+    background-image: url('https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=2000');
   }
 
   /* Hide scrollbar for horizontal scrolling filters on mobile */
@@ -54,6 +55,12 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;  /* Chrome, Safari, Opera */
+  }
+
+  /* iOS: smooth momentum scrolling for horizontal carousels/filters. */
+  .scrollbar-hide,
+  .no-scrollbar {
+    -webkit-overflow-scrolling: touch;
   }
 
   /* iOS Safari: prefer dvh (dynamic viewport height) when supported to avoid address-bar jumps.

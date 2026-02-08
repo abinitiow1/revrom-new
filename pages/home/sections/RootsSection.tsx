@@ -1,6 +1,7 @@
 import React from 'react';
 import type { BlogPost, SiteContent } from '../../../types';
 import { getActiveBgStyle } from '../activeBgStyle';
+import SmartImage from '../../../components/SmartImage';
 
 type Props = {
   siteContent: SiteContent;
@@ -69,15 +70,16 @@ const RootsSection: React.FC<Props> = ({
           </button>
         </div>
         <div className="relative">
-          <img
+          <SmartImage
             src={
               siteContent.rootsImageUrl ||
               'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200'
             }
             alt="Himalayan landscape"
-            className="rounded-[3rem] relative z-10 shadow-2xl grayscale"
             loading="lazy"
             decoding="async"
+            wrapperClassName="rounded-[3rem] relative z-10 shadow-2xl grayscale"
+            className="w-full h-auto object-cover"
           />
         </div>
       </div>

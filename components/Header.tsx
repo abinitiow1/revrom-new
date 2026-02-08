@@ -84,7 +84,7 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-border dark:border-dark-border">
+      <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-black/80 backdrop-blur-md border-b border-border dark:border-dark-border pt-[env(safe-area-inset-top)]">
         <div className="container mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <button onClick={onNavigateHome} className="flex items-center space-x-3 group">
             {safeLogoUrl ? (
@@ -94,6 +94,7 @@ const Header: React.FC<HeaderProps> = ({
                 sizes="(max-width: 640px) 140px, 200px"
                 alt="Revrom Logo" 
                 loading="eager"
+                fetchPriority="high"
                 decoding="async"
                 style={{ height: `${siteContent.logoHeight}px` }} 
                 className="w-auto max-h-10 sm:max-h-14 object-contain transition-transform group-hover:scale-105" 
@@ -146,7 +147,7 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* High-Priority Full Screen Mobile Menu Overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-2xl flex flex-col px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] animate-fade-in">
+        <div className="lg:hidden fixed inset-0 z-[9999] bg-black/95 backdrop-blur-none sm:backdrop-blur-2xl flex flex-col px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] animate-fade-in">
           {/* Overlay Header */}
           <div className="flex items-center justify-between mb-12 pt-4">
             <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Menu</h2>

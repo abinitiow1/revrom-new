@@ -1,8 +1,7 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { Trip } from '../types';
 import { buildTripPlan, type InterestTag, type PlannedItinerary } from '../services/tripPlannerService';
 import { destinationsMatch } from '../services/destinationNormalizer';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 const SparklesIcon: React.FC<{className?: string}> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -35,9 +34,23 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const [isLoading, setIsLoading] = useState(false);
     const [generatedPlan, setGeneratedPlan] = useState<PlannedItinerary | null>(null);
     const [error, setError] = useState('');
-    const [isEndDateAuto, setIsEndDateAuto] = useState(true);
+    const [autoCalculateEndDate, setAutoCalculateEndDate] = useState(true);
+    const [baseTripAdjustedNotice, setBaseTripAdjustedNotice] = useState('');
+    const [progressText, setProgressText] = useState('');
     const startDateRef = useRef<HTMLInputElement | null>(null);
     const endDateRef = useRef<HTMLInputElement | null>(null);
+    const requestIdRef = useRef(0);
+    const progressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isMountedRef = useRef(true);
+
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => {
+            isMountedRef.current = false;
+            if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+            progressTimerRef.current = null;
+        };
+    }, []);
 
     const todayLocal = (() => {
         const d = new Date();
@@ -46,6 +59,18 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         const dd = String(d.getDate()).padStart(2, '0');
         return `${yyyy}-${mm}-${dd}`;
     })();
+
+    const clampRequestedDays = (value: unknown) => {
+        const n = Math.floor(Number(value));
+        if (!Number.isFinite(n)) return 1;
+        return Math.min(30, Math.max(1, n));
+    };
+
+    const sanitizeForStorage = (value: string) => {
+        const s = String(value || '');
+        // Remove control chars except tab/newline/CR, cap size for safety.
+        return s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').slice(0, 12_000);
+    };
 
     const computeEndDate = (startDate: string, durationStr: string) => {
         // Use YYYY-MM-DD (what <input type="date"> expects).
@@ -76,26 +101,76 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
         return itineraryDays || Number(trip.duration) || 0;
     };
 
+    const pickBestTripId = (destination: string, requestedDays: number) => {
+        const dest = String(destination || '').trim();
+        const days = Number(requestedDays || 0);
+        const match = (t: Trip) => destinationsMatch(t.destination || '', dest);
+        const pool = (trips || [])
+            .filter(match)
+            .slice()
+            .sort((a, b) => getTripDayCount(b) - getTripDayCount(a));
+        // Best match: longest base itinerary that does not exceed the requested days.
+        return pool.find(t => getTripDayCount(t) <= days)?.id || pool[0]?.id || '';
+    };
+
+    // If admin data changes (trips list updates), ensure selected destination/tripId stay valid.
+    useEffect(() => {
+        const list = trips || [];
+        if (!list.length) return;
+
+        const options = Array.from(new Set(list.map(t => (t.destination || '').trim()).filter(Boolean))).sort();
+        if (!options.length) return;
+
+        setFormData(prev => {
+            const requestedDays = Number(prev.duration || 0);
+
+            let destination = String(prev.destination || '').trim();
+            const destinationStillValid = destination && options.some(o => destinationsMatch(o, destination));
+            if (!destinationStillValid) destination = options[0] || destination;
+
+            const selectedTrip = list.find(t => t.id === prev.tripId);
+            const selectedTripMatchesDestination = !!selectedTrip && destinationsMatch(selectedTrip.destination || '', destination);
+
+            let tripId = prev.tripId;
+            if (!selectedTrip || !selectedTripMatchesDestination) {
+                const nextTripId = pickBestTripId(destination, requestedDays);
+                if (nextTripId && nextTripId !== prev.tripId) {
+                    tripId = nextTripId;
+                    if (isMountedRef.current) setBaseTripAdjustedNotice('Base itinerary updated because the admin trips changed.');
+                }
+            }
+
+            if (destination === prev.destination && tripId === prev.tripId) return prev;
+            return { ...prev, destination, tripId };
+        });
+    }, [trips]);
+
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
 
-        if (name === 'endDate') setIsEndDateAuto(false);
-        if (name === 'startDate') setIsEndDateAuto(true);
+        if (name === 'endDate') setAutoCalculateEndDate(false);
+        if (name === 'tripId') setBaseTripAdjustedNotice('');
 
         setFormData(prev => {
             const next: any = { ...prev, [name]: value };
 
             if (name === 'startDate') {
-                if (!value) {
-                    if (isEndDateAuto) next.endDate = '';
-                } else {
-                    next.endDate = computeEndDate(value, String(next.duration || prev.duration || ''));
+                if (autoCalculateEndDate) {
+                    next.endDate = value ? computeEndDate(value, String(next.duration || prev.duration || '')) : '';
                 }
             }
 
             if (name === 'duration') {
+                // If duration changes, the "best matching" base trip might change too.
+                const requestedDays = Number(value || 0);
+                const nextTripId = pickBestTripId(prev.destination || '', requestedDays);
+                if (nextTripId && nextTripId !== prev.tripId) {
+                    next.tripId = nextTripId;
+                    if (isMountedRef.current) setBaseTripAdjustedNotice('Base itinerary adjusted to better match your duration.');
+                }
+
                 const start = String(prev.startDate || '');
-                if (start && isEndDateAuto) next.endDate = computeEndDate(start, String(value));
+                if (start && autoCalculateEndDate) next.endDate = computeEndDate(start, String(value));
             }
 
             return next;
@@ -105,11 +180,13 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
     const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const destination = e.target.value;
         const requestedDays = Number(formData.duration || 0);
-        const nextTripId =
-            (trips || []).find(t => destinationsMatch(t.destination || '', destination) && (t.duration || 0) <= requestedDays)?.id ||
-            (trips || []).find(t => destinationsMatch(t.destination || '', destination))?.id ||
-            '';
-        setFormData(prev => ({ ...prev, destination, tripId: nextTripId || prev.tripId }));
+        const nextTripId = pickBestTripId(destination, requestedDays);
+
+        setFormData(prev => {
+            const changed = nextTripId && nextTripId !== prev.tripId;
+            if (changed && isMountedRef.current) setBaseTripAdjustedNotice('Base itinerary adjusted to better match your duration.');
+            return { ...prev, destination, tripId: nextTripId || prev.tripId };
+        });
     };
 
     const handleInterestToggle = (tag: InterestTag) => {
@@ -123,36 +200,59 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoading(true);
+        if (!isMountedRef.current) return;
         setError('');
-        setGeneratedPlan(null);
+        const requestId = ++requestIdRef.current;
+        const requestedDays = clampRequestedDays(formData.duration);
+        setIsLoading(true);
+        setProgressText('Re-evaluating route…');
+
+        if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+        progressTimerRef.current = setTimeout(() => {
+            if (requestIdRef.current !== requestId) return;
+            setProgressText('Fetching stops…');
+        }, 800);
+
         try {
             const plan = await buildTripPlan({
                 destination: formData.destination,
-                requestedDays: Number(formData.duration),
+                requestedDays,
                 baseTripId: formData.tripId,
                 interestTags: formData.interestTags,
                 notes: formData.notes,
                 trips,
             });
+
+            if (!isMountedRef.current || requestIdRef.current !== requestId) return; // ignore stale response/unmounted
             setGeneratedPlan(plan);
         } catch (err: any) {
+            if (!isMountedRef.current || requestIdRef.current !== requestId) return; // ignore stale error/unmounted
             console.error(err);
             const raw = err?.message || err?.toString() || '';
             if (raw.toLowerCase().includes('geoapify') || raw.toLowerCase().includes('api key')) setError(raw);
             else setError('An unexpected error occurred while building the itinerary. Please try again.');
         } finally {
+            if (!isMountedRef.current || requestIdRef.current !== requestId) return;
             setIsLoading(false);
-            const resultsSection = document.getElementById('results-section');
-            if (resultsSection) {
-                setTimeout(() => resultsSection.scrollIntoView({ behavior: 'smooth' }), 100);
-            }
+            setProgressText('');
+            if (progressTimerRef.current) clearTimeout(progressTimerRef.current);
+            progressTimerRef.current = null;
         }
     };
     
     const handleStartOver = () => {
-        setGeneratedPlan(null);
         setError('');
+        setBaseTripAdjustedNotice('');
+    };
+
+    const handleAutoEndDateToggle = (checked: boolean) => {
+        setAutoCalculateEndDate(checked);
+        if (!checked) return;
+        // If user re-enables auto calc, recompute immediately.
+        const start = String(formData.startDate || '').trim();
+        if (!start) return;
+        const next = computeEndDate(start, String(formData.duration || ''));
+        setFormData(prev => ({ ...prev, endDate: next }));
     };
 
     const buildQuotePrefillMessage = () => {
@@ -179,7 +279,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
             ]
             : [];
 
-        return [
+        const message = [
             'Hello Revrom, I would like a quote for my trip:',
             '',
             `- Destination: ${formData.destination || 'N/A'}`,
@@ -194,10 +294,12 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
             itineraryHint,
             ...planLines,
         ].join('\n');
+
+        return sanitizeForStorage(message);
     };
     
     const filteredTrips = (trips || []).filter(t => destinationsMatch(t.destination || '', formData.destination || ''));
-    const baseTripOptions = filteredTrips.slice().sort((a, b) => (b.duration || 0) - (a.duration || 0));
+    const baseTripOptions = filteredTrips.slice().sort((a, b) => getTripDayCount(b) - getTripDayCount(a));
 
     const renderPlan = (plan: PlannedItinerary) => {
         const interestLabel = (formData.interestTags || [])
@@ -327,10 +429,9 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                         <div id="trip-planner-form" className="container mx-auto px-4 sm:px-6 py-12 md:py-16 max-w-4xl">
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold font-display text-foreground dark:text-dark-foreground">Design Your Dream Adventure</h2>
-                    <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground">Start from an admin-created base itinerary, then extend it with nearby places based on your interests.</p>
+                    <p className="mt-4 text-lg text-muted-foreground dark:text-dark-muted-foreground">Start from an admin-created base itinerary, then generate a route-first day-by-day plan based on your interests.</p>
                 </div>
                                 <div className="w-full">
-                                        {!generatedPlan && (
                                             <form onSubmit={handleSubmit} className="bg-gradient-to-br from-white/60 to-slate-50 dark:from-black/60 dark:to-neutral-900 p-6 md:p-8 rounded-3xl shadow-2xl space-y-6 border border-border dark:border-dark-border">
                                                 <div className="flex items-center justify-between gap-4 mb-2">
                                                     <div>
@@ -370,25 +471,30 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                 This dropdown is built from destinations on trips created by admin.
                             </p>
                         </div>
-                        <div>
-                            <label htmlFor="tripId" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Base trip (admin itinerary)</label>
-                            <select
-                                name="tripId"
-                                id="tripId"
-                                value={formData.tripId}
-                                onChange={handleInputChange}
-                                className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
-                            >
-                                {(baseTripOptions.length ? baseTripOptions : trips).map(t => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.title} ({t.duration} days)
-                                    </option>
-                                ))}
-                            </select>
-                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
-                                We start from the itinerary set by admin for this trip, then adjust based on your preferences.
-                            </p>
-                        </div>
+	                        <div>
+	                            <label htmlFor="tripId" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Base trip (admin itinerary)</label>
+	                            <select
+	                                name="tripId"
+	                                id="tripId"
+	                                value={formData.tripId}
+	                                onChange={handleInputChange}
+	                                className="mt-1 block w-full px-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+	                            >
+	                                {(baseTripOptions.length ? baseTripOptions : trips).map(t => (
+	                                    <option key={t.id} value={t.id}>
+	                                        {t.title} ({getTripDayCount(t)} days)
+	                                    </option>
+	                                ))}
+	                            </select>
+	                            {baseTripAdjustedNotice ? (
+	                                <div className="mt-2 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+	                                    {baseTripAdjustedNotice}
+	                                </div>
+	                            ) : null}
+	                            <p className="mt-1 text-xs text-muted-foreground dark:text-dark-muted-foreground">
+	                                We start from the itinerary set by admin for this trip, then adjust based on your preferences.
+	                            </p>
+	                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label htmlFor="startDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Start date (optional)</label>
@@ -406,7 +512,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                   <button
                                     type="button"
                                     onClick={() => openDatePicker(startDateRef)}
-                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground pointer-events-none"
+                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground cursor-pointer"
                                     aria-label="Open start date picker"
                                   >
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -416,24 +522,35 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                     </svg>
                                   </button>
                                 </div>
-                            </div>
-                            <div>
-                                <label htmlFor="endDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">End date (optional)</label>
-                                <div className="relative mt-1">
-                                  <input
-                                    ref={endDateRef}
-                                    type="date"
-                                    name="endDate"
-                                    id="endDate"
-                                    value={formData.endDate}
-                                    min={formData.startDate && formData.startDate > todayLocal ? formData.startDate : todayLocal}
-                                    onChange={handleInputChange}
-                                    className="date-input block w-full pr-12 pl-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
-                                  />
+	                            </div>
+	                            <div>
+	                                <div className="flex items-center justify-between gap-3">
+	                                    <label htmlFor="endDate" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">End date (optional)</label>
+	                                    <label className="flex items-center gap-2 text-xs text-muted-foreground dark:text-dark-muted-foreground select-none">
+	                                        <input
+	                                            type="checkbox"
+	                                            checked={autoCalculateEndDate}
+	                                            onChange={(e) => handleAutoEndDateToggle(e.target.checked)}
+	                                            className="h-4 w-4 accent-brand-primary"
+	                                        />
+	                                        Auto-calculate
+	                                    </label>
+	                                </div>
+	                                <div className="relative mt-1">
+	                                  <input
+	                                    ref={endDateRef}
+	                                    type="date"
+	                                    name="endDate"
+	                                    id="endDate"
+	                                    value={formData.endDate}
+	                                    min={formData.startDate && formData.startDate > todayLocal ? formData.startDate : todayLocal}
+	                                    onChange={handleInputChange}
+	                                    className="date-input block w-full pr-12 pl-4 py-3 sm:py-2 border border-border dark:border-dark-border rounded-lg text-base sm:text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-primary focus:border-brand-primary bg-background dark:bg-dark-background text-foreground dark:text-dark-foreground"
+	                                  />
                                   <button
                                     type="button"
                                     onClick={() => openDatePicker(endDateRef)}
-                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground pointer-events-none"
+                                    className="absolute inset-y-0 right-0 flex items-center px-4 text-muted-foreground dark:text-dark-muted-foreground hover:text-foreground dark:hover:text-dark-foreground cursor-pointer"
                                     aria-label="Open end date picker"
                                   >
                                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -487,14 +604,24 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                                 <div>
                                                         <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 text-base sm:text-lg disabled:bg-brand-primary/50 shadow-xl active:scale-95">
                                                                 <SparklesIcon className="w-6 h-6"/>
-                                                                {isLoading ? 'Building...' : 'Build My Itinerary'}
+                                                                {isLoading ? (generatedPlan ? 'Updating...' : 'Building...') : (generatedPlan ? 'Update Itinerary' : 'Build My Itinerary')}
                                                         </button>
                                                 </div>
                                             </form>
-                                        )}
+                                        {isLoading && !generatedPlan ? (
+                                            <div className="mt-4 text-sm text-muted-foreground dark:text-dark-muted-foreground">
+                                                {progressText || 'Building your itinerary…'}
+                                            </div>
+                                        ) : null}
 
                                         {generatedPlan && (
                                             <div className="mt-6 bg-card dark:bg-dark-card p-6 md:p-8 rounded-3xl shadow-2xl border border-border">
+                                                {isLoading ? (
+                                                    <div className="mb-4 rounded-xl border border-border dark:border-dark-border bg-slate-50 dark:bg-slate-900/40 px-4 py-3 text-sm text-muted-foreground dark:text-dark-muted-foreground">
+                                                        <span className="font-semibold text-foreground dark:text-dark-foreground">Updating your itinerary…</span>
+                                                        {progressText ? <span className="ml-2">{progressText}</span> : null}
+                                                    </div>
+                                                ) : null}
                                                 {renderPlan(generatedPlan)}
 
                                                 <div className="mt-10 pt-10 border-t border-border dark:border-dark-border text-center">
@@ -509,7 +636,8 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                                                             } catch (e) {}
                                                                             onNavigateContact();
                                                                         }}
-                                                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 active:scale-95 shadow-lg text-base sm:text-base"
+                                                                        disabled={isLoading}
+                                                                        className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 active:scale-95 shadow-lg text-base sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
                                                                     >
                                                                         Request a Quote
                                                                     </button>
@@ -518,7 +646,7 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                                                         onClick={handleStartOver}
                                                                         className="bg-slate-500 hover:bg-slate-600 dark:bg-slate-700 dark:hover:bg-slate-800 text-white font-bold py-4 sm:py-3 px-8 rounded-full transition-all duration-300 active:scale-95 shadow-lg text-base sm:text-base"
                                                                 >
-                                                                        Start Over
+                                                                        Keep Editing
                                                                 </button>
                                                         </div>
                                                 </div>
@@ -527,12 +655,11 @@ const CustomizePage: React.FC<CustomizePageProps> = ({ onNavigateContact, trips 
                                 </div>
                 
                 <div id="results-section" className="mt-8 sm:mt-6">
-                    {isLoading && <LoadingSpinner />}
                     {error && (
                          <div className="bg-red-100 dark:bg-red-900/20 border-l-4 border-red-500 p-5 sm:p-4 rounded-lg text-center space-y-3">
                             <h3 className="text-lg font-bold text-red-800 dark:text-red-200">Something went wrong</h3>
                             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-                            <button type="button" onClick={handleStartOver} className="text-sm font-semibold text-red-800 dark:text-red-200 hover:underline active:opacity-50">Try Again</button>
+                            <button type="button" onClick={handleStartOver} className="text-sm font-semibold text-red-800 dark:text-red-200 hover:underline active:opacity-50">Dismiss</button>
                          </div>
                     )}
                 </div>

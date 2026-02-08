@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Trip, SiteContent } from '../../../types';
 import TripCard from '../../../components/TripCard';
 import SearchAndFilter from '../../../components/SearchAndFilter';
@@ -31,7 +31,42 @@ const AdventuresSection: React.FC<Props> = ({
   const [destFilter, setDestFilter] = useState('all');
   const [durationFilter, setDurationFilter] = useState('all');
   const [diffFilter, setDifficultyFilter] = useState('all');
+  // Keep marquee on everywhere (including mobile), but still respect prefers-reduced-motion.
+  // To avoid "jank" on touch devices, we pause marquee immediately on user interaction.
   const disableMarqueeMotion = useDisableMarqueeMotion({ disableOnMobile: false });
+
+  const makeMarqueeInteraction = () => {
+    const resumeTimerRef = { current: null as number | null };
+    const pauseRef = { current: false };
+    return { resumeTimerRef, pauseRef };
+  };
+
+  const row1InteractionRef = useRef(makeMarqueeInteraction());
+  const row2InteractionRef = useRef(makeMarqueeInteraction());
+  const [row1Paused, setRow1Paused] = useState(false);
+  const [row2Paused, setRow2Paused] = useState(false);
+
+  const pauseMarquee = useCallback((row: 1 | 2) => {
+    if (disableMarqueeMotion) return;
+
+    const interaction = row === 1 ? row1InteractionRef.current : row2InteractionRef.current;
+    if (interaction.resumeTimerRef.current) window.clearTimeout(interaction.resumeTimerRef.current);
+    interaction.pauseRef.current = true;
+    if (row === 1) setRow1Paused(true);
+    else setRow2Paused(true);
+  }, [disableMarqueeMotion]);
+
+  const resumeMarqueeSoon = useCallback((row: 1 | 2, delayMs = 1800) => {
+    if (disableMarqueeMotion) return;
+
+    const interaction = row === 1 ? row1InteractionRef.current : row2InteractionRef.current;
+    if (interaction.resumeTimerRef.current) window.clearTimeout(interaction.resumeTimerRef.current);
+    interaction.resumeTimerRef.current = window.setTimeout(() => {
+      interaction.pauseRef.current = false;
+      if (row === 1) setRow1Paused(false);
+      else setRow2Paused(false);
+    }, delayMs);
+  }, [disableMarqueeMotion]);
 
   useEffect(() => {
     if (!initialDestinationFilter) return;
@@ -56,9 +91,21 @@ const AdventuresSection: React.FC<Props> = ({
   const row1Trips = useMemo(() => filteredTrips.filter((_, i) => i % 2 === 0), [filteredTrips]);
   const row2Trips = useMemo(() => filteredTrips.filter((_, i) => i % 2 !== 0), [filteredTrips]);
 
-  // Keep marquee infinite by duplicating once (2x). On mobile / reduced motion, keep it static & scrollable.
-  const marqueeRow1 = useMemo(() => (disableMarqueeMotion ? row1Trips : row1Trips.concat(row1Trips)), [row1Trips, disableMarqueeMotion]);
-  const marqueeRow2 = useMemo(() => (disableMarqueeMotion ? row2Trips : row2Trips.concat(row2Trips)), [row2Trips, disableMarqueeMotion]);
+  // Only enable the animated marquee when there are enough unique cards for BOTH rows.
+  // If there are too few items, repetition looks like "overlap" and one-row animation feels inconsistent.
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  const minTripsForMarquee = isMobile ? 6 : 8;
+  const enableMarquee = !disableMarqueeMotion && filteredTrips.length >= minTripsForMarquee;
+  const row1EnableMarquee = enableMarquee;
+  const row2EnableMarquee = enableMarquee;
+
+  // If filters change and the list shrinks to 0/1, avoid "stuck paused" state.
+  useEffect(() => {
+    if (disableMarqueeMotion) {
+      setRow1Paused(false);
+      setRow2Paused(false);
+    }
+  }, [disableMarqueeMotion]);
 
   const adventuresHasBg = !!siteContent.adventuresBgImage;
   const bgStyle = getActiveBgStyle(siteContent.adventuresBgImage, sectionConfig.backgroundOpacity);
@@ -143,25 +190,168 @@ const AdventuresSection: React.FC<Props> = ({
 
       <div className="space-y-12">
         <div className="relative w-full group/row1">
-          <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-4">
-            <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-left-infinite whitespace-nowrap gap-8 group-hover/row1:[animation-play-state:paused]'}>
-              {marqueeRow1.map((trip, idx) => (
-                <div key={`${trip.id}-${idx}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
-                  <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
-                </div>
-              ))}
+          <div
+            role="region"
+            aria-label="Explore tours carousel (row 1)"
+            tabIndex={0}
+            className="overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 pb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
+            onPointerDown={() => {
+              if (!row1EnableMarquee) return;
+              pauseMarquee(1);
+              resumeMarqueeSoon(1);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+              if (row1EnableMarquee) {
+                pauseMarquee(1);
+                resumeMarqueeSoon(1);
+              }
+              e.preventDefault();
+              e.currentTarget.scrollBy({
+                left: e.key === 'ArrowRight' ? 360 : -360,
+                behavior: 'smooth',
+              });
+            }}
+            onTouchStart={() => {
+              if (!row1EnableMarquee) return;
+              pauseMarquee(1);
+              resumeMarqueeSoon(1);
+            }}
+            onWheel={() => {
+              if (!row1EnableMarquee) return;
+              pauseMarquee(1);
+              resumeMarqueeSoon(1);
+            }}
+            onScroll={() => {
+              if (!row1EnableMarquee) return;
+              pauseMarquee(1);
+              resumeMarqueeSoon(1, 2200);
+            }}
+            onFocusCapture={() => {
+              if (!row1EnableMarquee) return;
+              pauseMarquee(1);
+            }}
+            onBlurCapture={() => {
+              if (!row1EnableMarquee) return;
+              resumeMarqueeSoon(1, 1200);
+            }}
+          >
+            <div
+              className={
+                !row1EnableMarquee
+                  ? 'flex gap-8'
+                  : 'flex animate-marquee-left-infinite whitespace-nowrap group-hover/row1:[animation-play-state:paused]'
+              }
+              style={row1EnableMarquee ? { animationPlayState: row1Paused ? 'paused' : 'running', willChange: 'transform' } : undefined}
+            >
+              {!row1EnableMarquee ? (
+                row1Trips.map((trip) => (
+                  <div key={trip.id} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                    <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                  </div>
+                ))
+              ) : (
+                <>
+                  {/* Keep an end padding equal to the gap so the loop seam doesn't "crush" cards together. */}
+                  <div className="flex gap-8 pr-8">
+                    {row1Trips.map((trip) => (
+                      <div key={`a-${trip.id}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                        <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-8 pr-8" aria-hidden="true">
+                    {row1Trips.map((trip) => (
+                      <div key={`b-${trip.id}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                        <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
 
         <div className="relative w-full group/row2">
-          <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-4">
-            <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-right-infinite whitespace-nowrap gap-8 group-hover/row2:[animation-play-state:paused]'}>
-              {marqueeRow2.map((trip, idx) => (
-                <div key={`${trip.id}-${idx}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
-                  <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
-                </div>
-              ))}
+          <div
+            role="region"
+            aria-label="Explore tours carousel (row 2)"
+            tabIndex={0}
+            className="overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 pb-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
+            onPointerDown={() => {
+              if (!row2EnableMarquee) return;
+              pauseMarquee(2);
+              resumeMarqueeSoon(2);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+              if (row2EnableMarquee) {
+                pauseMarquee(2);
+                resumeMarqueeSoon(2);
+              }
+              e.preventDefault();
+              e.currentTarget.scrollBy({
+                left: e.key === 'ArrowRight' ? 360 : -360,
+                behavior: 'smooth',
+              });
+            }}
+            onTouchStart={() => {
+              if (!row2EnableMarquee) return;
+              pauseMarquee(2);
+              resumeMarqueeSoon(2);
+            }}
+            onWheel={() => {
+              if (!row2EnableMarquee) return;
+              pauseMarquee(2);
+              resumeMarqueeSoon(2);
+            }}
+            onScroll={() => {
+              if (!row2EnableMarquee) return;
+              pauseMarquee(2);
+              resumeMarqueeSoon(2, 2200);
+            }}
+            onFocusCapture={() => {
+              if (!row2EnableMarquee) return;
+              pauseMarquee(2);
+            }}
+            onBlurCapture={() => {
+              if (!row2EnableMarquee) return;
+              resumeMarqueeSoon(2, 1200);
+            }}
+          >
+            <div
+              className={
+                !row2EnableMarquee
+                  ? 'flex gap-8'
+                  : 'flex animate-marquee-right-infinite whitespace-nowrap group-hover/row2:[animation-play-state:paused]'
+              }
+              style={row2EnableMarquee ? { animationPlayState: row2Paused ? 'paused' : 'running', willChange: 'transform' } : undefined}
+            >
+              {!row2EnableMarquee ? (
+                row2Trips.map((trip) => (
+                  <div key={trip.id} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                    <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex gap-8 pr-8">
+                    {row2Trips.map((trip) => (
+                      <div key={`a-${trip.id}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                        <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-8 pr-8" aria-hidden="true">
+                    {row2Trips.map((trip) => (
+                      <div key={`b-${trip.id}`} className="w-[300px] md:w-[380px] flex-shrink-0 snap-center">
+                        <TripCard trip={trip} onSelectTrip={onSelectTrip} onBookNow={onBookNow} />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -19,6 +19,7 @@ const HeroSection: React.FC<Props> = ({ siteContent, onNavigateCustomize }) => {
           alt="Revrom hero background"
           className="w-full h-full object-cover scale-105"
           loading="eager"
+          fetchPriority="high"
           decoding="async"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent"></div>

@@ -92,7 +92,12 @@ const Footer: React.FC<FooterProps> = ({
     <footer className="bg-card dark:bg-dark-card border-t border-border dark:border-dark-border pt-16 pb-8">
       <div className="container mx-auto px-4 sm:px-6">
         {newsletterToast && (
-          <div className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest max-w-[90vw] text-center">
+          <div
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[999] px-4 py-3 rounded-xl shadow-lg bg-emerald-600 text-white text-xs font-black uppercase tracking-widest max-w-[90vw] text-center"
+          >
             {newsletterToast}
           </div>
         )}
@@ -243,10 +248,14 @@ const Footer: React.FC<FooterProps> = ({
                   if (newsletterFormError) setNewsletterFormError('');
                 }}
                 disabled={newsletterSubmitting}
-                className="w-full p-4 text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
+                aria-invalid={newsletterFormError ? 'true' : undefined}
+                aria-describedby={newsletterFormError ? 'newsletter_email_error' : undefined}
+                className="w-full p-4 text-[16px] sm:text-[10px] font-black tracking-widest rounded-xl bg-background dark:bg-dark-background border border-border dark:border-dark-border focus:ring-brand-primary focus:ring-1 outline-none text-foreground dark:text-dark-foreground" 
               />
               {newsletterFormError ? (
-                <div className="text-[11px] font-bold text-red-600 dark:text-red-300">{newsletterFormError}</div>
+                <div id="newsletter_email_error" role="alert" className="text-[11px] font-bold text-red-600 dark:text-red-300">
+                  {newsletterFormError}
+                </div>
               ) : null}
               <button
                 type="submit"

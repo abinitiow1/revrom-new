@@ -68,9 +68,11 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizes = {
-      sm: 'text-[9px] px-3 py-2 gap-1.5',
-      md: 'text-[10px] px-6 py-3.5 gap-2',
-      lg: 'text-xs px-8 py-4 gap-3',
+      // iOS Safari zooms on focus when font-size < 16px (mostly inputs), but tiny button text also feels less premium.
+      // Keep mobile tap text readable while preserving the current compact desktop aesthetic.
+      sm: 'text-[12px] sm:text-[9px] px-3 py-2 gap-1.5',
+      md: 'text-[13px] sm:text-[10px] px-6 py-3.5 gap-2',
+      lg: 'text-[14px] sm:text-xs px-8 py-4 gap-3',
     };
 
     return (

@@ -264,13 +264,49 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                 </div>
                                 <div>
                                     <label htmlFor="name" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Full Name</label>
-                                    <input type="text" id="name" name="name" autoComplete="name" autoCapitalize="words" value={name} onChange={e => setName(e.target.value)} required className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
-                                    {errors.name && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.name}</p>}
+                                    <input
+                                      type="text"
+                                      id="name"
+                                      name="name"
+                                      autoComplete="name"
+                                      autoCapitalize="words"
+                                      enterKeyHint="next"
+                                      value={name}
+                                      onChange={(e) => setName(e.target.value)}
+                                      required
+                                      aria-invalid={errors.name ? 'true' : undefined}
+                                      aria-describedby={errors.name ? 'contact_name_error' : undefined}
+                                      className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary text-[16px] sm:text-sm text-foreground dark:text-dark-foreground ${errors.name ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
+                                    />
+                                    {errors.name && (
+                                      <p id="contact_name_error" role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">
+                                        {errors.name}
+                                      </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label htmlFor="email" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Email Address</label>
-                                    <input type="email" id="email" name="email" autoComplete="email" inputMode="email" autoCapitalize="none" spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} required className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}/>
-                                    {errors.email && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.email}</p>}
+                                    <input
+                                      type="email"
+                                      id="email"
+                                      name="email"
+                                      autoComplete="email"
+                                      inputMode="email"
+                                      autoCapitalize="none"
+                                      spellCheck={false}
+                                      enterKeyHint="next"
+                                      value={email}
+                                      onChange={(e) => setEmail(e.target.value)}
+                                      required
+                                      aria-invalid={errors.email ? 'true' : undefined}
+                                      aria-describedby={errors.email ? 'contact_email_error' : undefined}
+                                      className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary text-[16px] sm:text-sm text-foreground dark:text-dark-foreground ${errors.email ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
+                                    />
+                                    {errors.email && (
+                                      <p id="contact_email_error" role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">
+                                        {errors.email}
+                                      </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label htmlFor="whatsapp" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">WhatsApp Number (optional)</label>
@@ -281,18 +317,44 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                         autoComplete="tel"
                                         inputMode="tel"
                                         autoCapitalize="none"
+                                        enterKeyHint="next"
                                         value={whatsappNumber}
                                         onChange={e => setWhatsappNumber(e.target.value)}
                                         placeholder="+91 00000 00000"
-                                        className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.whatsappNumber ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
+                                        aria-invalid={errors.whatsappNumber ? 'true' : undefined}
+                                        aria-describedby={errors.whatsappNumber ? 'contact_whatsapp_error' : undefined}
+                                        className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary text-[16px] sm:text-sm text-foreground dark:text-dark-foreground ${errors.whatsappNumber ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
                                     />
-                                    {errors.whatsappNumber && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.whatsappNumber}</p>}
+                                    {errors.whatsappNumber && (
+                                      <p id="contact_whatsapp_error" role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">
+                                        {errors.whatsappNumber}
+                                      </p>
+                                    )}
                                 </div>
                                 <div>
                                     <label htmlFor="message" className="block text-sm font-medium text-muted-foreground dark:text-dark-muted-foreground">Message</label>
-                                    <textarea id="message" name="message" value={message} onChange={e => setMessage(e.target.value)} required rows={5} className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}></textarea>
-                                    {errors.message && <p className="mt-1 text-sm text-red-500 dark:text-red-400">{errors.message}</p>}
-                                    {notice && <p className="mt-1 text-sm text-amber-700 dark:text-amber-200">{notice}</p>}
+                                    <textarea
+                                      id="message"
+                                      name="message"
+                                      value={message}
+                                      onChange={(e) => setMessage(e.target.value)}
+                                      required
+                                      rows={5}
+                                      enterKeyHint="send"
+                                      aria-invalid={errors.message ? 'true' : undefined}
+                                      aria-describedby={errors.message ? 'contact_message_error' : undefined}
+                                      className={`mt-1 block w-full px-3 py-2 bg-card dark:bg-dark-card border rounded-md shadow-sm placeholder-slate-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary text-[16px] sm:text-sm text-foreground dark:text-dark-foreground ${errors.message ? 'border-red-500' : 'border-border dark:border-dark-border'}`}
+                                    ></textarea>
+                                    {errors.message && (
+                                      <p id="contact_message_error" role="alert" className="mt-1 text-sm text-red-500 dark:text-red-400">
+                                        {errors.message}
+                                      </p>
+                                    )}
+                                    {notice && (
+                                      <p role="status" aria-live="polite" className="mt-1 text-sm text-amber-700 dark:text-amber-200">
+                                        {notice}
+                                      </p>
+                                    )}
                                 </div>
                                 
                                 <div>
@@ -320,7 +382,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ siteContent }) => {
                                         </button>
                                     </div>
                                     <div className="sm:hidden fixed bottom-0 left-0 right-0 z-[100]">
-                                      <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+                                      <div className="bg-white/95 dark:bg-black/95 backdrop-blur-md sm:backdrop-blur-xl border-t border-border/30 px-4 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
                                         <div className="flex items-stretch gap-3">
                                           <button
                                             type="submit"

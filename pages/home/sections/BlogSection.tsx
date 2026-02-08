@@ -12,8 +12,12 @@ type Props = {
 };
 
 const BlogSection: React.FC<Props> = ({ siteContent, blogPosts, sectionConfig, onSelectBlogPost }) => {
-  const disableMarqueeMotion = useDisableMarqueeMotion();
-  const marqueePosts = useMemo(() => (disableMarqueeMotion ? blogPosts : blogPosts.concat(blogPosts)), [blogPosts, disableMarqueeMotion]);
+  const disableMarqueeMotion = useDisableMarqueeMotion({ disableOnMobile: false });
+  const posts = useMemo(() => blogPosts || [], [blogPosts]);
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  const minPostsForMarquee = isMobile ? 3 : 4;
+  const enableMarquee = !disableMarqueeMotion && posts.length >= minPostsForMarquee;
+  const useWrappedStaticLayout = !enableMarquee && posts.length > 0 && posts.length <= 2;
 
   return (
     <section
@@ -27,14 +31,49 @@ const BlogSection: React.FC<Props> = ({ siteContent, blogPosts, sectionConfig, o
         <h3 className="text-4xl font-black font-display italic tracking-tight">{siteContent.blogTitle}</h3>
       </div>
       <div className="w-full">
-        <div className="flex overflow-x-auto no-scrollbar snap-x snap-mandatory gap-8 px-6 pb-8">
-          <div className={disableMarqueeMotion ? 'flex gap-8' : 'flex animate-marquee-left-infinite whitespace-nowrap gap-8 hover:[animation-play-state:paused]'}>
-            {marqueePosts.map((post, idx) => (
-              <div key={`${post.id}-${idx}`} className="w-[300px] md:w-[400px] flex-shrink-0 snap-center">
-                <BlogPostCard post={post} onSelectPost={onSelectBlogPost} />
+        <div
+          role="region"
+          aria-label="Travel stories carousel"
+          tabIndex={0}
+          className="overflow-x-auto no-scrollbar snap-x snap-mandatory px-6 pb-8 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            e.currentTarget.scrollBy({
+              left: e.key === 'ArrowRight' ? 360 : -360,
+              behavior: 'smooth',
+            });
+          }}
+        >
+          {!enableMarquee ? (
+            <div className={useWrappedStaticLayout ? 'flex flex-wrap justify-center gap-8' : 'flex gap-8'}>
+              {posts.map((post) => (
+                <div key={post.id} className="w-[300px] md:w-[400px] flex-shrink-0 snap-center">
+                  <BlogPostCard post={post} onSelectPost={onSelectBlogPost} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            // Important: keep NO gap between the 2 copies, otherwise the translateX(-50%) loop can "drift"
+            // and briefly overlap cards on some screen sizes.
+            <div className="animate-marquee-left-infinite hover:[animation-play-state:paused] focus-within:[animation-play-state:paused]">
+              {/* Keep an end padding equal to the gap so the loop seam doesn't "crush" cards together. */}
+              <div className="flex gap-8 pr-8">
+                {posts.map((post) => (
+                  <div key={`a-${post.id}`} className="w-[300px] md:w-[400px] flex-shrink-0 snap-center">
+                    <BlogPostCard post={post} onSelectPost={onSelectBlogPost} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+              <div className="flex gap-8 pr-8" aria-hidden="true">
+                {posts.map((post) => (
+                  <div key={`b-${post.id}`} className="w-[300px] md:w-[400px] flex-shrink-0 snap-center">
+                    <BlogPostCard post={post} onSelectPost={onSelectBlogPost} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>

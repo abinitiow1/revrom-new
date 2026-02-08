@@ -1,6 +1,7 @@
 import React from 'react';
 import type { GoogleReview, SiteContent } from '../../../types';
 import { getActiveBgStyle } from '../activeBgStyle';
+import SmartImage from '../../../components/SmartImage';
 
 type Props = {
   siteContent: SiteContent;
@@ -23,7 +24,20 @@ const ReviewsSection: React.FC<Props> = ({ siteContent, googleReviews, sectionCo
             {siteContent.reviewsTitle || 'Debriefings from the Road'}
           </h3>
         </div>
-        <div className="flex gap-8 overflow-x-auto pb-12 no-scrollbar px-4 -mx-4 snap-x snap-mandatory">
+        <div
+          role="region"
+          aria-label="Customer reviews carousel"
+          tabIndex={0}
+          className="flex gap-8 overflow-x-auto pb-12 no-scrollbar px-4 -mx-4 snap-x snap-mandatory focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            e.currentTarget.scrollBy({
+              left: e.key === 'ArrowRight' ? 360 : -360,
+              behavior: 'smooth',
+            });
+          }}
+        >
           {googleReviews.map((review) => (
             <div
               key={review.id}
@@ -33,12 +47,14 @@ const ReviewsSection: React.FC<Props> = ({ siteContent, googleReviews, sectionCo
                 "{review.text}"
               </p>
               <div className="flex items-center gap-4">
-                <img
+                <SmartImage
                   src={review.profilePhotoUrl}
                   alt={review.authorName}
-                  className="w-12 h-12 rounded-full ring-2 ring-brand-primary"
                   loading="lazy"
                   decoding="async"
+                  fill
+                  wrapperClassName="w-12 h-12 rounded-full ring-2 ring-brand-primary"
+                  className="w-full h-full object-cover"
                 />
                 <div>
                   <h4 className="font-black text-sm uppercase tracking-tight">{review.authorName}</h4>
@@ -53,4 +69,3 @@ const ReviewsSection: React.FC<Props> = ({ siteContent, googleReviews, sectionCo
 };
 
 export default ReviewsSection;
-

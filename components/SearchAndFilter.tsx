@@ -60,7 +60,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         name="destination"
                         value={destinationFilter}
                         onChange={(e) => setDestinationFilter(e.target.value)}
-                        className="min-w-[160px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
+                        className="min-w-[160px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-base sm:text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Destinations</option>
                         {destinations.map(dest => (
@@ -73,7 +73,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         name="duration"
                         value={durationFilter}
                         onChange={(e) => setDurationFilter(e.target.value)}
-                        className="min-w-[140px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
+                        className="min-w-[140px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-base sm:text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Durations</option>
                         <option value="1-7">Up to 7 Days</option>
@@ -86,7 +86,7 @@ const SearchAndFilter: React.FC<SearchAndFilterProps> = ({
                         name="difficulty"
                         value={difficultyFilter}
                         onChange={(e) => setDifficultyFilter(e.target.value)}
-                        className="min-w-[150px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-sm font-medium outline-none transition-all shadow-inner"
+                        className="min-w-[150px] sm:min-w-0 flex-shrink-0 w-full p-4 py-3 sm:py-4 border border-border/20 dark:border-white/10 rounded-xl focus:ring-1 focus:ring-brand-primary focus:border-brand-primary bg-slate-50 dark:bg-black/60 text-foreground dark:text-dark-foreground text-base sm:text-sm font-medium outline-none transition-all shadow-inner"
                     >
                         <option value="all">All Difficulties</option>
                         <option value="Intermediate">Intermediate</option>

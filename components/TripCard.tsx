@@ -1,6 +1,7 @@
 
 import React from 'react';
 import type { Trip } from '../types';
+import SmartImage from './SmartImage';
 
 interface TripCardProps {
   trip: Trip;
@@ -30,14 +31,15 @@ const TripCard: React.FC<TripCardProps> = ({ trip, onSelectTrip, onBookNow }) =>
         className="text-left cursor-pointer active:scale-[0.98] transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-black"
       >
       <div className="relative overflow-hidden h-48 sm:h-56 md:h-64">
-        <img
+        <SmartImage
           src={trip.imageUrl}
-          srcSet={trip.imageUrl ? `${trip.imageUrl} 1x, ${trip.imageUrl} 2x` : undefined}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           alt={trip.title}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
           loading="lazy"
           decoding="async"
+          fill
+          wrapperClassName="absolute inset-0"
+          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+          fallbackSrc="https://images.unsplash.com/photo-1558981403-c5f91cbba527?auto=format&fit=crop&q=80&w=1200"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 

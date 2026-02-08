@@ -137,6 +137,7 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
               alt={photo.caption || `Gallery ${index + 1}`}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${isActive ? 'opacity-100' : 'opacity-0'}`}
               loading={isActive ? 'eager' : 'lazy'}
+              fetchPriority={isActive ? 'high' : 'auto'}
               decoding="async"
             />
           );
@@ -253,7 +254,7 @@ const TripDetailPage: React.FC<TripDetailPageProps> = ({ trip, onBookNow, onBack
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 z-[100] lg:hidden animate-fade-up">
-        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
+        <div className="bg-white/95 dark:bg-black/95 backdrop-blur-md sm:backdrop-blur-xl border-t border-border/30 px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] flex items-center justify-between shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.2)]">
             <div>
                 <p className="text-[9px] font-black uppercase tracking-[0.2em] text-brand-primary mb-0.5">Booking Info</p>
                 <h4 className="text-xl font-black italic text-foreground dark:text-dark-foreground">BOOK / INQUIRE</h4>
