@@ -149,6 +149,12 @@ const App: React.FC = () => {
     }
   };
 
+  const ensureAboutUsPage = (pages: CustomPage[]) => {
+    if (pages.some((p) => p.slug === 'about-us')) return pages;
+    const seed = initialCustomPages.find((p) => p.slug === 'about-us');
+    return seed ? [seed, ...pages] : pages;
+  };
+
   // Persistent States
   // In Supabase mode, the DB is the source of truth (do not hydrate/sync from localStorage).
   const [trips, setTrips] = useState<Trip[]>(() => (isSupabaseMode ? [] : getStored('trips', initialTrips)));
@@ -165,7 +171,9 @@ const App: React.FC = () => {
   const [itineraryQueries, setItineraryQueries] = useState<ItineraryQuery[]>(() => (isSupabaseMode ? [] : getStored('itineraryQueries', initialItineraryQueries)));
   const [contactMessages, setContactMessages] = useState<ContactMessage[]>(() => []);
   const [newsletterSubscribers, setNewsletterSubscribers] = useState<NewsletterSubscriber[]>(() => []);
-  const [customPages, setCustomPages] = useState<CustomPage[]>(() => (isSupabaseMode ? [] : getStored('customPages', initialCustomPages)));
+  const [customPages, setCustomPages] = useState<CustomPage[]>(() =>
+    isSupabaseMode ? [] : ensureAboutUsPage(getStored('customPages', initialCustomPages)),
+  );
 
   const buildSnapshot = useCallback(
     (): AppStateSnapshot => ({
@@ -285,7 +293,7 @@ const App: React.FC = () => {
           setInstagramPosts(loaded.snapshot.instagramPosts || []);
           setGoogleReviews(loaded.snapshot.googleReviews || []);
           setSiteContent({ ...initialSiteContent, ...((loaded.snapshot.siteContent as any) || {}) });
-          setCustomPages(loaded.snapshot.customPages || []);
+          setCustomPages(ensureAboutUsPage(loaded.snapshot.customPages || []));
         }
       } catch (err) {
         console.error('Failed to load from Supabase:', err);
@@ -871,6 +879,7 @@ const App: React.FC = () => {
                   onAddInquiry={addInquiry}
                   onNavigateContact={() => setView('contact')}
                   onNavigateBlog={() => setView('blog')}
+                  onNavigateCustomPage={s => { setCurrentCustomPageSlug(s); setView('customPage'); }}
                   onNavigateToTours={(dest) => { setInitialDestinationFilter(dest); setView('allTours'); }}
                />;
     }

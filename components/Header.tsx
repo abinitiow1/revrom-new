@@ -126,6 +126,15 @@ const Header: React.FC<HeaderProps> = ({
             </div>
 
             <button onClick={onNavigateCustomize} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Plan Your Trip</button>
+            <button
+              onClick={() => {
+                setIsDropdownOpen(false);
+                onNavigateCustomPage('about-us');
+              }}
+              className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors"
+            >
+              About Us
+            </button>
             <button onClick={onNavigateBlog} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Blog</button>
             <button onClick={onNavigateGallery} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Gallery</button>
             <button onClick={onNavigateContact} className="text-[10px] font-black uppercase tracking-widest text-foreground hover:text-brand-primary transition-colors">Contact</button>
@@ -168,14 +177,7 @@ const Header: React.FC<HeaderProps> = ({
               { label: 'Customize', action: () => handleMobileNavClick(onNavigateCustomize) },
               {
                 label: 'About Us',
-                action: () =>
-                  handleMobileNavClick(() => {
-                    onNavigateHome();
-                    // Home view is state-driven; give it a tick before scrolling.
-                    window.setTimeout(() => {
-                      document.getElementById('roots')?.scrollIntoView({ behavior: 'smooth' });
-                    }, 50);
-                  }),
+                action: () => handleMobileNavClick(() => onNavigateCustomPage('about-us')),
               },
               { label: 'Gallery', action: () => handleMobileNavClick(onNavigateGallery) },
               { label: 'Blog', action: () => handleMobileNavClick(onNavigateBlog) },

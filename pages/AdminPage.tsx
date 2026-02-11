@@ -1915,21 +1915,6 @@ const AdminPage: React.FC<AdminPageProps> = (props) => {
                         />
                       </div>
                       <div className="flex flex-col gap-2 mb-8">
-                        <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Button action</label>
-                        <select
-                          title="Roots button action"
-                          value={(siteContent as any).rootsCtaTarget || 'blogFirstPost'}
-                          onChange={(e) => onUpdateSiteContent({ rootsCtaTarget: e.target.value } as any)}
-                          className="w-full p-4 rounded-xl border border-border dark:border-dark-border bg-background dark:bg-dark-background font-bold outline-none text-sm focus:border-brand-primary shadow-sm text-foreground dark:text-dark-foreground"
-                        >
-                          <option value="blogFirstPost">Open first blog post</option>
-                          <option value="blog">Open blog</option>
-                          <option value="tours">Open tours</option>
-                          <option value="customize">Open plan-your-trip</option>
-                          <option value="contact">Open contact</option>
-                        </select>
-                      </div>
-                      <div className="flex flex-col gap-2 mb-8">
                         <label className="text-[10px] font-black uppercase tracking-widest opacity-60">Side image (right photo)</label>
                         <div className="flex flex-col gap-3">
                           <input

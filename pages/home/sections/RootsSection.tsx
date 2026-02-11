@@ -11,6 +11,7 @@ type Props = {
   onNavigateCustomize: () => void;
   onNavigateToTours: (destination: string | null) => void;
   onNavigateBlog: () => void;
+  onNavigateCustomPage: (slug: string) => void;
   onSelectBlogPost: (post: BlogPost) => void;
 };
 
@@ -22,8 +23,15 @@ const RootsSection: React.FC<Props> = ({
   onNavigateCustomize,
   onNavigateToTours,
   onNavigateBlog,
+  onNavigateCustomPage,
   onSelectBlogPost,
 }) => {
+  const title = siteContent.rootsTitle || 'Our Roots';
+  const body =
+    siteContent.rootsBody ||
+    'We craft small-group journeys led by locals — shaped by the landscapes and stories that raised us.';
+  const ctaLabel = siteContent.rootsButton || 'Read Our Story';
+
   return (
     <section
       id="roots"
@@ -36,37 +44,18 @@ const RootsSection: React.FC<Props> = ({
             {siteContent.rootsKicker || 'Born in Chushul'}
           </h2>
           <h3 className="text-4xl md:text-6xl font-black font-display text-white italic leading-tight mb-8">
-            {siteContent.rootsTitle}
+            {title}
           </h3>
-          <p className="text-lg text-white/60 leading-relaxed mb-8">{siteContent.rootsBody}</p>
+          <p className="text-lg text-white/60 leading-relaxed mb-8">{body}</p>
           <button
             type="button"
-            onClick={() => {
-              switch (siteContent.rootsCtaTarget) {
-                case 'contact':
-                  onNavigateContact();
-                  return;
-                case 'customize':
-                  onNavigateCustomize();
-                  return;
-                case 'tours':
-                  onNavigateToTours(null);
-                  return;
-                case 'blog':
-                  onNavigateBlog();
-                  return;
-                case 'blogFirstPost':
-                default: {
-                  const first = blogPosts?.[0];
-                  if (first) onSelectBlogPost(first);
-                  else onNavigateBlog();
-                  return;
-                }
-              }
-            }}
-            className="text-brand-primary font-black uppercase tracking-[0.3em] text-xs hover:gap-4 flex items-center gap-2 transition-all"
+            onClick={() => onNavigateCustomPage('about-us')}
+            className="inline-flex items-center gap-2 rounded-xl px-2 py-3 -ml-2 text-brand-primary font-black uppercase tracking-[0.3em] text-[11px] sm:text-xs transition-all hover:gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary focus-visible:ring-offset-2 focus-visible:ring-offset-black"
           >
-            {siteContent.rootsButton} <span className="text-xl">{'->'}</span>
+            {ctaLabel}
+            <span aria-hidden="true" className="text-xl leading-none">
+              →
+            </span>
           </button>
         </div>
         <div className="relative">

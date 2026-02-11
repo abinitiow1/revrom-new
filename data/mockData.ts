@@ -83,6 +83,20 @@ export const instagramPosts: InstagramPost[] = [
 export const itineraryQueries: ItineraryQuery[] = [];
 
 export const initialCustomPages: CustomPage[] = [
+    {
+      id: 'about-us',
+      title: 'About Us',
+      slug: 'about-us',
+      content:
+        '# About Us\n\nWe are a local-led team of riders and guides based in Ladakh.\n\n## Our Philosophy\n\n* Local-first journeys\n* Small groups, big experiences\n* Safety and responsible travel\n\n## Why Travel With Us\n\nWe build trips that feel personal — routes, stays, and pacing that fit you.\n',
+      isVisible: true,
+      imageUrl:
+        'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=2000',
+      seo: {
+        title: 'About Us | Revrom.in',
+        description: 'Meet the local-led team behind Revrom and how we design journeys in Ladakh.',
+      },
+    },
     { id: '1', title: 'Terms & Conditions', slug: 'terms-and-conditions', content: '# Terms & Conditions\n\n## 1. Simple Booking\nA small deposit is all you need to save your spot.\n\n## 2. Cancellation\nWe offer full refunds for cancellations made 60 days in advance.', isVisible: true },
     { id: '2', title: 'Privacy Policy', slug: 'privacy-policy', content: '# Privacy Policy\n\nYour information is safe and secure with us.', isVisible: true },
     { id: '3', title: 'FAQ', slug: 'faq', content: '# FAQ\n\n## 1. What should I pack?\nWe will share a packing list after you inquire.\n\n## 2. Do I need riding experience?\nSome tours require prior experience. Check the tour difficulty.\n\n## 3. How do I book?\nTap \"Inquire\" and we will confirm availability on WhatsApp.', isVisible: true }
@@ -124,8 +138,8 @@ export const initialSiteContent: SiteContent = {
     rootsButton: 'ABOUT US',
     rootsBgImage: '',
     rootsImageUrl: 'https://images.unsplash.com/photo-1544735058-29da243be444?auto=format&fit=crop&q=80&w=1200',
-    rootsCtaTarget: 'blogFirstPost',
-    
+    rootsCtaTarget: 'aboutPage',
+     
     reviewsBgImage: '',
     reviewsKicker: 'Rider Feedback',
     reviewsTitle: 'Debriefings from the Road',

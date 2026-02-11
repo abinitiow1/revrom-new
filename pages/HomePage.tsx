@@ -36,6 +36,7 @@ interface HomePageProps {
   onNavigateCustomize: () => void;
   onNavigateContact: () => void;
   onNavigateBlog: () => void;
+  onNavigateCustomPage: (slug: string) => void;
   initialDestinationFilter: string | null;
   onClearInitialFilter: () => void;
   onAddInquiry: (query: Omit<ItineraryQuery, 'id' | 'date'>) => void;
@@ -110,6 +111,7 @@ const HomePage: React.FC<HomePageProps> = (props) => {
             onNavigateCustomize={props.onNavigateCustomize}
             onNavigateToTours={props.onNavigateToTours}
             onNavigateBlog={props.onNavigateBlog}
+            onNavigateCustomPage={props.onNavigateCustomPage}
             onSelectBlogPost={props.onSelectBlogPost}
           />
         );

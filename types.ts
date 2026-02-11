@@ -153,7 +153,7 @@ export interface SectionConfig {
     backgroundOpacity?: number; // 0 to 1, where 1 is fully visible background image
 }
 
-export type RootsCtaTarget = 'blogFirstPost' | 'blog' | 'contact' | 'customize' | 'tours';
+export type RootsCtaTarget = 'aboutPage' | 'blogFirstPost' | 'blog' | 'contact' | 'customize' | 'tours';
 
 export interface WhyChooseUsCard {
   icon: string;
